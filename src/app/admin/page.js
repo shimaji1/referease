@@ -23,6 +23,7 @@ export default function AdminPage() {
   }
 
   const load = useCallback(async () => {
+    if (!supabase) { setMsg("Database not connected. Check env vars."); return }
     const { data } = await supabase.from("providers").select("*").order("name")
     if (data) setProviders(data)
   }, [])

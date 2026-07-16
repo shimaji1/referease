@@ -126,8 +126,11 @@ export default function ReferEaseApp() {
   // Load providers from Supabase
   useEffect(() => {
     async function load() {
-      const { data, error } = await supabase.from("providers").select("*").order("name")
-      if (data) setProviders(data)
+      if (!supabase) { setLoading(false); return }
+      try {
+        const { data, error } = await supabase.from("providers").select("*").order("name")
+        if (data) setProviders(data)
+      } catch (e) { console.error("Failed to load:", e) }
       setLoading(false)
     }
     load()
