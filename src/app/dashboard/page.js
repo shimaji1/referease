@@ -130,6 +130,10 @@ function SpecialistDashboard({ profile, user }) {
                   {p.phone && <p className="text-xs text-gray-500">📞 {p.phone} {p.fax ? `· 📠 ${p.fax}` : ''}</p>}
                 </div>
                 <div className="flex gap-2 shrink-0">
+                  {p.verified
+                    ? <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">✓ Verified</span>
+                    : <Link href={`/dashboard/verify?provider_id=${p.id}`} className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition">Verify</Link>
+                  }
                   <Link href={`/dashboard/provider/${p.id}`} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/10 px-3 py-1.5 rounded-lg hover:bg-brand/10 transition">Edit</Link>
                   <Link href={`/dashboard/provider/${p.id}/preview`} className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">Preview</Link>
                 </div>
