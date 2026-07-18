@@ -111,9 +111,12 @@ function SpecialistDashboard({ profile, user }) {
       {providers.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
           <div className="text-3xl mb-3">⚕️</div>
-          <p className="font-semibold text-gray-700 mb-1">No listings yet</p>
-          <p className="text-sm text-gray-500 mb-4">Create your first provider listing to start receiving referrals.</p>
-          <Link href="/dashboard/provider/new" className="inline-flex px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition">Create Listing</Link>
+          <p className="font-semibold text-gray-700 mb-1">No listings linked to your account</p>
+          <p className="text-sm text-gray-500 mb-5">Already in our database? Claim your existing listing. Or create a new one from scratch.</p>
+          <div className="flex gap-3 justify-center">
+            <Link href="/dashboard/claim" className="inline-flex px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition">Claim Existing Listing</Link>
+            <Link href="/dashboard/provider/new" className="inline-flex px-5 py-2.5 bg-white text-brand text-sm font-semibold rounded-xl border border-brand/20 hover:bg-brand/5 transition">Create New Listing</Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">

@@ -22,6 +22,8 @@ export default function AdminPage() {
   const [page, setPage] = useState(0)
   const [total, setTotal] = useState(0)
   const [stats, setStats] = useState({})
+  const [claims, setClaims] = useState([])
+  const [pendingCount, setPendingCount] = useState(0)
   const PAGE_SIZE = 50
 
   const login = () => {
@@ -79,6 +81,27 @@ export default function AdminPage() {
     load(); loadStats()
   }
 
+  const loadClaims = useCallback(async () => {
+    if (!supabase) return
+    const { data } = await supabase.from("claims").select("*, providers(name, type, address, phone)").order("created_at", { ascending: false })
+    if (data) {
+      setClaims(data)
+      setPendingCount(data.filter(c => c.status === 'pending').length)
+    }
+  }, [])
+
+  const handleClaim = async (claimId, action, providerId, userId) => {
+    if (!supabase) return
+    await supabase.from("claims").update({ status: action }).eq("id", claimId)
+    if (action === 'approved') {
+      await supabase.from("providers").update({ owner_id: userId }).eq("id", providerId)
+    }
+    setMsg(action === 'approved' ? 'Claim approved — listing linked to user' : 'Claim rejected')
+    loadClaims()
+  }
+
+  useEffect(() => { if (authed) loadClaims() }, [authed, loadClaims])
+
   const edit = (p) => {
     setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, lat: p.lat || "", lng: p.lng || "", wait_weeks: p.wait_weeks ?? "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
     setEditing(p.id); setTab("edit")
@@ -108,6 +131,7 @@ export default function AdminPage() {
         <h1 style={{ margin:0, fontSize:"18px", fontWeight:700 }}>🔗 Refer<span style={{ color:"#3b82f6" }}>Ease</span> <span style={{ color:"#7a8599", fontWeight:400 }}>Admin</span></h1>
         <div style={{ display:"flex", gap:"8px" }}>
           <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="list"?"#3b82f6":"#141820", color:tab==="list"?"#fff":"#7a8599", border:"1px solid " + (tab==="list"?"#3b82f6":"#1e2530") }}>Providers</button>
+          <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#141820", color:tab==="claims"?"#fff":"#7a8599", border:"1px solid " + (tab==="claims"?"#d97706":"#1e2530"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
           <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#141820", color:tab==="edit"&&!editing?"#fff":"#7a8599", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#1e2530") }}>+ Add New</button>
           <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#141820", color:"#7a8599", border:"1px solid #1e2530", textDecoration:"none" }}>← Site</a>
         </div>
@@ -206,6 +230,43 @@ export default function AdminPage() {
               <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>
             </div>
           </div>
+        )}
+        {tab === "claims" && (
+          <>
+            <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"12px" }}>Listing Claims</h2>
+            {claims.length === 0 ? (
+              <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"8px", padding:"30px", textAlign:"center", color:"#7a8599", fontSize:"13px" }}>No claims yet</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+                {claims.map(c => (
+                  <div key={c.id} style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"8px", padding:"12px 14px" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"8px" }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:"13px", fontWeight:600 }}>{c.providers?.name || 'Unknown listing'}</div>
+                        <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"2px" }}>{c.providers?.type} · {c.providers?.address}</div>
+                        <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"4px" }}>
+                          Claimed by: <span style={{ color:"#e8ecf2" }}>{c.user_name}</span> ({c.user_email})
+                        </div>
+                        <div style={{ fontSize:"10px", color:"#555", marginTop:"2px" }}>
+                          {new Date(c.created_at).toLocaleDateString()} · {c.verification_method}
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:"4px", alignItems:"center", flexShrink:0 }}>
+                        {c.status === 'pending' ? (
+                          <>
+                            <button onClick={() => handleClaim(c.id, 'approved', c.provider_id, c.user_id)} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#05966920", color:"#059669", border:"1px solid #05966940" }}>✓ Approve</button>
+                            <button onClick={() => handleClaim(c.id, 'rejected', c.provider_id, c.user_id)} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕ Reject</button>
+                          </>
+                        ) : (
+                          <span style={{ padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:c.status==='approved'?"#05966920":"#dc262620", color:c.status==='approved'?"#059669":"#dc2626", border:`1px solid ${c.status==='approved'?"#05966940":"#dc262640"}`, textTransform:"capitalize" }}>{c.status}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
