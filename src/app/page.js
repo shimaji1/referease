@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
 import Link from 'next/link'
 
 const NAV_LINKS = [
@@ -11,6 +12,7 @@ const NAV_LINKS = [
 
 function Navbar() {
   const [open, setOpen] = useState(false)
+  const { user, profile } = useAuth()
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -27,8 +29,16 @@ function Navbar() {
             ))}
           </div>
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-brand px-4 py-2 transition">Sign In</Link>
-            <Link href="/signup" className="text-sm font-semibold text-white bg-brand hover:bg-brand-dark px-5 py-2.5 rounded-lg transition shadow-sm">Sign Up Free</Link>
+            {user ? (
+              <Link href="/dashboard" className="text-sm font-semibold text-white bg-brand hover:bg-brand-dark px-5 py-2.5 rounded-lg transition shadow-sm">
+                {profile?.full_name?.split(' ')[0] || 'Dashboard'} →
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-brand px-4 py-2 transition">Sign In</Link>
+                <Link href="/signup" className="text-sm font-semibold text-white bg-brand hover:bg-brand-dark px-5 py-2.5 rounded-lg transition shadow-sm">Sign Up Free</Link>
+              </>
+            )}
           </div>
           <button onClick={() => setOpen(!open)} className="md:hidden p-2 text-gray-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={open ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} /></svg>
@@ -38,8 +48,14 @@ function Navbar() {
           <div className="md:hidden pb-4 border-t border-gray-100 mt-2 pt-3 space-y-2">
             {NAV_LINKS.map(l => <Link key={l.label} href={l.href} className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded">{l.label}</Link>)}
             <div className="flex gap-2 px-3 pt-2">
-              <Link href="/login" className="flex-1 text-center text-sm font-medium text-gray-600 border border-gray-300 px-4 py-2 rounded-lg">Sign In</Link>
-              <Link href="/signup" className="flex-1 text-center text-sm font-semibold text-white bg-brand px-4 py-2 rounded-lg">Sign Up</Link>
+              {user ? (
+                <Link href="/dashboard" className="flex-1 text-center text-sm font-semibold text-white bg-brand px-4 py-2 rounded-lg">Dashboard</Link>
+              ) : (
+                <>
+                  <Link href="/login" className="flex-1 text-center text-sm font-medium text-gray-600 border border-gray-300 px-4 py-2 rounded-lg">Sign In</Link>
+                  <Link href="/signup" className="flex-1 text-center text-sm font-semibold text-white bg-brand px-4 py-2 rounded-lg">Sign Up</Link>
+                </>
+              )}
             </div>
           </div>
         )}
