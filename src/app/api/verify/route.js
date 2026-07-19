@@ -87,14 +87,14 @@ Your verification code is: ${code}
 
 This code expires in 30 minutes.
 
-Enter this code at referease.vercel.app to verify
-your listing on the ReferEase platform.
+Enter this code at refereasy.ca to verify
+your listing on the ReferEasy platform.
 
 If you did not request this, please ignore this fax.
 
 ---
-ReferEase - Ontario Healthcare Referral Platform
-referease.vercel.app
+ReferEasy - Ontario Healthcare Referral Platform
+refereasy.ca
       `.trim()
 
       // Convert to base64 for SRFax
@@ -104,7 +104,7 @@ referease.vercel.app
       formData.append('access_id', srfaxId)
       formData.append('access_pwd', srfaxPwd)
       formData.append('sCallerID', srfaxNumber || '0000000000')
-      formData.append('sSenderEmail', 'verify@referease.ca')
+      formData.append('sSenderEmail', 'verify@refereasy.ca')
       formData.append('sFaxType', 'SINGLE')
       formData.append('sToFaxNumber', cleanFax)
       formData.append('sFileName_1', 'verification.txt')
@@ -150,19 +150,19 @@ referease.vercel.app
         method: 'POST',
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: 'ReferEase <verify@referease.ca>',
+          from: 'ReferEasy <verify@refereasy.ca>',
           to: [email],
-          subject: 'Your ReferEase Verification Code: ' + code,
+          subject: 'Your ReferEasy Verification Code: ' + code,
           html: `
             <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
-              <h2 style="color:#1e3a5f;margin-bottom:4px">ReferEase Verification</h2>
+              <h2 style="color:#1e3a5f;margin-bottom:4px">ReferEasy Verification</h2>
               <p style="color:#666;font-size:14px">Enter this code to verify your listing:</p>
               <div style="background:#f1f5f9;border-radius:12px;padding:24px;text-align:center;margin:20px 0">
                 <span style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#1e3a5f">${code}</span>
               </div>
               <p style="color:#999;font-size:12px">This code expires in 30 minutes. If you didn't request this, ignore this email.</p>
               <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0">
-              <p style="color:#aaa;font-size:11px">ReferEase — Ontario Healthcare Referral Platform</p>
+              <p style="color:#aaa;font-size:11px">ReferEasy — Ontario Healthcare Referral Platform</p>
             </div>
           `
         })

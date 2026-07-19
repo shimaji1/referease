@@ -21,7 +21,7 @@ function Navbar() {
             <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">R</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">Refer<span className="text-brand">Ease</span></span>
+            <span className="text-xl font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
             {NAV_LINKS.map(l => (
@@ -176,21 +176,21 @@ function HowItWorks() {
   )
 }
 
-function WhyReferEase() {
+function WhyReferEasy() {
   const stats = [
     { value: '30%+', label: 'of referrals get rejected in Ontario due to incomplete information' },
     { value: '6-12 mo', label: 'average wait after a rejected referral before the patient is re-referred' },
-    { value: '0', label: 'rejections when referring through ReferEase\'s verified provider data' },
+    { value: '0', label: 'rejections when referring through ReferEasy\'s verified provider data' },
   ]
   return (
     <section className="py-16 bg-white" id="about">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center mb-12">
-          <span className="text-xs font-semibold uppercase tracking-widest text-brand">Why ReferEase</span>
+          <span className="text-xs font-semibold uppercase tracking-widest text-brand">Why ReferEasy</span>
           <h2 className="mt-2 text-2xl md:text-3xl font-bold text-gray-900">Referral rejections waste everyone's time</h2>
           <p className="mt-4 text-gray-500 leading-relaxed">
             Every rejected referral means a patient waits longer, a family doctor repeats work, 
-            and a specialist processes a file they can't accept. ReferEase gives you the information 
+            and a specialist processes a file they can't accept. ReferEasy gives you the information 
             you need before you refer — so every referral lands.
           </p>
         </div>
@@ -256,7 +256,7 @@ function Footer() {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
-              <span className="text-lg font-bold text-white">Refer<span className="text-brand-light">Ease</span></span>
+              <span className="text-lg font-bold text-white">Refer<span className="text-brand">Easy</span></span>
             </div>
             <p className="text-xs leading-relaxed">Ontario's healthcare referral platform. Find the right specialist, reduce rejections.</p>
           </div>
@@ -287,7 +287,7 @@ function Footer() {
           </div>
         </div>
         <div className="border-t border-white/10 mt-10 pt-6 text-xs text-gray-500 text-center">
-          © 2026 ReferEase. All rights reserved. Ontario, Canada.
+          © 2026 ReferEasy. All rights reserved. Ontario, Canada.
         </div>
       </div>
     </footer>
@@ -314,7 +314,7 @@ export default function HomePage() {
       <Hero />
       <FeaturedProviders providers={providers} />
       <HowItWorks />
-      <WhyReferEase />
+      <WhyReferEasy />
       <ForSpecialists />
       <Footer />
     </main>

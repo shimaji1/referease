@@ -29,14 +29,14 @@ export default function NewProviderPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
-            <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Ease</span></span>
+            <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
           </Link>
           <Link href="/dashboard" className="text-xs font-medium text-gray-500 hover:text-brand">← Back to Dashboard</Link>
         </div>
       </nav>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <h1 className="text-xl font-bold text-gray-900 mb-1">Create New Listing</h1>
-        <p className="text-sm text-gray-500 mb-6">Add your practice or clinic to ReferEase so physicians can find and refer patients to you.</p>
+        <p className="text-sm text-gray-500 mb-6">Add your practice or clinic to ReferEasy so physicians can find and refer patients to you.</p>
         <ProviderForm onSubmit={handleSubmit} loading={saving} submitLabel="Create Listing" />
       </div>
     </div>

@@ -2,7 +2,7 @@ import './globals.css'
 import { AuthProvider } from '@/context/AuthContext'
 
 export const metadata = {
-  title: 'ReferEase — Ontario Healthcare Referral Platform',
+  title: 'ReferEasy — Ontario Healthcare Referral Platform',
   description: 'Cut your referral rejections to zero. Find the right specialist, first time, every time.',
 }
 

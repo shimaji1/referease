@@ -101,7 +101,7 @@ function Detail({ p, onBack, isFav, onFav }) {
   )
 }
 
-export default function ReferEaseApp() {
+export default function ReferEasyApp() {
   const [providers, setProviders] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -181,7 +181,7 @@ export default function ReferEaseApp() {
       <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--bd)", background:"linear-gradient(180deg, #111520 0%, var(--bg) 100%)" }}>
         <div style={{ maxWidth:"920px", margin:"0 auto", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
-            <div style={{ display:"flex", alignItems:"center", gap:"8px" }}><span style={{ fontSize:"22px" }}>🔗</span><h1 style={{ margin:0, fontSize:"20px", fontWeight:750, letterSpacing:"-0.03em" }}>Refer<span style={{ color:"var(--ac)" }}>Ease</span></h1></div>
+            <div style={{ display:"flex", alignItems:"center", gap:"8px" }}><span style={{ fontSize:"22px" }}>🔗</span><h1 style={{ margin:0, fontSize:"20px", fontWeight:750, letterSpacing:"-0.03em" }}>Refer<span style={{ color:"var(--ac)" }}>Easy</span></h1></div>
             <p style={{ margin:"2px 0 0", fontSize:"12px", color:"var(--t3)" }}>Find providers. Reduce rejections. — Ontario, Canada</p>
           </div>
           <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:showFavs?"var(--ac)":"var(--c1)", color:showFavs?"#fff":"var(--t3)", border:`1px solid ${showFavs?"var(--ac)":"var(--bd)"}`, display:"flex", alignItems:"center", gap:"5px" }}>
@@ -235,7 +235,7 @@ export default function ReferEaseApp() {
               {filtered.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
             </div>
             <div style={{ marginTop:"28px", padding:"16px", textAlign:"center", fontSize:"11px", color:"var(--t3)", lineHeight:1.6, borderTop:"1px solid var(--bd)" }}>
-              <strong style={{ color:"var(--t1)" }}>ReferEase</strong> — {providers.length} providers · Thornhill & GTA, Ontario · Powered by Supabase
+              <strong style={{ color:"var(--t1)" }}>ReferEasy</strong> — {providers.length} providers · Thornhill & GTA, Ontario · Powered by Supabase
             </div>
           </>
         )}

@@ -30,14 +30,14 @@ export default function LoginPage() {
       <div className="p-4">
         <Link href="/" className="inline-flex items-center gap-2">
           <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
-          <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Ease</span></span>
+          <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
         </Link>
       </div>
 
       <div className="flex-1 flex items-center justify-center px-4 pb-12">
         <div className="w-full max-w-sm animate-fade-in">
           <h1 className="text-2xl font-bold text-gray-900 text-center">Welcome back</h1>
-          <p className="text-sm text-gray-500 text-center mt-2 mb-8">Sign in to your ReferEase account</p>
+          <p className="text-sm text-gray-500 text-center mt-2 mb-8">Sign in to your ReferEasy account</p>
 
           <div className="space-y-3">
             <div>

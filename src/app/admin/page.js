@@ -126,7 +126,7 @@ export default function AdminPage() {
   if (!authed) return (
     <div style={{ fontFamily:"Inter, sans-serif", background:"#0c0f14", color:"#e8ecf2", minHeight:"100vh", display:"flex", justifyContent:"center", alignItems:"center" }}>
       <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"14px", padding:"32px", width:"340px" }}>
-        <h2 style={{ margin:"0 0 4px", fontSize:"18px" }}>🔐 ReferEase Admin</h2>
+        <h2 style={{ margin:"0 0 4px", fontSize:"18px" }}>🔐 ReferEasy Admin</h2>
         <p style={{ margin:"0 0 20px", fontSize:"12px", color:"#7a8599" }}>Enter admin password</p>
         <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key==="Enter" && login()} placeholder="Password" style={s} />
         <button onClick={login} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"12px", padding:"10px", textAlign:"center", background:"#3b82f6", color:"#fff", borderRadius:"8px", fontSize:"13px", fontWeight:600 }}>Login</button>
@@ -141,7 +141,7 @@ export default function AdminPage() {
   return (
     <div style={{ fontFamily:"Inter, sans-serif", background:"#0c0f14", color:"#e8ecf2", minHeight:"100vh" }}>
       <div style={{ padding:"14px 20px", borderBottom:"1px solid #1e2530", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <h1 style={{ margin:0, fontSize:"18px", fontWeight:700 }}>🔗 Refer<span style={{ color:"#3b82f6" }}>Ease</span> <span style={{ color:"#7a8599", fontWeight:400 }}>Admin</span></h1>
+        <h1 style={{ margin:0, fontSize:"18px", fontWeight:700 }}>🔗 Refer<span style={{ color:"var(--ac)" }}>Easy</span> <span style={{ color:"#7a8599", fontWeight:400 }}>Admin</span></h1>
         <div style={{ display:"flex", gap:"8px" }}>
           <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="list"?"#3b82f6":"#141820", color:tab==="list"?"#fff":"#7a8599", border:"1px solid " + (tab==="list"?"#3b82f6":"#1e2530") }}>Providers</button>
           <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#141820", color:tab==="claims"?"#fff":"#7a8599", border:"1px solid " + (tab==="claims"?"#d97706":"#1e2530"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
@@ -216,6 +216,54 @@ export default function AdminPage() {
         ) : (
           <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"12px", padding:"20px" }}>
             <h3 style={{ margin:"0 0 16px", fontSize:"16px" }}>{editing ? "Edit Provider" : "Add New Provider"}</h3>
+
+            {/* Website Extractor */}
+            <div style={{ background:"#0f1a30", border:"1px solid #1e3a5f", borderRadius:"8px", padding:"14px", marginBottom:"16px" }}>
+              <div style={{ fontSize:"12px", fontWeight:600, color:"#3b82f6", marginBottom:"8px" }}>🌐 Auto-fill from website</div>
+              <div style={{ display:"flex", gap:"8px" }}>
+                <input style={{ ...s, marginTop:0, flex:1 }} placeholder="Paste clinic website URL (e.g. https://1to1rehab.ca)" id="extractUrl" />
+                <button onClick={async () => {
+                  const urlInput = document.getElementById('extractUrl')
+                  const extractUrl = urlInput?.value?.trim()
+                  if (!extractUrl) return
+                  setMsg('Extracting data from website...')
+                  try {
+                    const res = await fetch('/api/extract', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ url: extractUrl })
+                    })
+                    const result = await res.json()
+                    if (result.success && result.data) {
+                      const d = result.data
+                      setForm(prev => ({
+                        ...prev,
+                        name: d.name || prev.name,
+                        type: d.type || prev.type,
+                        category: d.category || prev.category,
+                        address: d.address || prev.address,
+                        phone: d.phone || prev.phone,
+                        fax: d.fax || prev.fax,
+                        email: d.email || prev.email,
+                        website: d.website || prev.website,
+                        hours: d.hours || prev.hours,
+                        requirements: d.requirements || prev.requirements,
+                        accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals,
+                      }))
+                      setServicesText((d.services || []).join(', ') || servicesText)
+                      setDoctorsText((d.doctors || []).join(', ') || doctorsText)
+                      setLanguagesText((d.languages || []).join(', ') || languagesText)
+                      setMsg('✅ Extracted! Review the data below and save.')
+                    } else {
+                      setMsg('⚠️ ' + (result.error || 'Extraction failed'))
+                    }
+                  } catch (err) {
+                    setMsg('⚠️ Error: ' + err.message)
+                  }
+                }} style={{ all:"unset", cursor:"pointer", padding:"8px 16px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#3b82f6", color:"#fff", whiteSpace:"nowrap" }}>Extract</button>
+              </div>
+            </div>
+
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
               <div><label style={lbl}>Name *</label><input style={s} value={form.name} onChange={e => setForm({...form, name:e.target.value})} /></div>
               <div><label style={lbl}>Specialty *</label><select style={s} value={form.specialty_code || ''} onChange={e => { const spec = specialties.find(s => s.snomed_code === e.target.value); if (spec) setForm({...form, specialty_code: e.target.value, type: spec.name}); else setForm({...form, specialty_code: '', type: form.type}) }}><option value="">Select specialty...</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>

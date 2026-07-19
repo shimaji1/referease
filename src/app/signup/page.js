@@ -40,7 +40,7 @@ export default function SignUpPage() {
       <div className="p-4">
         <Link href="/" className="inline-flex items-center gap-2">
           <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
-          <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Ease</span></span>
+          <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
         </Link>
       </div>
 
