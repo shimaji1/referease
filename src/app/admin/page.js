@@ -219,14 +219,14 @@ export default function AdminPage() {
 
             {/* Website Extractor */}
             <div style={{ background:"#0f1a30", border:"1px solid #1e3a5f", borderRadius:"8px", padding:"14px", marginBottom:"16px" }}>
-              <div style={{ fontSize:"12px", fontWeight:600, color:"#3b82f6", marginBottom:"8px" }}>🌐 Auto-fill from website</div>
+              <div style={{ fontSize:"12px", fontWeight:600, color:"#3b82f6", marginBottom:"8px" }}>🌐 Auto-fill from website (extracts all locations)</div>
               <div style={{ display:"flex", gap:"8px" }}>
                 <input style={{ ...s, marginTop:0, flex:1 }} placeholder="Paste clinic website URL (e.g. https://1to1rehab.ca)" id="extractUrl" />
                 <button onClick={async () => {
                   const urlInput = document.getElementById('extractUrl')
                   const extractUrl = urlInput?.value?.trim()
                   if (!extractUrl) return
-                  setMsg('Extracting data from website...')
+                  setMsg('🔄 Extracting data from website... (takes 5-10 seconds)')
                   try {
                     const res = await fetch('/api/extract', {
                       method: 'POST',
@@ -234,26 +234,45 @@ export default function AdminPage() {
                       body: JSON.stringify({ url: extractUrl })
                     })
                     const result = await res.json()
-                    if (result.success && result.data) {
-                      const d = result.data
-                      setForm(prev => ({
-                        ...prev,
-                        name: d.name || prev.name,
-                        type: d.type || prev.type,
-                        category: d.category || prev.category,
-                        address: d.address || prev.address,
-                        phone: d.phone || prev.phone,
-                        fax: d.fax || prev.fax,
-                        email: d.email || prev.email,
-                        website: d.website || prev.website,
-                        hours: d.hours || prev.hours,
-                        requirements: d.requirements || prev.requirements,
-                        accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals,
-                      }))
-                      setServicesText((d.services || []).join(', ') || servicesText)
-                      setDoctorsText((d.doctors || []).join(', ') || doctorsText)
-                      setLanguagesText((d.languages || []).join(', ') || languagesText)
-                      setMsg('✅ Extracted! Review the data below and save.')
+                    if (result.success) {
+                      if (result.count > 1) {
+                        // Multiple locations — offer batch create
+                        const locs = result.all_locations
+                        if (confirm(`Found ${locs.length} locations. Create listings for all ${locs.length}?`)) {
+                          let created = 0
+                          for (const d of locs) {
+                            const rec = {
+                              name: d.name || '', type: d.type || '', category: d.category || 'Specialist',
+                              services: d.services || [], address: d.address || '', phone: d.phone || null,
+                              fax: d.fax || null, email: d.email || null, website: d.website || null,
+                              hours: d.hours || {}, requirements: d.requirements || '',
+                              accepting_referrals: d.accepting_referrals ?? true,
+                              doctors: d.doctors || [], languages: d.languages || ['English'],
+                              data_status: 'complete', rating: null, reviews: 0,
+                            }
+                            const { error } = await supabase.from('providers').insert(rec)
+                            if (!error) created++
+                          }
+                          setMsg(`✅ Created ${created}/${locs.length} listings! Go to Providers tab to see them.`)
+                          load(); loadStats()
+                        } else {
+                          // Just fill the form with first location
+                          const d = result.data
+                          setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: d.hours || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
+                          setServicesText((d.services || []).join(', '))
+                          setDoctorsText((d.doctors || []).join(', '))
+                          setLanguagesText((d.languages || []).join(', '))
+                          setMsg(`Found ${result.count} locations. Showing first one. Save and extract again for others.`)
+                        }
+                      } else {
+                        // Single location — fill the form
+                        const d = result.data
+                        setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: d.hours || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
+                        setServicesText((d.services || []).join(', '))
+                        setDoctorsText((d.doctors || []).join(', '))
+                        setLanguagesText((d.languages || []).join(', '))
+                        setMsg('✅ Extracted! Review the data below and save.')
+                      }
                     } else {
                       setMsg('⚠️ ' + (result.error || 'Extraction failed'))
                     }
