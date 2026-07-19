@@ -2,11 +2,11 @@
 import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 
-const CATS = ["Family Medicine","Clinic","Specialist","Hospital","Imaging","Lab","Rehab"]
+const CATS = ["Family Medicine","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
-const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:true, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
+const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:true, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -14,6 +14,9 @@ export default function AdminPage() {
   const [providers, setProviders] = useState([])
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(empty())
+  const [servicesText, setServicesText] = useState("")
+  const [doctorsText, setDoctorsText] = useState("")
+  const [languagesText, setLanguagesText] = useState("English")
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [catFilter, setCatFilter] = useState("")
@@ -63,7 +66,7 @@ export default function AdminPage() {
   useEffect(() => { if (authed) { load(); loadStats() } }, [authed, load, loadStats])
 
   const save = async () => {
-    const rec = { ...form, rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null }
+    const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorsText.split(',').map(x=>x.trim()).filter(Boolean), languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null }
     delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id
     if (editing) {
       const { error } = await supabase.from("providers").update(rec).eq("id", editing)
@@ -74,7 +77,7 @@ export default function AdminPage() {
       if (error) { setMsg("Error: " + error.message); return }
       setMsg("Added!")
     }
-    setEditing(null); setForm(empty()); setTab("list"); load(); loadStats()
+    setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setTab("list"); load(); loadStats()
   }
 
   const del = async (id) => {
@@ -110,7 +113,10 @@ export default function AdminPage() {
   useEffect(() => { if (authed) loadClaims() }, [authed, loadClaims])
 
   const edit = (p) => {
-    setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, wait_weeks: p.wait_weeks ?? "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
+    setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, wait_weeks: p.wait_weeks ?? "", email: p.email || "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
+    setServicesText((p.services || []).join(', '))
+    setDoctorsText((p.doctors || []).join(', '))
+    setLanguagesText((p.languages || ['English']).join(', '))
     setEditing(p.id); setTab("edit")
   }
 
@@ -219,6 +225,7 @@ export default function AdminPage() {
               <div><label style={lbl}>Address</label><input style={s} value={form.address || ""} onChange={e => setForm({...form, address:e.target.value})} /></div>
               <div><label style={lbl}>Phone</label><input style={s} value={form.phone || ""} onChange={e => setForm({...form, phone:e.target.value || null})} /></div>
               <div><label style={lbl}>Fax</label><input style={s} value={form.fax || ""} onChange={e => setForm({...form, fax:e.target.value || null})} /></div>
+              <div><label style={lbl}>Email</label><input style={s} type="email" value={form.email || ""} onChange={e => setForm({...form, email:e.target.value || null})} placeholder="referrals@clinic.ca" /></div>
               <div><label style={lbl}>Website</label><input style={s} value={form.website || ""} onChange={e => setForm({...form, website:e.target.value || null})} /></div>
               <div><label style={lbl}>Wait (weeks)</label><input style={s} type="number" min="0" value={form.wait_weeks ?? ""} onChange={e => setForm({...form, wait_weeks:e.target.value})} /></div>
               <div><label style={lbl}>SNOMED Code</label><input style={s} value={form.specialty_code || ""} onChange={e => setForm({...form, specialty_code:e.target.value || null})} /></div>
@@ -226,11 +233,11 @@ export default function AdminPage() {
             <label style={lbl}>Requirements</label>
             <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={form.requirements || ""} onChange={e => setForm({...form, requirements:e.target.value})} />
             <label style={lbl}>Services (comma-separated)</label>
-            <input style={s} value={(form.services||[]).join(", ")} onChange={e => setForm({...form, services:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)})} />
+            <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={servicesText} onChange={e => setServicesText(e.target.value)} placeholder="ECG, Stress Test, Holter Monitor" />
             <label style={lbl}>Doctors (comma-separated)</label>
-            <input style={s} value={(form.doctors||[]).join(", ")} onChange={e => setForm({...form, doctors:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)})} />
+            <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={doctorsText} onChange={e => setDoctorsText(e.target.value)} placeholder="Dr. Smith, Dr. Jones" />
             <label style={lbl}>Languages (comma-separated)</label>
-            <input style={s} value={(form.languages||[]).join(", ")} onChange={e => setForm({...form, languages:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)})} />
+            <input style={s} value={languagesText} onChange={e => setLanguagesText(e.target.value)} placeholder="English, French, Farsi" />
             <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
               <button onClick={save} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#3b82f6", color:"#fff" }}>{editing ? "Save" : "Add"}</button>
               <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>

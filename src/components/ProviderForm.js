@@ -10,17 +10,16 @@ const CATS = [
   { key: 'Hospital', label: 'Hospital' },
   { key: 'Imaging', label: 'Imaging Centre' },
   { key: 'Lab', label: 'Laboratory' },
-  { key: 'Rehab', label: 'Rehab / Physio' },
+  { key: 'Physiotherapy', label: 'Physiotherapy' },
+  { key: 'Rehab', label: 'Rehab' },
 ]
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
-// Parse comma-separated input properly
 function parseList(value) {
   if (!value) return []
   return value.split(/,/).map(x => x.trim()).filter(Boolean)
 }
-
 function joinList(arr) {
   if (!arr || !arr.length) return ''
   return arr.join(', ')
@@ -28,7 +27,7 @@ function joinList(arr) {
 
 export default function ProviderForm({ initial, onSubmit, loading, submitLabel }) {
   const empty = {
-    name: '', type: '', specialty_code: '', category: 'Specialist', services: [], address: '', phone: '', fax: '', website: '',
+    name: '', type: '', specialty_code: '', category: 'Specialist', services: [], address: '', phone: '', fax: '', email: '', website: '',
     rating: '', reviews: 0, hours: { mon: null, tue: null, wed: null, thu: null, fri: null, sat: null, sun: null },
     accepting_referrals: true, wait_weeks: '', requirements: '', doctors: [], languages: ['English'],
     paid_referral: false, paid_referral_details: '', data_status: 'complete',
@@ -62,6 +61,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
       set('specialty_code', code)
       set('type', spec.name)
       if (['Diagnostics and imaging'].includes(spec.category)) set('category', 'Imaging')
+      else if (spec.name === 'Physiotherapy') set('category', 'Physiotherapy')
       else if (['Rehab and pain'].includes(spec.category)) set('category', 'Rehab')
       else if (['Primary and emergency'].includes(spec.category)) set('category', 'Family Medicine')
       else set('category', 'Specialist')
@@ -83,6 +83,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
       rating: form.rating ? parseFloat(form.rating) : null,
       reviews: parseInt(form.reviews) || 0,
       wait_weeks: form.wait_weeks !== '' && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null,
+      email: form.email || null,
     }
     delete data.id; delete data.created_at; delete data.updated_at; delete data.owner_id
     onSubmit(data)
@@ -90,7 +91,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
 
   return (
     <div className="space-y-6">
-      {/* Basic Info */}
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Basic Information</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -123,7 +123,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         </div>
       </section>
 
-      {/* Contact */}
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Contact & Location</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -140,10 +139,14 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <input className={inp} value={form.fax || ''} onChange={e => set('fax', e.target.value || null)} placeholder="905-555-0124" />
           </div>
           <div>
+            <label className={lbl}>Email</label>
+            <input className={inp} type="email" value={form.email || ''} onChange={e => set('email', e.target.value || null)} placeholder="referrals@yourclinic.ca" />
+          </div>
+          <div>
             <label className={lbl}>Website</label>
             <input className={inp} value={form.website || ''} onChange={e => set('website', e.target.value || null)} placeholder="www.yourclinic.ca" />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label className={lbl}>Languages</label>
             <input className={inp} value={languagesText} onChange={e => setLanguagesText(e.target.value)} placeholder="English, French, Farsi" />
             <p className="text-[10px] text-gray-400 mt-1">Separate with commas</p>
@@ -151,7 +154,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         </div>
       </section>
 
-      {/* Referral Info */}
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Referral Information</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -181,7 +183,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         </div>
       </section>
 
-      {/* Paid Referral */}
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Paid Referral Program</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -201,7 +202,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         </div>
       </section>
 
-      {/* Services & Doctors */}
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Services & Physicians</h3>
         <div className="space-y-4">
@@ -218,7 +218,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         </div>
       </section>
 
-      {/* Hours */}
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Hours of Operation</h3>
         <p className="text-xs text-gray-500 mb-3">Enter as start-end (e.g. 9:00-17:00). Leave blank for closed.</p>
@@ -233,7 +232,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         </div>
       </section>
 
-      {/* Submit */}
       <div className="flex gap-3">
         <button onClick={handleSubmit} disabled={loading || !form.name || !form.type}
           className="px-6 py-3 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50 text-sm">

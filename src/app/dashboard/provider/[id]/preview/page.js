@@ -57,6 +57,7 @@ export default function PreviewPage({ params }) {
             <R l="Address" v={p.address || '—'} />
             {p.phone && <R l="Phone" v={p.phone} />}
             {p.fax && <R l="Fax" v={p.fax} />}
+            {p.email && <R l="Email" v={p.email} />}
             {p.website && <R l="Website" v={p.website} />}
             <R l="Languages" v={(p.languages || ['English']).join(', ')} />
           </div>

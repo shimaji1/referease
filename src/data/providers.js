@@ -6,5 +6,6 @@ export const CATEGORIES = [
   { key: "Hospital", label: "Hospitals", icon: "🏨" },
   { key: "Imaging", label: "Imaging", icon: "📡" },
   { key: "Lab", label: "Labs", icon: "🧪" },
+  { key: "Physiotherapy", label: "Physiotherapy", icon: "🦴" },
   { key: "Rehab", label: "Rehab", icon: "💪" },
 ];

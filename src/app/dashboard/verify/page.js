@@ -31,7 +31,7 @@ function VerifyContent() {
       if (data) {
         setProvider(data)
         setFaxNumber(data.fax || '')
-        setEmail(profile?.email || '')
+        setEmail(data.email || profile?.email || '')
         // Resume from where they left off
         if (data.cpso_verified) setStep(2)
         if (data.cpso_verified && data.fax_verified) setStep(3)
