@@ -301,7 +301,7 @@ export default function HomePage() {
     async function load() {
       if (!supabase) return
       try {
-        const { data } = await supabase.from('providers').select('*').order('rating', { ascending: false, nullsFirst: false }).limit(6)
+        const { data } = await supabase.from('providers').select('*').eq('data_status', 'complete').order('rating', { ascending: false, nullsFirst: false }).limit(6)
         if (data) setProviders(data)
       } catch {}
     }

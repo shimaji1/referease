@@ -2,11 +2,11 @@
 import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 
-const CATS = ["clinic","specialist","hospital","imaging","lab","rehab"]
+const CATS = ["Family Medicine","Clinic","Specialist","Hospital","Imaging","Lab","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
-const empty = () => ({ name:"", type:"", category:"specialist", services:[], address:"", phone:"", fax:"", website:"", rating:null, reviews:0, lat:"", lng:"", hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:true, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
+const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:true, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -24,12 +24,19 @@ export default function AdminPage() {
   const [stats, setStats] = useState({})
   const [claims, setClaims] = useState([])
   const [pendingCount, setPendingCount] = useState(0)
+  const [specialties, setSpecialties] = useState([])
   const PAGE_SIZE = 50
 
   const login = () => {
     if (pw === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) { setAuthed(true); setMsg("") }
     else setMsg("Wrong password")
   }
+
+  // Load specialties
+  useEffect(() => {
+    if (!supabase || !authed) return
+    supabase.from('specialties').select('*').order('category_order').order('name').then(({ data }) => { if (data) setSpecialties(data) })
+  }, [authed])
 
   const load = useCallback(async () => {
     if (!supabase) return
@@ -56,7 +63,7 @@ export default function AdminPage() {
   useEffect(() => { if (authed) { load(); loadStats() } }, [authed, load, loadStats])
 
   const save = async () => {
-    const rec = { ...form, rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, lat: parseFloat(form.lat) || 0, lng: parseFloat(form.lng) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null }
+    const rec = { ...form, rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null }
     delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id
     if (editing) {
       const { error } = await supabase.from("providers").update(rec).eq("id", editing)
@@ -103,7 +110,7 @@ export default function AdminPage() {
   useEffect(() => { if (authed) loadClaims() }, [authed, loadClaims])
 
   const edit = (p) => {
-    setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, lat: p.lat || "", lng: p.lng || "", wait_weeks: p.wait_weeks ?? "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
+    setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, wait_weeks: p.wait_weeks ?? "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
     setEditing(p.id); setTab("edit")
   }
 
@@ -205,15 +212,14 @@ export default function AdminPage() {
             <h3 style={{ margin:"0 0 16px", fontSize:"16px" }}>{editing ? "Edit Provider" : "Add New Provider"}</h3>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
               <div><label style={lbl}>Name *</label><input style={s} value={form.name} onChange={e => setForm({...form, name:e.target.value})} /></div>
-              <div><label style={lbl}>Specialty *</label><input style={s} value={form.type} onChange={e => setForm({...form, type:e.target.value})} /></div>
+              <div><label style={lbl}>Specialty *</label><select style={s} value={form.specialty_code || ''} onChange={e => { const spec = specialties.find(s => s.snomed_code === e.target.value); if (spec) setForm({...form, specialty_code: e.target.value, type: spec.name}); else setForm({...form, specialty_code: '', type: form.type}) }}><option value="">Select specialty...</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
+              <div><label style={lbl}>Custom Type Label</label><input style={s} value={form.type} onChange={e => setForm({...form, type:e.target.value})} placeholder="Override SNOMED name if needed" /></div>
               <div><label style={lbl}>Category</label><select style={s} value={form.category} onChange={e => setForm({...form, category:e.target.value})}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
               <div><label style={lbl}>Data Status</label><select style={s} value={form.data_status || 'complete'} onChange={e => setForm({...form, data_status:e.target.value})}>{STATUSES.map(st => <option key={st} value={st}>{st}</option>)}</select></div>
               <div><label style={lbl}>Address</label><input style={s} value={form.address || ""} onChange={e => setForm({...form, address:e.target.value})} /></div>
               <div><label style={lbl}>Phone</label><input style={s} value={form.phone || ""} onChange={e => setForm({...form, phone:e.target.value || null})} /></div>
               <div><label style={lbl}>Fax</label><input style={s} value={form.fax || ""} onChange={e => setForm({...form, fax:e.target.value || null})} /></div>
               <div><label style={lbl}>Website</label><input style={s} value={form.website || ""} onChange={e => setForm({...form, website:e.target.value || null})} /></div>
-              <div><label style={lbl}>Latitude</label><input style={s} type="number" step="0.0001" value={form.lat || ""} onChange={e => setForm({...form, lat:e.target.value})} /></div>
-              <div><label style={lbl}>Longitude</label><input style={s} type="number" step="0.0001" value={form.lng || ""} onChange={e => setForm({...form, lng:e.target.value})} /></div>
               <div><label style={lbl}>Wait (weeks)</label><input style={s} type="number" min="0" value={form.wait_weeks ?? ""} onChange={e => setForm({...form, wait_weeks:e.target.value})} /></div>
               <div><label style={lbl}>SNOMED Code</label><input style={s} value={form.specialty_code || ""} onChange={e => setForm({...form, specialty_code:e.target.value || null})} /></div>
             </div>

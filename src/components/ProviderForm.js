@@ -4,28 +4,42 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 const CATS = [
-  { key: 'specialist', label: 'Specialist' },
-  { key: 'clinic', label: 'Clinic' },
-  { key: 'hospital', label: 'Hospital' },
-  { key: 'imaging', label: 'Imaging Centre' },
-  { key: 'lab', label: 'Laboratory' },
-  { key: 'rehab', label: 'Rehab / Physio' },
+  { key: 'Family Medicine', label: 'Family Medicine' },
+  { key: 'Clinic', label: 'Clinic' },
+  { key: 'Specialist', label: 'Specialist' },
+  { key: 'Hospital', label: 'Hospital' },
+  { key: 'Imaging', label: 'Imaging Centre' },
+  { key: 'Lab', label: 'Laboratory' },
+  { key: 'Rehab', label: 'Rehab / Physio' },
 ]
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
+// Parse comma-separated input properly
+function parseList(value) {
+  if (!value) return []
+  return value.split(/,/).map(x => x.trim()).filter(Boolean)
+}
+
+function joinList(arr) {
+  if (!arr || !arr.length) return ''
+  return arr.join(', ')
+}
+
 export default function ProviderForm({ initial, onSubmit, loading, submitLabel }) {
   const empty = {
-    name: '', type: '', specialty_code: '', category: 'specialist', services: [], address: '', phone: '', fax: '', website: '',
-    rating: '', reviews: 0, lat: '', lng: '', hours: { mon: null, tue: null, wed: null, thu: null, fri: null, sat: null, sun: null },
+    name: '', type: '', specialty_code: '', category: 'Specialist', services: [], address: '', phone: '', fax: '', website: '',
+    rating: '', reviews: 0, hours: { mon: null, tue: null, wed: null, thu: null, fri: null, sat: null, sun: null },
     accepting_referrals: true, wait_weeks: '', requirements: '', doctors: [], languages: ['English'],
-    paid_referral: false, paid_referral_details: '',
+    paid_referral: false, paid_referral_details: '', data_status: 'complete',
   }
   const [form, setForm] = useState(initial || empty)
   const [specialties, setSpecialties] = useState([])
+  const [servicesText, setServicesText] = useState(joinList(initial?.services))
+  const [doctorsText, setDoctorsText] = useState(joinList(initial?.doctors))
+  const [languagesText, setLanguagesText] = useState(joinList(initial?.languages || ['English']))
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
-  // Load SNOMED specialties from reference table
   useEffect(() => {
     if (!supabase) return
     supabase.from('specialties').select('*').order('category_order').order('name').then(({ data }) => {
@@ -33,7 +47,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
     })
   }, [])
 
-  // Group specialties by category
   const grouped = useMemo(() => {
     const groups = {}
     specialties.forEach(s => {
@@ -48,12 +61,10 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
     if (spec) {
       set('specialty_code', code)
       set('type', spec.name)
-      // Auto-set category based on specialty
-      if (['Diagnostics and imaging'].includes(spec.category)) set('category', 'imaging')
-      else if (['Rehab and pain'].includes(spec.category)) set('category', 'rehab')
-      else if (['Primary and emergency'].includes(spec.category)) set('category', 'clinic')
-      else if (spec.category === 'Surgical specialties') set('category', 'specialist')
-      else set('category', 'specialist')
+      if (['Diagnostics and imaging'].includes(spec.category)) set('category', 'Imaging')
+      else if (['Rehab and pain'].includes(spec.category)) set('category', 'Rehab')
+      else if (['Primary and emergency'].includes(spec.category)) set('category', 'Family Medicine')
+      else set('category', 'Specialist')
     } else {
       set('specialty_code', '')
     }
@@ -66,10 +77,11 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
     if (!form.name || !form.type) return
     const data = {
       ...form,
+      services: parseList(servicesText),
+      doctors: parseList(doctorsText),
+      languages: parseList(languagesText),
       rating: form.rating ? parseFloat(form.rating) : null,
       reviews: parseInt(form.reviews) || 0,
-      lat: parseFloat(form.lat) || 0,
-      lng: parseFloat(form.lng) || 0,
       wait_weeks: form.wait_weeks !== '' && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null,
     }
     delete data.id; delete data.created_at; delete data.updated_at; delete data.owner_id
@@ -92,15 +104,11 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
               <option value="">Select a specialty...</option>
               {Object.entries(grouped).map(([cat, specs]) => (
                 <optgroup key={cat} label={cat}>
-                  {specs.map(s => (
-                    <option key={s.snomed_code} value={s.snomed_code}>{s.name}</option>
-                  ))}
+                  {specs.map(s => <option key={s.snomed_code} value={s.snomed_code}>{s.name}</option>)}
                 </optgroup>
               ))}
             </select>
-            {form.specialty_code && (
-              <p className="text-[10px] text-gray-400 mt-1">SNOMED CT: {form.specialty_code} — {form.type}</p>
-            )}
+            {form.specialty_code && <p className="text-[10px] text-gray-400 mt-1">SNOMED CT: {form.specialty_code}</p>}
           </div>
           <div>
             <label className={lbl}>Category *</label>
@@ -109,9 +117,8 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className={lbl}>Custom specialty label (optional)</label>
-            <input className={inp} value={form.type} onChange={e => set('type', e.target.value)} placeholder="Override the SNOMED name if needed, e.g. 'Foot & Ankle Orthopedics'" />
-            <p className="text-[10px] text-gray-400 mt-1">Pre-filled from SNOMED selection. Edit only if you need a more specific label.</p>
+            <label className={lbl}>Custom specialty label (optional override)</label>
+            <input className={inp} value={form.type} onChange={e => set('type', e.target.value)} placeholder="Pre-filled from SNOMED. Edit only if needed." />
           </div>
         </div>
       </section>
@@ -122,7 +129,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <label className={lbl}>Address</label>
-            <input className={inp} value={form.address} onChange={e => set('address', e.target.value)} placeholder="Full address including postal code" />
+            <input className={inp} value={form.address || ''} onChange={e => set('address', e.target.value)} placeholder="Full address including postal code" />
           </div>
           <div>
             <label className={lbl}>Phone</label>
@@ -137,16 +144,9 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <input className={inp} value={form.website || ''} onChange={e => set('website', e.target.value || null)} placeholder="www.yourclinic.ca" />
           </div>
           <div>
-            <label className={lbl}>Languages (comma-separated)</label>
-            <input className={inp} value={(form.languages || []).join(', ')} onChange={e => set('languages', e.target.value.split(',').map(x => x.trim()).filter(Boolean))} placeholder="English, French, Farsi" />
-          </div>
-          <div>
-            <label className={lbl}>Latitude</label>
-            <input className={inp} type="number" step="0.0001" value={form.lat || ''} onChange={e => set('lat', e.target.value)} placeholder="43.8100" />
-          </div>
-          <div>
-            <label className={lbl}>Longitude</label>
-            <input className={inp} type="number" step="0.0001" value={form.lng || ''} onChange={e => set('lng', e.target.value)} placeholder="-79.4300" />
+            <label className={lbl}>Languages</label>
+            <input className={inp} value={languagesText} onChange={e => setLanguagesText(e.target.value)} placeholder="English, French, Farsi" />
+            <p className="text-[10px] text-gray-400 mt-1">Separate with commas</p>
           </div>
         </div>
       </section>
@@ -167,13 +167,17 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <input className={inp} type="number" min="0" value={form.wait_weeks ?? ''} onChange={e => set('wait_weeks', e.target.value)} placeholder="Leave blank if varies" />
           </div>
           <div>
-            <label className={lbl}>Rating (0-5)</label>
-            <input className={inp} type="number" step="0.1" min="0" max="5" value={form.rating || ''} onChange={e => set('rating', e.target.value)} />
+            <label className={lbl}>Data Status</label>
+            <select className={inp} value={form.data_status || 'complete'} onChange={e => set('data_status', e.target.value)}>
+              <option value="complete">Complete</option>
+              <option value="partial">Partial</option>
+              <option value="incomplete">Incomplete</option>
+            </select>
           </div>
         </div>
         <div className="mt-4">
           <label className={lbl}>Referral Requirements</label>
-          <textarea className={inp + " min-h-[80px] resize-y"} value={form.requirements} onChange={e => set('requirements', e.target.value)} placeholder="e.g. GP referral required, recent MRI results, OHIP card" />
+          <textarea className={inp + " min-h-[80px] resize-y"} value={form.requirements || ''} onChange={e => set('requirements', e.target.value)} placeholder="e.g. GP referral required, recent MRI results, OHIP card" />
         </div>
       </section>
 
@@ -202,12 +206,14 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         <h3 className="text-sm font-bold text-gray-900 mb-4">Services & Physicians</h3>
         <div className="space-y-4">
           <div>
-            <label className={lbl}>Services Offered (comma-separated)</label>
-            <textarea className={inp + " min-h-[60px] resize-y"} value={(form.services || []).join(', ')} onChange={e => set('services', e.target.value.split(',').map(x => x.trim()).filter(Boolean))} placeholder="ECG, Echocardiogram, Stress Test, Holter Monitor" />
+            <label className={lbl}>Services Offered</label>
+            <textarea className={inp + " min-h-[60px] resize-y"} value={servicesText} onChange={e => setServicesText(e.target.value)} placeholder="ECG, Echocardiogram, Stress Test, Holter Monitor" />
+            <p className="text-[10px] text-gray-400 mt-1">Separate with commas</p>
           </div>
           <div>
-            <label className={lbl}>Physicians (comma-separated)</label>
-            <textarea className={inp + " min-h-[60px] resize-y"} value={(form.doctors || []).join(', ')} onChange={e => set('doctors', e.target.value.split(',').map(x => x.trim()).filter(Boolean))} placeholder="Dr. Smith, Dr. Jones (Cardiology), Dr. Lee" />
+            <label className={lbl}>Physicians</label>
+            <textarea className={inp + " min-h-[60px] resize-y"} value={doctorsText} onChange={e => setDoctorsText(e.target.value)} placeholder="Dr. Smith, Dr. Jones (Cardiology), Dr. Lee" />
+            <p className="text-[10px] text-gray-400 mt-1">Separate with commas</p>
           </div>
         </div>
       </section>
@@ -215,7 +221,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
       {/* Hours */}
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Hours of Operation</h3>
-        <p className="text-xs text-gray-500 mb-3">Enter hours as start-end (e.g. 9:00-17:00). Leave blank for closed days.</p>
+        <p className="text-xs text-gray-500 mb-3">Enter as start-end (e.g. 9:00-17:00). Leave blank for closed.</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {DAYS.map((d, i) => (
             <div key={d}>

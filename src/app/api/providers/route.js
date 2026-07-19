@@ -20,6 +20,10 @@ export async function GET(request) {
 
   let query = supabase.from('providers').select('*', { count: 'exact' })
 
+  // Only show complete listings unless explicitly requesting all
+  const showAll = searchParams.get('include_incomplete')
+  if (!showAll) query = query.eq('data_status', 'complete')
+
   if (category) query = query.eq('category', category)
   if (type) query = query.eq('type', type)
   if (accepting === 'true') query = query.eq('accepting_referrals', true)

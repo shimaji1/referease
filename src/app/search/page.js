@@ -127,7 +127,7 @@ export default function SearchPage() {
     async function load() {
       if (!supabase) { setLoading(false); return }
       try {
-        const { data } = await supabase.from("providers").select("*").order("name")
+        const { data } = await supabase.from("providers").select("*").eq("data_status", "complete").order("name")
         if (data) setProviders(data)
       } catch {}
       setLoading(false)
