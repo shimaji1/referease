@@ -59,6 +59,15 @@ function Card({ p, onSelect, isFav, onFav }) {
 function Detail({ p, onBack, isFav, onFav }) {
   const dist = distKm(CENTER.lat, CENTER.lng, p.lat, p.lng).toFixed(1)
   const open = isOpenNow(p.hours)
+  const [docs, setDocs] = useState([])
+  useEffect(() => {
+    let alive = true
+    if (!supabase || !p?.id) return () => { alive = false }
+    supabase.from('physician_locations').select('physicians(id, name, specialty)').eq('provider_id', p.id).then(({ data }) => {
+      if (alive) setDocs((data || []).map(l => l.physicians).filter(Boolean))
+    })
+    return () => { alive = false }
+  }, [p?.id])
   const B = ({ title, children }) => <div className="bg-white border border-gray-200 rounded-xl p-4"><h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">{title}</h4>{children}</div>
   const R = ({ l, v }) => <div className="flex justify-between py-1 text-xs gap-2"><span className="text-gray-400 shrink-0">{l}</span><span className="text-gray-900 font-medium text-right break-words">{v}</span></div>
   return (
@@ -95,7 +104,11 @@ function Detail({ p, onBack, isFav, onFav }) {
           <R l="Wait" v={p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`} />
           <R l="Requirements" v={p.requirements || '—'} />
         </B>
-        {p.doctors?.length > 0 && <B title="Physicians">{p.doctors.map((d,i) => <div key={i} className="py-1 text-xs text-gray-900 border-b border-gray-100 last:border-0">{d}</div>)}</B>}
+        {(docs.length > 0 || p.doctors?.length > 0) && <B title="Physicians">
+          {docs.length > 0
+            ? docs.map(d => <Link key={d.id} href={`/doctors/${d.id}`} className="flex items-center justify-between py-1.5 text-xs border-b border-gray-100 last:border-0 group"><span className="text-gray-900 group-hover:text-brand font-medium">{d.name}{d.specialty ? ` — ${d.specialty}` : ''}</span><span className="text-gray-300 group-hover:text-brand">→</span></Link>)
+            : p.doctors.map((d, i) => <div key={i} className="py-1 text-xs text-gray-900 border-b border-gray-100 last:border-0">{d}</div>)}
+        </B>}
         {p.services?.length > 0 && <B title="Services"><div className="flex flex-wrap gap-1">{p.services.map(s => <span key={s} className="text-[11px] text-brand bg-brand/5 border border-brand/10 px-2 py-0.5 rounded-md">{s}</span>)}</div></B>}
       </div>
     </div>

@@ -28,6 +28,8 @@ export default function AdminPage() {
   const [claims, setClaims] = useState([])
   const [pendingCount, setPendingCount] = useState(0)
   const [specialties, setSpecialties] = useState([])
+  const [doctorRows, setDoctorRows] = useState([])   // [{id?, name, specialty, specialty_code, gender}]
+  const [origDocIds, setOrigDocIds] = useState([])   // physician ids present when editing (for reconcile)
   const PAGE_SIZE = 50
 
   const login = () => {
@@ -65,19 +67,56 @@ export default function AdminPage() {
 
   useEffect(() => { if (authed) { load(); loadStats() } }, [authed, load, loadStats])
 
+  const addDoctor = () => setDoctorRows(rows => [...rows, { name: '', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '' }])
+  const updateDoctor = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
+  const removeDoctor = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
+
   const save = async () => {
-    const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorsText.split(',').map(x=>x.trim()).filter(Boolean), languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null }
+    // keep the legacy providers.doctors[] string array in sync from the structured rows
+    const doctorNames = doctorRows.map(r => (r.name && r.specialty) ? `${r.name} — ${r.specialty}` : r.name).map(x => (x || '').trim()).filter(Boolean)
+    const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorNames, languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null }
     delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id
+
+    // 1) upsert the clinic (provider) and capture its id
+    let providerId = editing
     if (editing) {
       const { error } = await supabase.from("providers").update(rec).eq("id", editing)
-      if (error) { setMsg("Error: " + error.message); return }
-      setMsg("Updated!")
+      if (error) { setMsg("Error saving clinic: " + error.message); return }
     } else {
-      const { error } = await supabase.from("providers").insert(rec)
-      if (error) { setMsg("Error: " + error.message); return }
-      setMsg("Added!")
+      const { data, error } = await supabase.from("providers").insert(rec).select().single()
+      if (error || !data) { setMsg("Error saving clinic: " + (error?.message || "no row returned")); return }
+      providerId = data.id
     }
-    setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setTab("list"); load(); loadStats()
+
+    // 2) reconcile the doctor rows into physicians + physician_locations
+    let warn = null
+    try {
+      for (let i = 0; i < doctorRows.length; i++) {
+        const r = doctorRows[i]
+        if (!r.name || !r.name.trim()) continue
+        const payload = { name: r.name.trim(), specialty: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null }
+        if (r.id) {
+          const { error } = await supabase.from("physicians").update(payload).eq("id", r.id)
+          if (error) warn = "Clinic saved, but updating a doctor failed: " + error.message
+        } else {
+          const { data: doc, error: docErr } = await supabase.from("physicians").insert(payload).select().single()
+          if (docErr || !doc) { warn = "Clinic saved, but adding a doctor failed: " + (docErr?.message || "unknown"); continue }
+          const { error: linkErr } = await supabase.from("physician_locations").insert({ physician_id: doc.id, provider_id: providerId, is_primary: true })
+          if (linkErr) warn = "Clinic saved, but linking a doctor failed: " + linkErr.message
+        }
+      }
+      // unlink doctors removed from the list (keep the physician record for other clinics)
+      const currentIds = doctorRows.map(r => r.id).filter(Boolean)
+      const removed = origDocIds.filter(id => !currentIds.includes(id))
+      for (const id of removed) {
+        await supabase.from("physician_locations").delete().eq("physician_id", id).eq("provider_id", providerId)
+      }
+    } catch (e) {
+      warn = "Clinic saved, but doctor sync hit an error: " + e.message
+    }
+
+    setMsg(warn || (editing ? "Updated!" : "Added!"))
+    setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]); setTab("list"); load(); loadStats()
   }
 
   const del = async (id) => {
@@ -112,11 +151,22 @@ export default function AdminPage() {
 
   useEffect(() => { if (authed) loadClaims() }, [authed, loadClaims])
 
-  const edit = (p) => {
+  const edit = async (p) => {
     setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, wait_weeks: p.wait_weeks ?? "", email: p.email || "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
     setServicesText((p.services || []).join(', '))
     setDoctorsText((p.doctors || []).join(', '))
     setLanguagesText((p.languages || ['English']).join(', '))
+    // load linked physicians for this clinic (doctor-first model)
+    let rows = []
+    try {
+      const { data: links } = await supabase.from('physician_locations').select('is_primary, physicians(*)').eq('provider_id', p.id)
+      rows = (links || []).filter(l => l.physicians).map(l => ({ id: l.physicians.id, name: l.physicians.name || '', specialty: l.physicians.specialty || '', specialty_code: l.physicians.specialty_code || '', gender: l.physicians.gender || '' }))
+    } catch {}
+    // fallback: if no linked doctors yet but legacy string names exist, seed rows so admin can convert them (saving creates real physician records)
+    if (rows.length === 0 && (p.doctors || []).length > 0) {
+      rows = p.doctors.map(n => ({ name: String(n).replace(/\s*—.*/, '').trim(), specialty: p.type || '', specialty_code: '', gender: '' }))
+    }
+    setDoctorRows(rows); setOrigDocIds(rows.filter(r => r.id).map(r => r.id))
     setEditing(p.id); setTab("edit")
   }
 
@@ -145,7 +195,7 @@ export default function AdminPage() {
         <div style={{ display:"flex", gap:"8px" }}>
           <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="list"?"#3b82f6":"#141820", color:tab==="list"?"#fff":"#7a8599", border:"1px solid " + (tab==="list"?"#3b82f6":"#1e2530") }}>Providers</button>
           <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#141820", color:tab==="claims"?"#fff":"#7a8599", border:"1px solid " + (tab==="claims"?"#d97706":"#1e2530"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
-          <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#141820", color:tab==="edit"&&!editing?"#fff":"#7a8599", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#1e2530") }}>+ Add New</button>
+          <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#141820", color:tab==="edit"&&!editing?"#fff":"#7a8599", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#1e2530") }}>+ Add New</button>
           <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#141820", color:"#7a8599", border:"1px solid #1e2530", textDecoration:"none" }}>← Site</a>
         </div>
       </div>
@@ -261,6 +311,7 @@ export default function AdminPage() {
                           setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: d.hours || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
                           setServicesText((d.services || []).join(', '))
                           setDoctorsText((d.doctors || []).join(', '))
+                        setDoctorRows((d.doctors || []).map(n => ({ name: n, specialty: d.type || '', specialty_code: '', gender: '' })))
                           setLanguagesText((d.languages || []).join(', '))
                           setMsg(`Found ${result.count} locations. Showing first one. Save and extract again for others.`)
                         }
@@ -270,6 +321,7 @@ export default function AdminPage() {
                         setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: d.hours || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
                         setServicesText((d.services || []).join(', '))
                         setDoctorsText((d.doctors || []).join(', '))
+                        setDoctorRows((d.doctors || []).map(n => ({ name: n, specialty: d.type || '', specialty_code: '', gender: '' })))
                         setLanguagesText((d.languages || []).join(', '))
                         setMsg('✅ Extracted! Review the data below and save.')
                       }
@@ -301,10 +353,35 @@ export default function AdminPage() {
             <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={form.requirements || ""} onChange={e => setForm({...form, requirements:e.target.value})} />
             <label style={lbl}>Services (comma-separated)</label>
             <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={servicesText} onChange={e => setServicesText(e.target.value)} placeholder="ECG, Stress Test, Holter Monitor" />
-            <label style={lbl}>Doctors (comma-separated)</label>
-            <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={doctorsText} onChange={e => setDoctorsText(e.target.value)} placeholder="Dr. Smith, Dr. Jones" />
+            <label style={lbl}>Doctors at this clinic</label>
+            <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 8px" }}>Each doctor gets their own profile page, linked to this clinic.</div>
+            {doctorRows.map((r, i) => (
+              <div key={i} style={{ display:"grid", gridTemplateColumns:"1.3fr 1.3fr 0.8fr auto", gap:"6px", marginBottom:"6px", alignItems:"center" }}>
+                <input style={{ ...s, marginTop:0 }} placeholder="Dr. Full Name" value={r.name} onChange={e => updateDoctor(i, { name: e.target.value })} />
+                <select style={{ ...s, marginTop:0 }} value={r.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); updateDoctor(i, sp ? { specialty_code: sp.snomed_code, specialty: sp.name } : { specialty_code: '', specialty: '' }) }}>
+                  <option value="">Specialty…</option>
+                  {(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}
+                </select>
+                <select style={{ ...s, marginTop:0 }} value={r.gender || ''} onChange={e => updateDoctor(i, { gender: e.target.value })}>
+                  <option value="">Gender…</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
+                </select>
+                <button onClick={() => removeDoctor(i)} title="Remove doctor" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640", textAlign:"center" }}>✕</button>
+              </div>
+            ))}
+            <button onClick={addDoctor} style={{ all:"unset", cursor:"pointer", padding:"7px 14px", marginTop:"4px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>+ Add doctor</button>
+
             <label style={lbl}>Languages (comma-separated)</label>
             <input style={s} value={languagesText} onChange={e => setLanguagesText(e.target.value)} placeholder="English, French, Farsi" />
+
+            <label style={lbl}>Hours (start-end, e.g. 9:00-17:00 — blank = closed)</label>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:"6px", marginTop:"4px" }}>
+              {DAYS.map((d, i) => (
+                <div key={d}>
+                  <div style={{ fontSize:"9px", color:"#7a8599", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:"3px", textAlign:"center" }}>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}</div>
+                  <input style={{ ...s, marginTop:0, padding:"6px 4px", fontSize:"11px", textAlign:"center" }} value={form.hours?.[d] || ''} onChange={e => setForm({ ...form, hours: { ...form.hours, [d]: e.target.value || null } })} placeholder="9-17" />
+                </div>
+              ))}
+            </div>
             <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
               <button onClick={save} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#3b82f6", color:"#fff" }}>{editing ? "Save" : "Add"}</button>
               <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>
