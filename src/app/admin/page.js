@@ -7,6 +7,7 @@ const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
 const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:true, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
+const emptyDoc = () => ({ name:"Dr. ", specialty:"", specialty_code:"", gender:"", accepting_referrals:true, accepting_new_patients:false, wait_weeks:"", criteria:"", referral_types:"", languages:"English" })
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -30,6 +31,8 @@ export default function AdminPage() {
   const [specialties, setSpecialties] = useState([])
   const [doctorRows, setDoctorRows] = useState([])   // [{id?, name, specialty, specialty_code, gender}]
   const [origDocIds, setOrigDocIds] = useState([])   // physician ids present when editing (for reconcile)
+  const [docForm, setDocForm] = useState(emptyDoc())
+  const [docLocations, setDocLocations] = useState([{ name:'', address:'', phone:'', fax:'' }])
   const PAGE_SIZE = 50
 
   const login = () => {
@@ -71,6 +74,53 @@ export default function AdminPage() {
   const addDoctor = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '' }])
   const updateDoctor = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const removeDoctor = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
+
+  // ---- Add-a-Doctor (physician as primary entity, with its own locations) ----
+  const setDoc = (k, v) => setDocForm(f => ({ ...f, [k]: v }))
+  const addDocLoc = () => setDocLocations(l => [...l, { name:'', address:'', phone:'', fax:'' }])
+  const updDocLoc = (i, patch) => setDocLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
+  const rmDocLoc = (i) => setDocLocations(l => l.filter((_, idx) => idx !== i))
+
+  const saveDoctor = async () => {
+    const name = withDr(docForm.name)
+    if (!name || /^dr\.?\s*$/i.test(name)) { setMsg("Please enter the doctor's name"); return }
+    const rec = {
+      name,
+      specialty: docForm.specialty || null,
+      specialty_code: docForm.specialty_code || null,
+      gender: docForm.gender || null,
+      accepting_referrals: !!docForm.accepting_referrals,
+      accepting_new_patients: !!docForm.accepting_new_patients,
+      wait_weeks: (docForm.wait_weeks !== '' && docForm.wait_weeks !== null) ? parseInt(docForm.wait_weeks) : null,
+      criteria: docForm.criteria || null,
+      referral_types: docForm.referral_types ? docForm.referral_types.split(',').map(x=>x.trim()).filter(Boolean) : null,
+      languages: docForm.languages ? docForm.languages.split(',').map(x=>x.trim()).filter(Boolean) : null,
+      status: 'active',
+    }
+    const { data: doc, error } = await supabase.from('physicians').insert(rec).select().single()
+    if (error || !doc) { setMsg("Error saving doctor: " + (error?.message || "no row returned")); return }
+
+    // Each location becomes a linkable provider record (data_status 'partial' so it isn't listed as a public clinic).
+    let warn = null
+    const locs = docLocations.filter(l => (l.name||'').trim() || (l.address||'').trim() || (l.phone||'').trim() || (l.fax||'').trim())
+    for (let i = 0; i < locs.length; i++) {
+      const l = locs[i]
+      const prov = {
+        name: (l.name||'').trim() || `${name} — Office`,
+        type: docForm.specialty || 'Physician office', category: 'Clinic',
+        services: [], address: l.address || null, phone: l.phone || null, fax: l.fax || null,
+        languages: rec.languages || ['English'], hours: { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
+        accepting_referrals: rec.accepting_referrals, wait_weeks: rec.wait_weeks,
+        doctors: [name], data_status: 'partial', specialty_code: rec.specialty_code,
+      }
+      const { data: pRow, error: pErr } = await supabase.from('providers').insert(prov).select().single()
+      if (pErr || !pRow) { warn = "Doctor saved, but a location failed: " + (pErr?.message || "unknown"); continue }
+      const { error: lErr } = await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: pRow.id, is_primary: i === 0 })
+      if (lErr) warn = "Doctor saved, but linking a location failed: " + lErr.message
+    }
+    setMsg(warn || "Doctor added — their profile page is live and searchable.")
+    setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]); setTab("list"); load(); loadStats()
+  }
 
   const save = async () => {
     // keep the legacy providers.doctors[] string array in sync from the structured rows
@@ -133,20 +183,21 @@ export default function AdminPage() {
 
   const loadClaims = useCallback(async () => {
     if (!supabase) return
-    const { data } = await supabase.from("claims").select("*, providers(name, type, address, phone)").order("created_at", { ascending: false })
+    const { data } = await supabase.from("claims").select("*, providers(name, type, address, phone), physicians(name, specialty)").order("created_at", { ascending: false })
     if (data) {
       setClaims(data)
       setPendingCount(data.filter(c => c.status === 'pending').length)
     }
   }, [])
 
-  const handleClaim = async (claimId, action, providerId, userId) => {
+  const handleClaim = async (claim, action) => {
     if (!supabase) return
-    await supabase.from("claims").update({ status: action }).eq("id", claimId)
+    await supabase.from("claims").update({ status: action }).eq("id", claim.id)
     if (action === 'approved') {
-      await supabase.from("providers").update({ owner_id: userId }).eq("id", providerId)
+      if (claim.provider_id) await supabase.from("providers").update({ owner_id: claim.user_id }).eq("id", claim.provider_id)
+      else if (claim.physician_id) await supabase.from("physicians").update({ owner_id: claim.user_id }).eq("id", claim.physician_id)
     }
-    setMsg(action === 'approved' ? 'Claim approved — listing linked to user' : 'Claim rejected')
+    setMsg(action === 'approved' ? 'Claim approved — linked to user' : 'Claim rejected')
     loadClaims()
   }
 
@@ -196,7 +247,8 @@ export default function AdminPage() {
         <div style={{ display:"flex", gap:"8px" }}>
           <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="list"?"#3b82f6":"#141820", color:tab==="list"?"#fff":"#7a8599", border:"1px solid " + (tab==="list"?"#3b82f6":"#1e2530") }}>Providers</button>
           <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#141820", color:tab==="claims"?"#fff":"#7a8599", border:"1px solid " + (tab==="claims"?"#d97706":"#1e2530"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
-          <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#141820", color:tab==="edit"&&!editing?"#fff":"#7a8599", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#1e2530") }}>+ Add New</button>
+          <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#141820", color:tab==="edit"&&!editing?"#fff":"#7a8599", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#1e2530") }}>+ Clinic</button>
+          <button onClick={() => { setTab("doctor"); setEditing(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="doctor"?"#7c3aed":"#141820", color:tab==="doctor"?"#fff":"#7a8599", border:"1px solid " + (tab==="doctor"?"#7c3aed":"#1e2530") }}>+ Doctor</button>
           <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#141820", color:"#7a8599", border:"1px solid #1e2530", textDecoration:"none" }}>← Site</a>
         </div>
       </div>
@@ -264,7 +316,7 @@ export default function AdminPage() {
               ))}
             </div>
           </>
-        ) : (
+        ) : tab === "edit" ? (
           <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"12px", padding:"20px" }}>
             <h3 style={{ margin:"0 0 16px", fontSize:"16px" }}>{editing ? "Edit Provider" : "Add New Provider"}</h3>
 
@@ -388,6 +440,49 @@ export default function AdminPage() {
               <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>
             </div>
           </div>
+        ) : null}
+        {tab === "doctor" && (
+          <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"12px", padding:"20px" }}>
+            <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>Add Doctor</h3>
+            <p style={{ margin:"0 0 16px", fontSize:"12px", color:"#7a8599" }}>Creates a standalone, searchable, claimable doctor profile. Add one or more places they practise.</p>
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
+              <div><label style={lbl}>Full Name *</label><input style={s} value={docForm.name} onChange={e => setDoc('name', e.target.value)} placeholder="Dr. Jane Smith" /></div>
+              <div><label style={lbl}>Specialty *</label><select style={s} value={docForm.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); if (sp) setDocForm(f => ({ ...f, specialty_code: sp.snomed_code, specialty: sp.name })); else setDocForm(f => ({ ...f, specialty_code:'', specialty:'' })) }}><option value="">Select specialty...</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
+              <div><label style={lbl}>Gender</label><select style={s} value={docForm.gender || ''} onChange={e => setDoc('gender', e.target.value)}><option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
+              <div><label style={lbl}>Wait (weeks)</label><input style={s} type="number" min="0" value={docForm.wait_weeks} onChange={e => setDoc('wait_weeks', e.target.value)} placeholder="Leave blank if varies" /></div>
+              <div><label style={lbl}>Accepting Referrals</label><select style={s} value={docForm.accepting_referrals ? 'true' : 'false'} onChange={e => setDoc('accepting_referrals', e.target.value === 'true')}><option value="true">Yes</option><option value="false">No</option></select></div>
+              <div><label style={lbl}>Accepting New Patients</label><select style={s} value={docForm.accepting_new_patients ? 'true' : 'false'} onChange={e => setDoc('accepting_new_patients', e.target.value === 'true')}><option value="false">No</option><option value="true">Yes</option></select></div>
+            </div>
+            <label style={lbl}>Referral Types (comma-separated)</label>
+            <input style={s} value={docForm.referral_types} onChange={e => setDoc('referral_types', e.target.value)} placeholder="Consultation, Procedure, Follow-up" />
+            <label style={lbl}>Languages (comma-separated)</label>
+            <input style={s} value={docForm.languages} onChange={e => setDoc('languages', e.target.value)} placeholder="English, French, Farsi" />
+            <label style={lbl}>Referral Criteria</label>
+            <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={docForm.criteria} onChange={e => setDoc('criteria', e.target.value)} placeholder="e.g. GP referral required, recent imaging, OHIP card" />
+
+            <label style={{ ...lbl, marginTop:"20px" }}>Locations (where they practise)</label>
+            <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 8px" }}>Each location shows on their profile. Add more with the button below.</div>
+            {docLocations.map((l, i) => (
+              <div key={i} style={{ border:"1px solid #1e2530", borderRadius:"8px", padding:"10px", marginBottom:"8px" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:"8px", alignItems:"center", marginBottom:"6px" }}>
+                  <input style={{ ...s, marginTop:0 }} value={l.name} onChange={e => updDocLoc(i, { name: e.target.value })} placeholder={`Clinic / office name (e.g. Disera Medical Centre)`} />
+                  {docLocations.length > 1 && <button onClick={() => rmDocLoc(i)} title="Remove location" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕</button>}
+                </div>
+                <input style={{ ...s, marginTop:0, marginBottom:"6px" }} value={l.address} onChange={e => updDocLoc(i, { address: e.target.value })} placeholder="Address" />
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
+                  <input style={{ ...s, marginTop:0 }} value={l.phone} onChange={e => updDocLoc(i, { phone: e.target.value })} placeholder="Phone" />
+                  <input style={{ ...s, marginTop:0 }} value={l.fax} onChange={e => updDocLoc(i, { fax: e.target.value })} placeholder="Fax" />
+                </div>
+              </div>
+            ))}
+            <button onClick={addDocLoc} style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>+ Add location</button>
+
+            <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
+              <button onClick={saveDoctor} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#7c3aed", color:"#fff" }}>Add Doctor</button>
+              <button onClick={() => { setTab("list"); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>
+            </div>
+          </div>
         )}
         {tab === "claims" && (
           <>
@@ -400,8 +495,8 @@ export default function AdminPage() {
                   <div key={c.id} style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"8px", padding:"12px 14px" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"8px" }}>
                       <div style={{ flex:1 }}>
-                        <div style={{ fontSize:"13px", fontWeight:600 }}>{c.providers?.name || 'Unknown listing'}</div>
-                        <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"2px" }}>{c.providers?.type} · {c.providers?.address}</div>
+                        <div style={{ fontSize:"13px", fontWeight:600 }}>{c.providers?.name || c.physicians?.name || 'Unknown'}{c.physician_id && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#a78bfa", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"1px 6px" }}>DOCTOR</span>}</div>
+                        <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"2px" }}>{c.providers ? `${c.providers.type} · ${c.providers.address || ''}` : (c.physicians?.specialty || 'Physician profile')}</div>
                         <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"4px" }}>
                           Claimed by: <span style={{ color:"#e8ecf2" }}>{c.user_name}</span> ({c.user_email})
                         </div>
@@ -412,8 +507,8 @@ export default function AdminPage() {
                       <div style={{ display:"flex", gap:"4px", alignItems:"center", flexShrink:0 }}>
                         {c.status === 'pending' ? (
                           <>
-                            <button onClick={() => handleClaim(c.id, 'approved', c.provider_id, c.user_id)} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#05966920", color:"#059669", border:"1px solid #05966940" }}>✓ Approve</button>
-                            <button onClick={() => handleClaim(c.id, 'rejected', c.provider_id, c.user_id)} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕ Reject</button>
+                            <button onClick={() => handleClaim(c, 'approved')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#05966920", color:"#059669", border:"1px solid #05966940" }}>✓ Approve</button>
+                            <button onClick={() => handleClaim(c, 'rejected')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕ Reject</button>
                           </>
                         ) : (
                           <span style={{ padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:c.status==='approved'?"#05966920":"#dc262620", color:c.status==='approved'?"#059669":"#dc2626", border:`1px solid ${c.status==='approved'?"#05966940":"#dc262640"}`, textTransform:"capitalize" }}>{c.status}</span>

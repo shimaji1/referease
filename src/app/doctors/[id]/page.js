@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
 
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
@@ -22,10 +23,33 @@ function Pill({ ok, children }) {
 
 export default function DoctorPage() {
   const { id } = useParams()
+  const { user, profile } = useAuth()
   const [doc, setDoc] = useState(null)
   const [locs, setLocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [missing, setMissing] = useState(false)
+  const [claimMsg, setClaimMsg] = useState('')
+  const [claiming, setClaiming] = useState(false)
+
+  const claimProfile = async () => {
+    if (!supabase || !user || !profile || !doc) return
+    setClaiming(true); setClaimMsg('')
+    const { data: existing } = await supabase.from('claims').select('id').eq('user_id', user.id).eq('physician_id', doc.id)
+    if (existing && existing.length) { setClaimMsg('You already submitted a claim for this profile.'); setClaiming(false); return }
+    let auto = false
+    if (profile.cpso_number && doc.cpso_number) {
+      const a = String(profile.cpso_number).replace(/\D/g, ''), b = String(doc.cpso_number).replace(/\D/g, '')
+      if (a && b && a === b) auto = true
+    }
+    const { error } = await supabase.from('claims').insert({
+      user_id: user.id, physician_id: doc.id, user_email: profile.email, user_name: profile.full_name,
+      status: auto ? 'approved' : 'pending', verification_method: auto ? 'cpso_match' : 'manual_review',
+    })
+    if (error) { setClaimMsg('Error: ' + error.message); setClaiming(false); return }
+    if (auto) { await supabase.from('physicians').update({ owner_id: user.id }).eq('id', doc.id); setDoc({ ...doc, owner_id: user.id }); setClaimMsg('Verified — this profile is now linked to your account.') }
+    else setClaimMsg('Claim submitted. Our team will review and verify your identity.')
+    setClaiming(false)
+  }
 
   useEffect(() => {
     let alive = true
@@ -98,6 +122,24 @@ export default function DoctorPage() {
             {isFamily && doc.accepting_referrals && <span className="text-[11px] font-semibold text-brand bg-brand/5 border border-brand/15 px-2.5 py-1 rounded-full">Takes procedure referrals</span>}
           </div>
         </div>
+
+        {/* Claim / manage */}
+        {doc.owner_id && user && doc.owner_id === user.id ? (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-sm text-emerald-800 font-medium">You manage this profile.</span>
+            <Link href={`/dashboard/physician/${doc.id}`} className="text-xs font-semibold text-white bg-brand px-3 py-1.5 rounded-lg hover:bg-brand-dark transition">Edit profile</Link>
+          </div>
+        ) : doc.owner_id ? null : (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span className="text-sm text-blue-900 font-medium">Is this you? Claim this profile to manage your availability and referral details.</span>
+              {user
+                ? <button onClick={claimProfile} disabled={claiming} className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition disabled:opacity-50 shrink-0">{claiming ? 'Claiming…' : 'Claim this profile'}</button>
+                : <Link href="/login" className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Sign in to claim</Link>}
+            </div>
+            {claimMsg && <p className="text-xs mt-2 text-blue-800">{claimMsg}</p>}
+          </div>
+        )}
 
         {/* Referral readiness */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
