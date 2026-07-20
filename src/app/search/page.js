@@ -15,6 +15,15 @@ function isOpenEvenings(h) { if (!h) return false; return Object.values(h).some(
 function distKm(a,b,c,d) { const R=6371,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)) }
 const CENTER = { lat: 43.810, lng: -79.430 }
 
+// Map a SNOMED specialty (category + name) to one of the search category buttons — same rules as the admin form.
+function specToCategory(specCategory, specName) {
+  if (specCategory === 'Diagnostics and imaging') return 'Imaging'
+  if (specName === 'Physiotherapy') return 'Physiotherapy'
+  if (specCategory === 'Rehab and pain') return 'Rehab'
+  if (specCategory === 'Primary and emergency') return 'Family Medicine'
+  return 'Specialist'
+}
+
 function WaitBadge({ weeks }) {
   if (weeks === null || weeks === undefined) return null
   const cls = weeks === 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : weeks <= 2 ? 'text-amber-700 bg-amber-50 border-amber-200' : weeks <= 6 ? 'text-orange-700 bg-orange-50 border-orange-200' : 'text-red-700 bg-red-50 border-red-200'
@@ -53,6 +62,37 @@ function Card({ p, onSelect, isFav, onFav }) {
         {p.rating && <div className="flex gap-2 items-center mt-2.5"><Stars r={p.rating} /><span className="text-[10px] text-gray-400">({p.reviews})</span></div>}
       </button>
     </div>
+  )
+}
+
+function DoctorCard({ d }) {
+  const dist = (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng).toFixed(1) : null
+  const isFamily = (d.specialty || '').toLowerCase().includes('family')
+  return (
+    <Link href={`/doctors/${d.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/40">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15 tracking-wide">DOCTOR</span>
+            <h3 className="font-semibold text-gray-900 text-[14px] leading-snug">{d.name}</h3>
+            {d.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+          </div>
+          <p className="text-xs text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
+          <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
+            {isFamily
+              ? (d.accepting_new_patients
+                  ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting patients</span>
+                  : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Roster full</span>)
+              : (d.accepting_referrals
+                  ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting referrals</span>
+                  : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>)}
+            <WaitBadge weeks={d.wait_weeks} />
+            {dist && <span className="text-[10px] text-gray-400">{dist} km</span>}
+          </div>
+        </div>
+        <span className="text-gray-300 text-lg leading-none shrink-0">›</span>
+      </div>
+    </Link>
   )
 }
 
@@ -117,6 +157,8 @@ function Detail({ p, onBack, isFav, onFav }) {
 
 export default function SearchPage() {
   const [providers, setProviders] = useState([])
+  const [doctors, setDoctors] = useState([])
+  const [specialties, setSpecialties] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [cat, setCat] = useState("all")
@@ -141,8 +183,14 @@ export default function SearchPage() {
     async function load() {
       if (!supabase) { setLoading(false); return }
       try {
-        const { data } = await supabase.from("providers").select("*").eq("data_status", "complete").order("name")
-        if (data) setProviders(data)
+        const [prov, docs, specs] = await Promise.all([
+          supabase.from("providers").select("*").eq("data_status", "complete").order("name"),
+          supabase.from("physicians").select("id, name, specialty, specialty_code, gender, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active"),
+          supabase.from("specialties").select("snomed_code, category, name"),
+        ])
+        if (prov.data) setProviders(prov.data)
+        if (docs.data) setDoctors(docs.data)
+        if (specs.data) setSpecialties(specs.data)
       } catch {}
       setLoading(false)
     }
@@ -179,6 +227,48 @@ export default function SearchPage() {
     if (sort==="distance") r=[...r].sort((a,b)=>distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng))
     return r
   }, [search,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,providers])
+
+  // ---- Doctors as first-class results ----
+  const specCatMap = useMemo(() => {
+    const m = {}
+    specialties.forEach(s => { m[s.snomed_code] = specToCategory(s.category, s.name) })
+    return m
+  }, [specialties])
+
+  const doctorCards = useMemo(() => doctors.map(doc => {
+    const links = doc.physician_locations || []
+    const link = links.find(l => l.is_primary && l.providers) || links.find(l => l.providers) || null
+    const c = link?.providers || null
+    return {
+      id: doc.id, name: doc.name, specialty: doc.specialty, specialty_code: doc.specialty_code,
+      accepting_referrals: doc.accepting_referrals, accepting_new_patients: doc.accepting_new_patients,
+      wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, verified: doc.verified,
+      category: specCatMap[doc.specialty_code] || 'Specialist',
+      clinicName: c?.name || null, lat: c?.lat, lng: c?.lng, hours: c?.hours, services: c?.services || [],
+    }
+  }), [doctors, specCatMap])
+
+  const filteredDoctors = useMemo(() => {
+    if (showFavs) return []   // favourites are clinic-only for now
+    let r = doctorCards
+    if (cat !== "all") r = r.filter(d => d.category === cat)
+    if (spec) r = r.filter(d => (d.specialty || "") === spec)
+    if (svc) r = r.filter(d => (d.services || []).includes(svc))
+    if (lang) r = r.filter(d => (d.languages || []).includes(lang))
+    if (acc) r = r.filter(d => d.accepting_referrals)
+    if (on) r = r.filter(d => isOpenNow(d.hours))
+    if (we) r = r.filter(d => isOpenWeekends(d.hours))
+    if (ev) r = r.filter(d => isOpenEvenings(d.hours))
+    if (mw) r = r.filter(d => d.wait_weeks !== null && d.wait_weeks !== undefined && d.wait_weeks <= parseInt(mw))
+    if (mr) r = r.filter(d => d.rating && Number(d.rating) >= parseFloat(mr))
+    if (md) r = r.filter(d => d.lat && d.lng && distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) <= parseFloat(md))
+    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(d => (d.name || "").toLowerCase().includes(q) || (d.specialty || "").toLowerCase().includes(q) || (d.clinicName || "").toLowerCase().includes(q)) }
+    const far = (d) => (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) : 99999
+    if (sort === "name") r = [...r].sort((a,b) => a.name.localeCompare(b.name))
+    else if (sort === "wait") r = [...r].sort((a,b) => (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999))
+    else if (sort === "distance") r = [...r].sort((a,b) => far(a) - far(b))
+    return r
+  }, [doctorCards,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,search,sort,showFavs])
 
   const clearF = () => { setSpec(""); setSvc(""); setLang(""); setAcc(false); setOn(false); setWe(false); setEv(false); setMw(""); setMr(""); setMd("") }
   const sel_s = "px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-lg text-gray-700 outline-none cursor-pointer flex-1 min-w-0 max-w-[180px] focus:border-brand focus:ring-1 focus:ring-brand/20"
@@ -232,7 +322,7 @@ export default function SearchPage() {
                 <select value={sort} onChange={e => setSort(e.target.value)} className={sel_s + " max-w-[150px]"}>
                   <option value="name">Sort: Name</option><option value="rating">Sort: Rating</option><option value="wait">Sort: Wait time</option><option value="reviews">Sort: Reviews</option><option value="distance">Sort: Distance</option>
                 </select>
-                <span className="text-[11px] text-gray-400 whitespace-nowrap">{filtered.length} result{filtered.length!==1?'s':''}</span>
+                <span className="text-[11px] text-gray-400 whitespace-nowrap">{filtered.length + filteredDoctors.length} result{(filtered.length + filteredDoctors.length)!==1?'s':''}</span>
               </div>
             </div>
 
@@ -260,7 +350,8 @@ export default function SearchPage() {
             {showFavs && favs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider to save them here.</div>}
             
             <div className="flex flex-col gap-2.5">
-              {!showFavs && filtered.length === 0 && <div className="text-center py-16 text-gray-400 text-sm">No providers match your filters.</div>}
+              {!showFavs && filtered.length === 0 && filteredDoctors.length === 0 && <div className="text-center py-16 text-gray-400 text-sm">No doctors or clinics match your filters.</div>}
+              {filteredDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} />)}
               {filtered.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
             </div>
           </>

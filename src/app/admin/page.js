@@ -67,13 +67,14 @@ export default function AdminPage() {
 
   useEffect(() => { if (authed) { load(); loadStats() } }, [authed, load, loadStats])
 
-  const addDoctor = () => setDoctorRows(rows => [...rows, { name: '', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '' }])
+  const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
+  const addDoctor = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '' }])
   const updateDoctor = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const removeDoctor = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
 
   const save = async () => {
     // keep the legacy providers.doctors[] string array in sync from the structured rows
-    const doctorNames = doctorRows.map(r => (r.name && r.specialty) ? `${r.name} — ${r.specialty}` : r.name).map(x => (x || '').trim()).filter(Boolean)
+    const doctorNames = doctorRows.map(r => { const nm = withDr(r.name); return nm && r.specialty ? `${nm} — ${r.specialty}` : nm }).map(x => (x || '').trim()).filter(Boolean)
     const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorNames, languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null }
     delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id
 
@@ -93,8 +94,8 @@ export default function AdminPage() {
     try {
       for (let i = 0; i < doctorRows.length; i++) {
         const r = doctorRows[i]
-        if (!r.name || !r.name.trim()) continue
-        const payload = { name: r.name.trim(), specialty: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null }
+        if (!r.name || !r.name.trim() || /^dr\.?\s*$/i.test(r.name.trim())) continue
+        const payload = { name: withDr(r.name), specialty: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null }
         if (r.id) {
           const { error } = await supabase.from("physicians").update(payload).eq("id", r.id)
           if (error) warn = "Clinic saved, but updating a doctor failed: " + error.message
