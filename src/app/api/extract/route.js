@@ -96,9 +96,12 @@ Rules:
     })
 
     const data = await apiRes.json()
-    
+
+    if (data.error) {
+      return NextResponse.json({ error: 'AI error: ' + (data.error.message || data.error.type || 'unknown') }, { status: 500 })
+    }
     if (!data.content || !data.content[0]) {
-      return NextResponse.json({ error: 'AI extraction failed' }, { status: 500 })
+      return NextResponse.json({ error: 'AI extraction failed (empty response from API)' }, { status: 500 })
     }
 
     const text = data.content[0].text.trim()
