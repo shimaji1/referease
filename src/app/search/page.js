@@ -234,7 +234,18 @@ export default function SearchPage() {
     if (p) { setSel(p); setView('detail') }
   }, [providers])
 
-  const allSpecialties = useMemo(() => [...new Set(providers.map(p => p.type))].filter(t => t && !/^\d+$/.test(String(t).trim())).sort(), [providers])
+  const codeToName = useMemo(() => { const m = {}; specialties.forEach(sp => { m[sp.snomed_code] = sp.name }); return m }, [specialties])
+  const provSpecialty = useCallback((p) => {
+    const t = String(p.type || '').trim()
+    if (t && !/^\d+$/.test(t)) return t
+    return codeToName[p.specialty_code] || codeToName[t] || null
+  }, [codeToName])
+  const allSpecialties = useMemo(() => {
+    const set = new Set()
+    providers.forEach(p => { const sname = provSpecialty(p); if (sname) set.add(sname) })
+    doctors.forEach(d => { if (d.specialty) set.add(d.specialty) })
+    return [...set].sort()
+  }, [providers, doctors, provSpecialty])
   const allServices = useMemo(() => [...new Set(providers.flatMap(p => p.services || []))].sort(), [providers])
   const allLanguages = useMemo(() => [...new Set(providers.flatMap(p => p.languages || []))].sort(), [providers])
   const activeF = useMemo(() => [acc,on,we,ev,mw,mr,md,svc,lang].filter(Boolean).length, [acc,on,we,ev,mw,mr,md,svc,lang])
@@ -242,7 +253,7 @@ export default function SearchPage() {
   const filtered = useMemo(() => {
     let r = showFavs ? providers.filter(p => favs.includes(p.id)) : providers
     if (cat !== "all") r = r.filter(p => p.category === cat)
-    if (spec) r = r.filter(p => p.type === spec)
+    if (spec) r = r.filter(p => provSpecialty(p) === spec || p.type === spec)
     if (svc) r = r.filter(p => (p.services||[]).includes(svc))
     if (lang) r = r.filter(p => (p.languages||[]).includes(lang))
     if (acc) r = r.filter(p => p.accepting_referrals)
@@ -259,7 +270,7 @@ export default function SearchPage() {
     if (sort==="reviews") r=[...r].sort((a,b)=>(b.reviews||0)-(a.reviews||0))
     if (sort==="distance") r=[...r].sort((a,b)=>distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng))
     return r
-  }, [search,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,providers])
+  }, [search,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,providers,provSpecialty])
 
   // ---- Doctors as first-class results ----
   const specCatMap = useMemo(() => {

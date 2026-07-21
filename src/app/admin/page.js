@@ -37,8 +37,6 @@ export default function AdminPage() {
   const [clinicQuery, setClinicQuery] = useState('')
   const [clinicResults, setClinicResults] = useState([])
   const [physicians, setPhysicians] = useState([])
-  const [physCount, setPhysCount] = useState(0)
-  const [docSearch, setDocSearch] = useState('')
   const [editingDoc, setEditingDoc] = useState(null)
   const PAGE_SIZE = 50
 
@@ -65,6 +63,16 @@ export default function AdminPage() {
     const { data, count } = await query
     if (data) setProviders(data)
     if (count !== null) setTotal(count)
+
+    // doctors live in the same list (status filter is provider-only, so skip doctors when it's set)
+    if (statusFilter) { setPhysicians([]); return }
+    let dq = supabase.from('physicians').select('*')
+    if (search) {
+      const t = search.replace(/^dr\.?\s*/i, '').replace(/[,%]/g, '').trim()
+      if (t) dq = dq.or(`name.ilike.%${t}%,specialty.ilike.%${t}%`)
+    }
+    const { data: docs } = await dq.order('name').limit(50)
+    setPhysicians(docs || [])
   }, [search, statusFilter, catFilter, page])
 
   const loadStats = useCallback(async () => {
@@ -97,14 +105,16 @@ export default function AdminPage() {
   const updDocLoc = (i, patch) => setDocLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDocLoc = (i) => setDocLocations(l => l.filter((_, idx) => idx !== i))
 
-  const loadDoctors = async () => {
-    if (!supabase) return
-    let q = supabase.from('physicians').select('*').order('name')
-    if (docSearch.trim()) q = q.ilike('name', `%${docSearch.trim()}%`)
-    const { data } = await q.limit(100)
-    if (data) setPhysicians(data)
-    const { count } = await supabase.from('physicians').select('id', { count: 'exact', head: true })
-    if (count !== null && count !== undefined) setPhysCount(count)
+  // Map a doctor's specialty to an admin category (for the category filter)
+  const docCategory = (p) => {
+    const sp = specialties.find(x => x.snomed_code === p.specialty_code)
+    const cat = sp?.category || ''
+    const nm = sp?.name || p.specialty || ''
+    if (cat === 'Diagnostics and imaging') return 'Imaging'
+    if (nm === 'Physiotherapy') return 'Physiotherapy'
+    if (cat === 'Rehab and pain') return 'Rehab'
+    if (cat === 'Primary and emergency' || /family/i.test(nm)) return 'Family Medicine'
+    return 'Specialist'
   }
 
   const editDoctor = (p) => {
@@ -126,7 +136,7 @@ export default function AdminPage() {
     await supabase.from('physician_locations').delete().eq('physician_id', p.id)
     const { error } = await supabase.from('physicians').delete().eq('id', p.id)
     if (error) { setMsg('Error deleting: ' + error.message); return }
-    setMsg('Doctor deleted.'); loadDoctors()
+    setMsg('Doctor deleted.'); load()
   }
 
   const saveDoctor = async () => {
@@ -282,14 +292,14 @@ export default function AdminPage() {
     setEditing(p.id); setTab("edit")
   }
 
-  const s = { width:"100%", padding:"8px 10px", fontSize:"13px", background:"#1a1f2b", border:"1px solid #2a3040", borderRadius:"6px", color:"#e8ecf2", outline:"none", marginTop:"4px" }
-  const lbl = { fontSize:"11px", fontWeight:600, color:"#7a8599", textTransform:"uppercase", letterSpacing:"0.06em", display:"block", marginTop:"12px" }
+  const s = { width:"100%", padding:"8px 10px", fontSize:"13px", background:"#ffffff", border:"1px solid #d1d5db", borderRadius:"6px", color:"#111827", outline:"none", marginTop:"4px" }
+  const lbl = { fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", display:"block", marginTop:"12px" }
 
   if (!authed) return (
-    <div style={{ fontFamily:"Inter, sans-serif", background:"#0c0f14", color:"#e8ecf2", minHeight:"100vh", display:"flex", justifyContent:"center", alignItems:"center" }}>
-      <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"14px", padding:"32px", width:"340px" }}>
+    <div style={{ fontFamily:"Inter, sans-serif", background:"#f8fafc", color:"#111827", minHeight:"100vh", display:"flex", justifyContent:"center", alignItems:"center" }}>
+      <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"14px", padding:"32px", width:"340px" }}>
         <h2 style={{ margin:"0 0 4px", fontSize:"18px" }}>🔐 ReferEasy Admin</h2>
-        <p style={{ margin:"0 0 20px", fontSize:"12px", color:"#7a8599" }}>Enter admin password</p>
+        <p style={{ margin:"0 0 20px", fontSize:"12px", color:"#64748b" }}>Enter admin password</p>
         <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key==="Enter" && login()} placeholder="Password" style={s} />
         <button onClick={login} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"12px", padding:"10px", textAlign:"center", background:"#3b82f6", color:"#fff", borderRadius:"8px", fontSize:"13px", fontWeight:600 }}>Login</button>
         {msg && <p style={{ color:"#dc2626", fontSize:"12px", marginTop:"8px" }}>{msg}</p>}
@@ -301,17 +311,16 @@ export default function AdminPage() {
   const statusColor = { complete: "#059669", partial: "#d97706", incomplete: "#dc2626" }
 
   return (
-    <div style={{ fontFamily:"Inter, sans-serif", background:"#0c0f14", color:"#e8ecf2", minHeight:"100vh" }}>
-      <div style={{ padding:"14px 20px", borderBottom:"1px solid #1e2530", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <h1 style={{ margin:0, fontSize:"18px", fontWeight:700 }}>🔗 Refer<span style={{ color:"var(--ac)" }}>Easy</span> <span style={{ color:"#7a8599", fontWeight:400 }}>Admin</span></h1>
+    <div style={{ fontFamily:"Inter, sans-serif", background:"#f8fafc", color:"#111827", minHeight:"100vh" }}>
+      <div style={{ padding:"14px 20px", borderBottom:"1px solid #e2e8f0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <h1 style={{ margin:0, fontSize:"18px", fontWeight:700 }}>🔗 Refer<span style={{ color:"#2563eb" }}>Easy</span> <span style={{ color:"#64748b", fontWeight:400 }}>Admin</span></h1>
         <div style={{ display:"flex", gap:"8px" }}>
-          <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="list"?"#3b82f6":"#141820", color:tab==="list"?"#fff":"#7a8599", border:"1px solid " + (tab==="list"?"#3b82f6":"#1e2530") }}>Providers</button>
-          <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#141820", color:tab==="claims"?"#fff":"#7a8599", border:"1px solid " + (tab==="claims"?"#d97706":"#1e2530"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
-          <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#141820", color:tab==="edit"&&!editing?"#fff":"#7a8599", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#1e2530") }}>+ Clinic</button>
-          <button onClick={() => { setTab("doctor"); setEditing(null); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="doctor"&&!editingDoc?"#7c3aed":"#141820", color:tab==="doctor"&&!editingDoc?"#fff":"#7a8599", border:"1px solid " + (tab==="doctor"&&!editingDoc?"#7c3aed":"#1e2530") }}>+ Doctor</button>
-          <button onClick={() => { setTab("doctorList"); loadDoctors() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="doctorList"?"#7c3aed":"#141820", color:tab==="doctorList"?"#fff":"#7a8599", border:"1px solid " + (tab==="doctorList"?"#7c3aed":"#1e2530") }}>Doctors</button>
-          <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#141820", color:"#7a8599", border:"1px solid #1e2530", textDecoration:"none" }}>← Site</a>
-          <button onClick={logout} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#f87171", border:"1px solid #dc262640" }}>Log out</button>
+          <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="list"?"#3b82f6":"#ffffff", color:tab==="list"?"#fff":"#64748b", border:"1px solid " + (tab==="list"?"#3b82f6":"#e2e8f0") }}>Providers</button>
+          <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#ffffff", color:tab==="claims"?"#fff":"#64748b", border:"1px solid " + (tab==="claims"?"#d97706":"#e2e8f0"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
+          <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#ffffff", color:tab==="edit"&&!editing?"#fff":"#64748b", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#e2e8f0") }}>+ Clinic</button>
+          <button onClick={() => { setTab("doctor"); setEditing(null); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="doctor"&&!editingDoc?"#7c3aed":"#ffffff", color:tab==="doctor"&&!editingDoc?"#fff":"#64748b", border:"1px solid " + (tab==="doctor"&&!editingDoc?"#7c3aed":"#e2e8f0") }}>+ Doctor</button>
+          <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#ffffff", color:"#64748b", border:"1px solid #e2e8f0", textDecoration:"none" }}>← Site</a>
+          <button onClick={logout} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Log out</button>
         </div>
       </div>
       {msg && <div style={{ padding:"8px 20px", background:"#05966920", color:"#059669", fontSize:"12px", fontWeight:600 }}>{msg}</div>}
@@ -325,9 +334,9 @@ export default function AdminPage() {
             { label:"Partial", value: stats.partial || 0, color:"#d97706" },
             { label:"Incomplete", value: stats.incomplete || 0, color:"#dc2626" },
           ].map(s => (
-            <div key={s.label} style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"8px", padding:"12px", textAlign:"center" }}>
+            <div key={s.label} style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"12px", textAlign:"center" }}>
               <div style={{ fontSize:"24px", fontWeight:700, color:s.color }}>{s.value.toLocaleString()}</div>
-              <div style={{ fontSize:"10px", color:"#7a8599", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.06em" }}>{s.label}</div>
+              <div style={{ fontSize:"10px", color:"#64748b", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.06em" }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -349,19 +358,37 @@ export default function AdminPage() {
 
             {/* Pagination */}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"10px" }}>
-              <span style={{ fontSize:"12px", color:"#7a8599" }}>{total.toLocaleString()} results (page {page+1}/{totalPages || 1})</span>
+              <span style={{ fontSize:"12px", color:"#64748b" }}>{(total + physicians.filter(d => !catFilter || docCategory(d) === catFilter).length).toLocaleString()} results (page {page+1}/{totalPages || 1})</span>
               <div style={{ display:"flex", gap:"4px" }}>
-                <button disabled={page===0} onClick={() => setPage(p=>p-1)} style={{ all:"unset", cursor:page===0?"default":"pointer", padding:"4px 10px", fontSize:"11px", borderRadius:"6px", background:"#141820", color:page===0?"#333":"#7a8599", border:"1px solid #1e2530" }}>← Prev</button>
-                <button disabled={page>=totalPages-1} onClick={() => setPage(p=>p+1)} style={{ all:"unset", cursor:page>=totalPages-1?"default":"pointer", padding:"4px 10px", fontSize:"11px", borderRadius:"6px", background:"#141820", color:page>=totalPages-1?"#333":"#7a8599", border:"1px solid #1e2530" }}>Next →</button>
+                <button disabled={page===0} onClick={() => setPage(p=>p-1)} style={{ all:"unset", cursor:page===0?"default":"pointer", padding:"4px 10px", fontSize:"11px", borderRadius:"6px", background:"#ffffff", color:page===0?"#cbd5e1":"#64748b", border:"1px solid #e2e8f0" }}>← Prev</button>
+                <button disabled={page>=totalPages-1} onClick={() => setPage(p=>p+1)} style={{ all:"unset", cursor:page>=totalPages-1?"default":"pointer", padding:"4px 10px", fontSize:"11px", borderRadius:"6px", background:"#ffffff", color:page>=totalPages-1?"#cbd5e1":"#64748b", border:"1px solid #e2e8f0" }}>Next →</button>
               </div>
             </div>
 
             <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+              {physicians.filter(d => !catFilter || docCategory(d) === catFilter).map(d => (
+                <div key={'doc-' + d.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff", border:"1px solid #7c3aed40", borderRadius:"8px", padding:"10px 14px", gap:"8px" }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:"13px", fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                      <span style={{ fontSize:"9px", fontWeight:700, color:"#7c3aed", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"1px 6px", marginRight:"6px" }}>DOCTOR</span>
+                      {d.name}
+                      {d.verified && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#2563eb", background:"#3b82f620", border:"1px solid #3b82f640", borderRadius:"999px", padding:"1px 6px" }}>VERIFIED</span>}
+                      {d.owner_id && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#059669", background:"#05966920", border:"1px solid #05966940", borderRadius:"999px", padding:"1px 6px" }}>CLAIMED</span>}
+                    </div>
+                    <div style={{ fontSize:"11px", color:"#64748b" }}>{d.specialty || 'Physician'}{d.gender ? ` · ${d.gender}` : ''}{d.accepting_referrals ? ' · accepting referrals' : ''}</div>
+                  </div>
+                  <div style={{ display:"flex", gap:"4px", alignItems:"center", flexShrink:0 }}>
+                    <a href={`/doctors/${d.id}`} target="_blank" rel="noopener noreferrer" style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#e2e8f0", color:"#475569", border:"1px solid #cbd5e1" }}>View</a>
+                    <button onClick={() => editDoctor(d)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>Edit</button>
+                    <button onClick={() => deleteDoctor(d)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Del</button>
+                  </div>
+                </div>
+              ))}
               {providers.map(p => (
-                <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#141820", border:"1px solid #1e2530", borderRadius:"8px", padding:"10px 14px", gap:"8px" }}>
+                <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"10px 14px", gap:"8px" }}>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:"13px", fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.name}</div>
-                    <div style={{ fontSize:"11px", color:"#7a8599" }}>
+                    <div style={{ fontSize:"11px", color:"#64748b" }}>
                       {p.type} · {p.category}
                       {p.phone && ` · ${p.phone}`}
                       {p.fax && ` · Fax: ${p.fax}`}
@@ -379,11 +406,11 @@ export default function AdminPage() {
             </div>
           </>
         ) : tab === "edit" ? (
-          <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"12px", padding:"20px" }}>
+          <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"12px", padding:"20px" }}>
             <h3 style={{ margin:"0 0 16px", fontSize:"16px" }}>{editing ? "Edit Provider" : "Add New Provider"}</h3>
 
             {/* Website Extractor */}
-            <div style={{ background:"#0f1a30", border:"1px solid #1e3a5f", borderRadius:"8px", padding:"14px", marginBottom:"16px" }}>
+            <div style={{ background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:"8px", padding:"14px", marginBottom:"16px" }}>
               <div style={{ fontSize:"12px", fontWeight:600, color:"#3b82f6", marginBottom:"8px" }}>🌐 Auto-fill from website (extracts all locations)</div>
               <div style={{ display:"flex", gap:"8px" }}>
                 <input style={{ ...s, marginTop:0, flex:1 }} placeholder="Paste clinic website URL (e.g. https://1to1rehab.ca)" id="extractUrl" />
@@ -469,7 +496,7 @@ export default function AdminPage() {
             <label style={lbl}>Services (comma-separated)</label>
             <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={servicesText} onChange={e => setServicesText(e.target.value)} placeholder="ECG, Stress Test, Holter Monitor" />
             <label style={lbl}>Doctors at this clinic</label>
-            <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 8px" }}>Each doctor gets their own profile page, linked to this clinic.</div>
+            <div style={{ fontSize:"11px", color:"#64748b", margin:"2px 0 8px" }}>Each doctor gets their own profile page, linked to this clinic.</div>
             {doctorRows.map((r, i) => (
               <div key={i} style={{ display:"grid", gridTemplateColumns:"1.3fr 1.3fr 0.8fr auto", gap:"6px", marginBottom:"6px", alignItems:"center" }}>
                 <input style={{ ...s, marginTop:0 }} placeholder="Dr. Full Name" value={r.name} onChange={e => updateDoctor(i, { name: e.target.value })} />
@@ -492,28 +519,28 @@ export default function AdminPage() {
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:"6px", marginTop:"4px" }}>
               {DAYS.map((d, i) => (
                 <div key={d}>
-                  <div style={{ fontSize:"9px", color:"#7a8599", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:"3px", textAlign:"center" }}>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}</div>
+                  <div style={{ fontSize:"9px", color:"#64748b", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:"3px", textAlign:"center" }}>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}</div>
                   <input style={{ ...s, marginTop:0, padding:"6px 4px", fontSize:"11px", textAlign:"center" }} value={form.hours?.[d] || ''} onChange={e => setForm({ ...form, hours: { ...form.hours, [d]: e.target.value || null } })} placeholder="9-17" />
                 </div>
               ))}
             </div>
             {editing && (
-              <div style={{ marginTop:"20px", paddingTop:"16px", borderTop:"1px solid #1e2530" }}>
+              <div style={{ marginTop:"20px", paddingTop:"16px", borderTop:"1px solid #e2e8f0" }}>
                 <label style={lbl}>Forms</label>
-                <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 10px" }}>Uploaded forms appear on the public listing for referring doctors to download.</div>
-                <FormsManager providerId={editing} dark />
+                <div style={{ fontSize:"11px", color:"#64748b", margin:"2px 0 10px" }}>Uploaded forms appear on the public listing for referring doctors to download.</div>
+                <FormsManager providerId={editing} />
               </div>
             )}
             <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
               <button onClick={save} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#3b82f6", color:"#fff" }}>{editing ? "Save" : "Add"}</button>
-              <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>
+              <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#e2e8f0", color:"#64748b" }}>Cancel</button>
             </div>
           </div>
         ) : null}
         {tab === "doctor" && (
-          <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"12px", padding:"20px" }}>
+          <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"12px", padding:"20px" }}>
             <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>{editingDoc ? 'Edit Doctor' : 'Add Doctor'}</h3>
-            <p style={{ margin:"0 0 16px", fontSize:"12px", color:"#7a8599" }}>{editingDoc ? "Update this doctor's details. Add a clinic below to link them to a practice location." : 'Creates a standalone, searchable, claimable doctor profile. Add one or more places they practise.'}</p>
+            <p style={{ margin:"0 0 16px", fontSize:"12px", color:"#64748b" }}>{editingDoc ? "Update this doctor's details. Add a clinic below to link them to a practice location." : 'Creates a standalone, searchable, claimable doctor profile. Add one or more places they practise.'}</p>
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
               <div><label style={lbl}>Full Name *</label><input style={s} value={docForm.name} onChange={e => setDoc('name', e.target.value)} placeholder="Dr. Jane Smith" /></div>
@@ -531,27 +558,27 @@ export default function AdminPage() {
             <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={docForm.criteria} onChange={e => setDoc('criteria', e.target.value)} placeholder="e.g. GP referral required, recent imaging, OHIP card" />
 
             <label style={{ ...lbl, marginTop:"20px" }}>Hours (start-end, e.g. 9:00-17:00 — blank = closed)</label>
-            <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 8px" }}>For doctors who run their own practice. Leave blank if they only work out of the clinics below.</div>
+            <div style={{ fontSize:"11px", color:"#64748b", margin:"2px 0 8px" }}>For doctors who run their own practice. Leave blank if they only work out of the clinics below.</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:"6px" }}>
               {DAYS.map((d, i) => (
                 <div key={d}>
-                  <div style={{ fontSize:"9px", color:"#7a8599", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:"3px", textAlign:"center" }}>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}</div>
+                  <div style={{ fontSize:"9px", color:"#64748b", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:"3px", textAlign:"center" }}>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}</div>
                   <input style={{ ...s, marginTop:0, padding:"6px 4px", fontSize:"11px", textAlign:"center" }} value={docForm.hours?.[d] || ''} onChange={e => setDocForm(f => ({ ...f, hours: { ...f.hours, [d]: e.target.value || null } }))} placeholder="9-17" />
                 </div>
               ))}
             </div>
 
             <label style={{ ...lbl, marginTop:"20px" }}>Locations (where they practise)</label>
-            <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 8px" }}>Link an existing clinic to auto-fill its address, phone, fax and hours — or type a new location below.</div>
+            <div style={{ fontSize:"11px", color:"#64748b", margin:"2px 0 8px" }}>Link an existing clinic to auto-fill its address, phone, fax and hours — or type a new location below.</div>
 
             <div style={{ position:"relative", marginBottom:"10px" }}>
               <input style={{ ...s, marginTop:0 }} value={clinicQuery} onChange={e => searchClinics(e.target.value)} placeholder="🔎 Search existing clinics to link…" />
               {clinicResults.length > 0 && (
-                <div style={{ position:"absolute", zIndex:30, left:0, right:0, top:"100%", marginTop:"4px", background:"#0c0f14", border:"1px solid #1e2530", borderRadius:"8px", maxHeight:"220px", overflowY:"auto" }}>
+                <div style={{ position:"absolute", zIndex:30, left:0, right:0, top:"100%", marginTop:"4px", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:"8px", maxHeight:"220px", overflowY:"auto" }}>
                   {clinicResults.map(c => (
-                    <button key={c.id} onClick={() => addClinicLoc(c)} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", boxSizing:"border-box", padding:"8px 12px", borderBottom:"1px solid #1e2530" }}>
-                      <div style={{ fontSize:"13px", color:"#e8ecf2", fontWeight:600 }}>{c.name}</div>
-                      {c.address && <div style={{ fontSize:"11px", color:"#7a8599" }}>{c.address}</div>}
+                    <button key={c.id} onClick={() => addClinicLoc(c)} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", boxSizing:"border-box", padding:"8px 12px", borderBottom:"1px solid #e2e8f0" }}>
+                      <div style={{ fontSize:"13px", color:"#111827", fontWeight:600 }}>{c.name}</div>
+                      {c.address && <div style={{ fontSize:"11px", color:"#64748b" }}>{c.address}</div>}
                     </button>
                   ))}
                 </div>
@@ -560,16 +587,16 @@ export default function AdminPage() {
 
             {docLocations.map((l, i) => (
               l.provider_id ? (
-                <div key={i} style={{ border:"1px solid #2a3340", background:"#10151c", borderRadius:"8px", padding:"10px 12px", marginBottom:"8px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:"8px" }}>
+                <div key={i} style={{ border:"1px solid #cbd5e1", background:"#f1f5f9", borderRadius:"8px", padding:"10px 12px", marginBottom:"8px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:"8px" }}>
                   <div>
-                    <div style={{ fontSize:"13px", color:"#e8ecf2", fontWeight:600 }}>{l.name}<span style={{ fontSize:"9px", color:"#60a5fa", background:"#3b82f620", border:"1px solid #3b82f640", borderRadius:"999px", padding:"1px 6px", marginLeft:"6px" }}>LINKED CLINIC</span></div>
-                    {l.address && <div style={{ fontSize:"11px", color:"#7a8599" }}>{l.address}</div>}
-                    <div style={{ fontSize:"11px", color:"#7a8599" }}>Address, phone, fax &amp; hours are pulled from this clinic automatically.</div>
+                    <div style={{ fontSize:"13px", color:"#111827", fontWeight:600 }}>{l.name}<span style={{ fontSize:"9px", color:"#2563eb", background:"#3b82f620", border:"1px solid #3b82f640", borderRadius:"999px", padding:"1px 6px", marginLeft:"6px" }}>LINKED CLINIC</span></div>
+                    {l.address && <div style={{ fontSize:"11px", color:"#64748b" }}>{l.address}</div>}
+                    <div style={{ fontSize:"11px", color:"#64748b" }}>Address, phone, fax &amp; hours are pulled from this clinic automatically.</div>
                   </div>
                   <button onClick={() => rmDocLoc(i)} title="Unlink" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕</button>
                 </div>
               ) : (
-                <div key={i} style={{ border:"1px solid #1e2530", borderRadius:"8px", padding:"10px", marginBottom:"8px" }}>
+                <div key={i} style={{ border:"1px solid #e2e8f0", borderRadius:"8px", padding:"10px", marginBottom:"8px" }}>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:"8px", alignItems:"center", marginBottom:"6px" }}>
                     <input style={{ ...s, marginTop:0 }} value={l.name} onChange={e => updDocLoc(i, { name: e.target.value })} placeholder={`Clinic / office name (e.g. Disera Medical Centre)`} />
                     {docLocations.length > 1 && <button onClick={() => rmDocLoc(i)} title="Remove location" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕</button>}
@@ -586,63 +613,35 @@ export default function AdminPage() {
 
             <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
               <button onClick={saveDoctor} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#7c3aed", color:"#fff" }}>{editingDoc ? 'Save Changes' : 'Add Doctor'}</button>
-              <button onClick={() => { setTab(editingDoc ? "doctorList" : "list"); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>
+              <button onClick={() => { setTab("list"); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#e2e8f0", color:"#64748b" }}>Cancel</button>
             </div>
           </div>
-        )}
-        {tab === "doctorList" && (
-          <>
-            <div style={{ display:"flex", gap:"10px", marginBottom:"14px", alignItems:"center" }}>
-              <input style={{ ...s, marginTop:0, flex:1 }} value={docSearch} onChange={e => setDocSearch(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') loadDoctors() }} placeholder="Search doctors by name…" />
-              <button onClick={loadDoctors} style={{ all:"unset", cursor:"pointer", padding:"9px 18px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#3b82f6", color:"#fff" }}>Search</button>
-            </div>
-            <div style={{ fontSize:"12px", color:"#7a8599", marginBottom:"12px" }}>{physCount} doctor{physCount === 1 ? '' : 's'} total · showing {physicians.length}</div>
-            {physicians.length === 0 ? (
-              <div style={{ textAlign:"center", padding:"40px", color:"#7a8599", fontSize:"13px" }}>No doctors found. Use “+ Doctor” to add one.</div>
-            ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-                {physicians.map(p => (
-                  <div key={p.id} style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"10px", padding:"12px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:"12px" }}>
-                    <div style={{ minWidth:0 }}>
-                      <div style={{ fontSize:"14px", fontWeight:600, color:"#e8ecf2" }}>{p.name}{p.verified && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#60a5fa", background:"#3b82f620", border:"1px solid #3b82f640", borderRadius:"999px", padding:"1px 6px" }}>VERIFIED</span>}{p.owner_id && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#34d399", background:"#05966920", border:"1px solid #05966940", borderRadius:"999px", padding:"1px 6px" }}>CLAIMED</span>}</div>
-                      <div style={{ fontSize:"12px", color:"#7a8599", marginTop:"2px" }}>{p.specialty || 'Physician'}{p.gender ? ` · ${p.gender}` : ''}{p.accepting_referrals ? ' · accepting referrals' : ''}</div>
-                    </div>
-                    <div style={{ display:"flex", gap:"6px", flexShrink:0 }}>
-                      <a href={`/doctors/${p.id}`} target="_blank" rel="noopener noreferrer" style={{ all:"unset", cursor:"pointer", padding:"6px 12px", fontSize:"12px", fontWeight:600, borderRadius:"6px", background:"#1e2530", color:"#8b95a5", border:"1px solid #2a3340" }}>View</a>
-                      <button onClick={() => editDoctor(p)} style={{ all:"unset", cursor:"pointer", padding:"6px 12px", fontSize:"12px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#60a5fa", border:"1px solid #3b82f640" }}>Edit</button>
-                      <button onClick={() => deleteDoctor(p)} style={{ all:"unset", cursor:"pointer", padding:"6px 12px", fontSize:"12px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#f87171", border:"1px solid #dc262640" }}>Delete</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
         )}
         {tab === "claims" && (
           <>
             <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"12px" }}>Listing Claims</h2>
             {claims.length === 0 ? (
-              <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"8px", padding:"30px", textAlign:"center", color:"#7a8599", fontSize:"13px" }}>No claims yet</div>
+              <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"30px", textAlign:"center", color:"#64748b", fontSize:"13px" }}>No claims yet</div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
                 {claims.map(c => (
-                  <div key={c.id} style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"8px", padding:"12px 14px" }}>
+                  <div key={c.id} style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"12px 14px" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"8px" }}>
                       <div style={{ flex:1 }}>
-                        <div style={{ fontSize:"13px", fontWeight:600 }}>{c.providers?.name || c.physicians?.name || 'Unknown'}{c.physician_id && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#a78bfa", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"1px 6px" }}>DOCTOR</span>}</div>
-                        <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"2px" }}>{c.providers ? `${c.providers.type} · ${c.providers.address || ''}` : (c.physicians?.specialty || 'Physician profile')}</div>
-                        <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"4px" }}>
-                          Claimed by: <span style={{ color:"#e8ecf2" }}>{c.user_name}</span> ({c.user_email})
+                        <div style={{ fontSize:"13px", fontWeight:600 }}>{c.providers?.name || c.physicians?.name || 'Unknown'}{c.physician_id && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#7c3aed", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"1px 6px" }}>DOCTOR</span>}</div>
+                        <div style={{ fontSize:"11px", color:"#64748b", marginTop:"2px" }}>{c.providers ? `${c.providers.type} · ${c.providers.address || ''}` : (c.physicians?.specialty || 'Physician profile')}</div>
+                        <div style={{ fontSize:"11px", color:"#64748b", marginTop:"4px" }}>
+                          Claimed by: <span style={{ color:"#111827" }}>{c.user_name}</span> ({c.user_email})
                         </div>
                         {(c.verify_email || c.verify_fax || c.id_doc_url) && (
-                          <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"12px", alignItems:"center", background:"#0c0f14", border:"1px solid #1e2530", borderRadius:"6px", padding:"6px 10px" }}>
-                            <span style={{ color:"#8b95a5", fontWeight:600 }}>Verification:</span>
+                          <div style={{ fontSize:"11px", color:"#64748b", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"12px", alignItems:"center", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:"6px", padding:"6px 10px" }}>
+                            <span style={{ color:"#475569", fontWeight:600 }}>Verification:</span>
                             {c.verify_email && <span>✉️ {c.verify_email}</span>}
                             {c.verify_fax && <span>📠 {c.verify_fax}</span>}
-                            {c.id_doc_url && <a href={c.id_doc_url} target="_blank" rel="noopener noreferrer" style={{ color:"#60a5fa", fontWeight:600 }}>📎 View ID</a>}
+                            {c.id_doc_url && <a href={c.id_doc_url} target="_blank" rel="noopener noreferrer" style={{ color:"#2563eb", fontWeight:600 }}>📎 View ID</a>}
                           </div>
                         )}
-                        <div style={{ fontSize:"10px", color:"#555", marginTop:"2px" }}>
+                        <div style={{ fontSize:"10px", color:"#94a3b8", marginTop:"2px" }}>
                           {new Date(c.created_at).toLocaleDateString()} · {c.verification_method}
                         </div>
                       </div>
