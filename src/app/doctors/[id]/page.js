@@ -30,6 +30,9 @@ export default function DoctorPage() {
   const [loading, setLoading] = useState(true)
   const [missing, setMissing] = useState(false)
   const [forms, setForms] = useState([])
+  const [isFav, setIsFav] = useState(false)
+  useEffect(() => { try { const s = JSON.parse(localStorage.getItem('re-favs-docs') || '[]'); setIsFav(s.includes(id)) } catch {} }, [id])
+  const toggleFav = () => { try { const s = JSON.parse(localStorage.getItem('re-favs-docs') || '[]'); const next = s.includes(id) ? s.filter(x => x !== id) : [...s, id]; localStorage.setItem('re-favs-docs', JSON.stringify(next)); setIsFav(next.includes(id)) } catch {} }
   const [claimMsg, setClaimMsg] = useState('')
   const [claiming, setClaiming] = useState(false)
 
@@ -97,7 +100,10 @@ export default function DoctorPage() {
                 {googleRating && <span className="text-amber-500 font-semibold">★ {Number(googleRating).toFixed(1)}</span>}
               </div>
             </div>
-            {doc.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">✓ Verified</span>}
+            <div className="flex items-center gap-2 shrink-0">
+              {doc.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">✓ Verified</span>}
+              <button onClick={toggleFav} title={isFav ? 'Remove favourite' : 'Add to favourites'} className={`text-2xl leading-none ${isFav ? 'text-amber-400' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2 mt-3 items-center">
             {isFamily

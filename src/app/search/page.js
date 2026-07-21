@@ -65,7 +65,7 @@ function Card({ p, onSelect, isFav, onFav }) {
   )
 }
 
-function DoctorCard({ d }) {
+function DoctorCard({ d, isFav, onFav }) {
   const dist = (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng).toFixed(1) : null
   const isFamily = (d.specialty || '').toLowerCase().includes('family')
   return (
@@ -90,7 +90,10 @@ function DoctorCard({ d }) {
             {dist && <span className="text-[10px] text-gray-400">{dist} km</span>}
           </div>
         </div>
-        <span className="text-gray-300 text-lg leading-none shrink-0">›</span>
+        <div className="flex items-center gap-1 shrink-0">
+          {onFav && <button onClick={e => { e.preventDefault(); e.stopPropagation(); onFav(d.id) }} title={isFav ? 'Remove favourite' : 'Add to favourites'} className={`text-lg leading-none ${isFav ? 'text-amber-400' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>}
+          <span className="text-gray-300 text-lg leading-none">›</span>
+        </div>
       </div>
     </Link>
   )
@@ -183,6 +186,7 @@ export default function SearchPage() {
   const [sel, setSel] = useState(null)
   const [view, setView] = useState("search")
   const [favs, setFavs] = useState([])
+  const [favDocs, setFavDocs] = useState([])
   const [showFavs, setShowFavs] = useState(false)
   const [showF, setShowF] = useState(false)
 
@@ -207,6 +211,28 @@ export default function SearchPage() {
   useEffect(() => { try { const s = localStorage.getItem("re-favs"); if (s) setFavs(JSON.parse(s)) } catch {} }, [])
   const saveFavs = useCallback(ids => { setFavs(ids); try { localStorage.setItem("re-favs", JSON.stringify(ids)) } catch {} }, [])
   const toggleFav = useCallback(id => saveFavs(favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id]), [favs, saveFavs])
+
+  useEffect(() => { try { const s = localStorage.getItem("re-favs-docs"); if (s) setFavDocs(JSON.parse(s)) } catch {} }, [])
+  const saveFavDocs = useCallback(ids => { setFavDocs(ids); try { localStorage.setItem("re-favs-docs", JSON.stringify(ids)) } catch {} }, [])
+  const toggleFavDoc = useCallback(id => saveFavDocs(favDocs.includes(id) ? favDocs.filter(f => f !== id) : [...favDocs, id]), [favDocs, saveFavDocs])
+
+  // Deep-link: /search?id=123 opens that provider's listing directly.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !providers.length) return
+    const pid = new URLSearchParams(window.location.search).get('id')
+    if (!pid) return
+    const p = providers.find(x => String(x.id) === String(pid))
+    if (p) { setSel(p); setView('detail') }
+  }, [providers])
+
+  // Open a specific listing when arriving via /search?id=123 (e.g. from a favourite)
+  useEffect(() => {
+    if (!providers.length || typeof window === 'undefined') return
+    const wantId = new URLSearchParams(window.location.search).get('id')
+    if (!wantId) return
+    const p = providers.find(x => String(x.id) === String(wantId))
+    if (p) { setSel(p); setView('detail') }
+  }, [providers])
 
   const allSpecialties = useMemo(() => [...new Set(providers.map(p => p.type))].filter(t => t && !/^\d+$/.test(String(t).trim())).sort(), [providers])
   const allServices = useMemo(() => [...new Set(providers.flatMap(p => p.services || []))].sort(), [providers])
@@ -256,7 +282,7 @@ export default function SearchPage() {
   }), [doctors, specCatMap])
 
   const filteredDoctors = useMemo(() => {
-    if (showFavs) return []   // favourites are clinic-only for now
+    if (showFavs) return doctorCards.filter(d => favDocs.includes(d.id))
     let r = doctorCards
     if (cat !== "all") r = r.filter(d => d.category === cat)
     if (spec) r = r.filter(d => (d.specialty || "") === spec)
@@ -275,7 +301,7 @@ export default function SearchPage() {
     else if (sort === "wait") r = [...r].sort((a,b) => (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999))
     else if (sort === "distance") r = [...r].sort((a,b) => far(a) - far(b))
     return r
-  }, [doctorCards,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,search,sort,showFavs])
+  }, [doctorCards,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,search,sort,showFavs,favDocs])
 
   const clearF = () => { setSpec(""); setSvc(""); setLang(""); setAcc(false); setOn(false); setWe(false); setEv(false); setMw(""); setMr(""); setMd("") }
   const sel_s = "px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-lg text-gray-700 outline-none cursor-pointer flex-1 min-w-0 max-w-[180px] focus:border-brand focus:ring-1 focus:ring-brand/20"
@@ -301,7 +327,7 @@ export default function SearchPage() {
           </Link>
           <div className="flex items-center gap-3">
             <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>
-              ★ Favourites {favs.length > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length}</span>}
+              ★ Favourites {(favs.length + favDocs.length) > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length + favDocs.length}</span>}
             </button>
             <Link href="/login" className="text-xs font-medium text-gray-500 hover:text-brand px-3 py-1.5">Sign In</Link>
           </div>
@@ -354,11 +380,11 @@ export default function SearchPage() {
               </div>
             )}
 
-            {showFavs && favs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider to save them here.</div>}
+            {showFavs && favs.length === 0 && favDocs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
             
             <div className="flex flex-col gap-2.5">
               {!showFavs && filtered.length === 0 && filteredDoctors.length === 0 && <div className="text-center py-16 text-gray-400 text-sm">No doctors or clinics match your filters.</div>}
-              {filteredDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} />)}
+              {filteredDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />)}
               {filtered.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
             </div>
           </>

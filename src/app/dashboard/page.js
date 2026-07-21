@@ -5,6 +5,69 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
+function FavouritesSection() {
+  const [favProviders, setFavProviders] = useState([])
+  const [favDoctors, setFavDoctors] = useState([])
+  useEffect(() => {
+    let alive = true
+    try {
+      const pids = JSON.parse(localStorage.getItem('re-favs') || '[]')
+      const dids = JSON.parse(localStorage.getItem('re-favs-docs') || '[]')
+      if (supabase && pids.length) supabase.from('providers').select('id, name, type, address, accepting_referrals').in('id', pids).then(({ data }) => { if (alive && data) setFavProviders(data) })
+      if (supabase && dids.length) supabase.from('physicians').select('id, name, specialty, accepting_referrals').in('id', dids).then(({ data }) => { if (alive && data) setFavDoctors(data) })
+    } catch {}
+    return () => { alive = false }
+  }, [])
+
+  const total = favProviders.length + favDoctors.length
+  return (
+    <div className="mt-8">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-bold text-gray-900">My Favourites</h2>
+        <Link href="/search" className="text-sm font-semibold text-brand hover:underline">Search →</Link>
+      </div>
+      {total === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+          <div className="text-3xl mb-3">☆</div>
+          <p className="font-semibold text-gray-700 mb-1">No favourites yet</p>
+          <p className="text-sm text-gray-500 mb-4">Star clinics and doctors you work with to keep them handy here.</p>
+          <Link href="/search" className="inline-flex px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition">Search</Link>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {favDoctors.map(d => (
+            <Link key={'d' + d.id} href={`/doctors/${d.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-brand/30 hover:shadow-sm transition">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2"><span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15">DOCTOR</span><span className="font-semibold text-sm text-gray-900 truncate">{d.name}</span></div>
+                  <div className="text-xs text-brand/70 font-medium mt-0.5">{d.specialty || 'Physician'}</div>
+                </div>
+                {d.accepting_referrals
+                  ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">Accepting</span>
+                  : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 shrink-0">Not accepting</span>}
+              </div>
+            </Link>
+          ))}
+          {favProviders.map(p => (
+            <Link key={'p' + p.id} href={`/search?id=${p.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-brand/30 hover:shadow-sm transition">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm text-gray-900 truncate">{p.name}</div>
+                  <div className="text-xs text-brand/70 font-medium">{p.type}</div>
+                  {p.address && <div className="text-xs text-gray-500 mt-0.5 truncate">📍 {p.address}</div>}
+                </div>
+                {p.accepting_referrals
+                  ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">Accepting</span>
+                  : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 shrink-0">Not accepting</span>}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PhysicianDashboard({ profile }) {
   const [favs, setFavs] = useState([])
   const [favProviders, setFavProviders] = useState([])
@@ -33,37 +96,7 @@ function PhysicianDashboard({ profile }) {
           <div className="text-xs text-gray-500">{profile.email}</div>
         </div>
       </div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-gray-900">My Favourite Providers</h2>
-        <Link href="/search" className="text-sm font-semibold text-brand hover:underline">Search providers →</Link>
-      </div>
-      {favProviders.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-          <div className="text-3xl mb-3">☆</div>
-          <p className="font-semibold text-gray-700 mb-1">No favourites yet</p>
-          <p className="text-sm text-gray-500 mb-4">Search and save your preferred specialists.</p>
-          <Link href="/search" className="inline-flex px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition">Search Providers</Link>
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {favProviders.map(p => (
-            <Link href={`/search?id=${p.id}`} key={p.id} className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-brand/30 hover:shadow-sm transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-sm text-gray-900">{p.name}</div>
-                  <div className="text-xs text-brand/70 font-medium">{p.type}</div>
-                  <div className="text-xs text-gray-500 mt-1">📍 {p.address}</div>
-                </div>
-                <div className="text-right shrink-0 ml-4">
-                  {p.accepting_referrals
-                    ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>
-                    : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not Accepting</span>}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+      <FavouritesSection />
     </div>
   )
 }
@@ -193,6 +226,8 @@ function SpecialistDashboard({ profile, user }) {
           </div>
         </div>
       )}
+
+      <FavouritesSection />
     </div>
   )
 }
