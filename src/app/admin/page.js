@@ -36,12 +36,18 @@ export default function AdminPage() {
   const [docLocations, setDocLocations] = useState([{ name:'', address:'', phone:'', fax:'' }])
   const [clinicQuery, setClinicQuery] = useState('')
   const [clinicResults, setClinicResults] = useState([])
+  const [physicians, setPhysicians] = useState([])
+  const [physCount, setPhysCount] = useState(0)
+  const [docSearch, setDocSearch] = useState('')
+  const [editingDoc, setEditingDoc] = useState(null)
   const PAGE_SIZE = 50
 
   const login = () => {
-    if (pw === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) { setAuthed(true); setMsg("") }
+    if (pw === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) { setAuthed(true); setMsg(""); try { localStorage.setItem('re-admin-auth', '1') } catch {} }
     else setMsg("Wrong password")
   }
+  const logout = () => { setAuthed(false); setPw(""); try { localStorage.removeItem('re-admin-auth') } catch {} }
+  useEffect(() => { try { if (localStorage.getItem('re-admin-auth') === '1') setAuthed(true) } catch {} }, [])
 
   // Load specialties
   useEffect(() => {
@@ -91,6 +97,38 @@ export default function AdminPage() {
   const updDocLoc = (i, patch) => setDocLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDocLoc = (i) => setDocLocations(l => l.filter((_, idx) => idx !== i))
 
+  const loadDoctors = async () => {
+    if (!supabase) return
+    let q = supabase.from('physicians').select('*').order('name')
+    if (docSearch.trim()) q = q.ilike('name', `%${docSearch.trim()}%`)
+    const { data } = await q.limit(100)
+    if (data) setPhysicians(data)
+    const { count } = await supabase.from('physicians').select('id', { count: 'exact', head: true })
+    if (count !== null && count !== undefined) setPhysCount(count)
+  }
+
+  const editDoctor = (p) => {
+    setEditingDoc(p.id)
+    setDocForm({
+      name: p.name || 'Dr. ', specialty: p.specialty || '', specialty_code: p.specialty_code || '', gender: p.gender || '',
+      accepting_referrals: !!p.accepting_referrals, accepting_new_patients: !!p.accepting_new_patients,
+      wait_weeks: p.wait_weeks ?? '', criteria: p.criteria || '',
+      referral_types: (p.referral_types || []).join(', '), languages: (p.languages || ['English']).join(', '),
+      hours: p.hours || { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
+    })
+    setDocLocations([{ name:'', address:'', phone:'', fax:'' }]); setClinicQuery(''); setClinicResults([])
+    setTab('doctor')
+  }
+
+  const deleteDoctor = async (p) => {
+    if (!supabase) return
+    if (typeof window !== 'undefined' && !window.confirm(`Delete "${p.name}"? This removes the doctor and their clinic links (the clinics themselves stay).`)) return
+    await supabase.from('physician_locations').delete().eq('physician_id', p.id)
+    const { error } = await supabase.from('physicians').delete().eq('id', p.id)
+    if (error) { setMsg('Error deleting: ' + error.message); return }
+    setMsg('Doctor deleted.'); loadDoctors()
+  }
+
   const saveDoctor = async () => {
     const name = withDr(docForm.name)
     if (!name || /^dr\.?\s*$/i.test(name)) { setMsg("Please enter the doctor's name"); return }
@@ -108,8 +146,15 @@ export default function AdminPage() {
       hours: docForm.hours || null,
       status: 'active',
     }
-    const { data: doc, error } = await supabase.from('physicians').insert(rec).select().single()
-    if (error || !doc) { setMsg("Error saving doctor: " + (error?.message || "no row returned")); return }
+    let docId = editingDoc
+    if (editingDoc) {
+      const { error } = await supabase.from('physicians').update(rec).eq('id', editingDoc)
+      if (error) { setMsg("Error saving doctor: " + error.message); return }
+    } else {
+      const { data: doc, error } = await supabase.from('physicians').insert(rec).select().single()
+      if (error || !doc) { setMsg("Error saving doctor: " + (error?.message || "no row returned")); return }
+      docId = doc.id
+    }
 
     // Locations: linked clinics reuse the existing provider; typed-in ones create a 'partial' provider.
     let warn = null
@@ -130,11 +175,11 @@ export default function AdminPage() {
         if (pErr || !pRow) { warn = "Doctor saved, but a location failed: " + (pErr?.message || "unknown"); continue }
         provId = pRow.id
       }
-      const { error: lErr } = await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: provId, is_primary: i === 0 })
+      const { error: lErr } = await supabase.from('physician_locations').insert({ physician_id: docId, provider_id: provId, is_primary: i === 0 })
       if (lErr) warn = "Doctor saved, but linking a location failed: " + lErr.message
     }
-    setMsg(warn || "Doctor added — their profile page is live and searchable.")
-    setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]); setTab("list"); load(); loadStats()
+    setMsg(warn || (editingDoc ? "Doctor updated." : "Doctor added — their profile page is live and searchable."))
+    setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]); setTab("list"); load(); loadStats()
   }
 
   const save = async () => {
@@ -263,8 +308,10 @@ export default function AdminPage() {
           <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="list"?"#3b82f6":"#141820", color:tab==="list"?"#fff":"#7a8599", border:"1px solid " + (tab==="list"?"#3b82f6":"#1e2530") }}>Providers</button>
           <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#141820", color:tab==="claims"?"#fff":"#7a8599", border:"1px solid " + (tab==="claims"?"#d97706":"#1e2530"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
           <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#141820", color:tab==="edit"&&!editing?"#fff":"#7a8599", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#1e2530") }}>+ Clinic</button>
-          <button onClick={() => { setTab("doctor"); setEditing(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="doctor"?"#7c3aed":"#141820", color:tab==="doctor"?"#fff":"#7a8599", border:"1px solid " + (tab==="doctor"?"#7c3aed":"#1e2530") }}>+ Doctor</button>
+          <button onClick={() => { setTab("doctor"); setEditing(null); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="doctor"&&!editingDoc?"#7c3aed":"#141820", color:tab==="doctor"&&!editingDoc?"#fff":"#7a8599", border:"1px solid " + (tab==="doctor"&&!editingDoc?"#7c3aed":"#1e2530") }}>+ Doctor</button>
+          <button onClick={() => { setTab("doctorList"); loadDoctors() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="doctorList"?"#7c3aed":"#141820", color:tab==="doctorList"?"#fff":"#7a8599", border:"1px solid " + (tab==="doctorList"?"#7c3aed":"#1e2530") }}>Doctors</button>
           <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#141820", color:"#7a8599", border:"1px solid #1e2530", textDecoration:"none" }}>← Site</a>
+          <button onClick={logout} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#f87171", border:"1px solid #dc262640" }}>Log out</button>
         </div>
       </div>
       {msg && <div style={{ padding:"8px 20px", background:"#05966920", color:"#059669", fontSize:"12px", fontWeight:600 }}>{msg}</div>}
@@ -465,8 +512,8 @@ export default function AdminPage() {
         ) : null}
         {tab === "doctor" && (
           <div style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"12px", padding:"20px" }}>
-            <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>Add Doctor</h3>
-            <p style={{ margin:"0 0 16px", fontSize:"12px", color:"#7a8599" }}>Creates a standalone, searchable, claimable doctor profile. Add one or more places they practise.</p>
+            <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>{editingDoc ? 'Edit Doctor' : 'Add Doctor'}</h3>
+            <p style={{ margin:"0 0 16px", fontSize:"12px", color:"#7a8599" }}>{editingDoc ? "Update this doctor's details. Add a clinic below to link them to a practice location." : 'Creates a standalone, searchable, claimable doctor profile. Add one or more places they practise.'}</p>
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
               <div><label style={lbl}>Full Name *</label><input style={s} value={docForm.name} onChange={e => setDoc('name', e.target.value)} placeholder="Dr. Jane Smith" /></div>
@@ -538,10 +585,38 @@ export default function AdminPage() {
             <button onClick={addDocLoc} style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>+ Add location manually</button>
 
             <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
-              <button onClick={saveDoctor} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#7c3aed", color:"#fff" }}>Add Doctor</button>
-              <button onClick={() => { setTab("list"); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>
+              <button onClick={saveDoctor} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#7c3aed", color:"#fff" }}>{editingDoc ? 'Save Changes' : 'Add Doctor'}</button>
+              <button onClick={() => { setTab(editingDoc ? "doctorList" : "list"); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>
             </div>
           </div>
+        )}
+        {tab === "doctorList" && (
+          <>
+            <div style={{ display:"flex", gap:"10px", marginBottom:"14px", alignItems:"center" }}>
+              <input style={{ ...s, marginTop:0, flex:1 }} value={docSearch} onChange={e => setDocSearch(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') loadDoctors() }} placeholder="Search doctors by name…" />
+              <button onClick={loadDoctors} style={{ all:"unset", cursor:"pointer", padding:"9px 18px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#3b82f6", color:"#fff" }}>Search</button>
+            </div>
+            <div style={{ fontSize:"12px", color:"#7a8599", marginBottom:"12px" }}>{physCount} doctor{physCount === 1 ? '' : 's'} total · showing {physicians.length}</div>
+            {physicians.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"40px", color:"#7a8599", fontSize:"13px" }}>No doctors found. Use “+ Doctor” to add one.</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+                {physicians.map(p => (
+                  <div key={p.id} style={{ background:"#141820", border:"1px solid #1e2530", borderRadius:"10px", padding:"12px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:"12px" }}>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:"14px", fontWeight:600, color:"#e8ecf2" }}>{p.name}{p.verified && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#60a5fa", background:"#3b82f620", border:"1px solid #3b82f640", borderRadius:"999px", padding:"1px 6px" }}>VERIFIED</span>}{p.owner_id && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#34d399", background:"#05966920", border:"1px solid #05966940", borderRadius:"999px", padding:"1px 6px" }}>CLAIMED</span>}</div>
+                      <div style={{ fontSize:"12px", color:"#7a8599", marginTop:"2px" }}>{p.specialty || 'Physician'}{p.gender ? ` · ${p.gender}` : ''}{p.accepting_referrals ? ' · accepting referrals' : ''}</div>
+                    </div>
+                    <div style={{ display:"flex", gap:"6px", flexShrink:0 }}>
+                      <a href={`/doctors/${p.id}`} target="_blank" rel="noopener noreferrer" style={{ all:"unset", cursor:"pointer", padding:"6px 12px", fontSize:"12px", fontWeight:600, borderRadius:"6px", background:"#1e2530", color:"#8b95a5", border:"1px solid #2a3340" }}>View</a>
+                      <button onClick={() => editDoctor(p)} style={{ all:"unset", cursor:"pointer", padding:"6px 12px", fontSize:"12px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#60a5fa", border:"1px solid #3b82f640" }}>Edit</button>
+                      <button onClick={() => deleteDoctor(p)} style={{ all:"unset", cursor:"pointer", padding:"6px 12px", fontSize:"12px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#f87171", border:"1px solid #dc262640" }}>Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
         {tab === "claims" && (
           <>

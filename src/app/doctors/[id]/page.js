@@ -4,7 +4,6 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import ClaimForm from '@/components/ClaimForm'
 
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
@@ -33,8 +32,6 @@ export default function DoctorPage() {
   const [isFav, setIsFav] = useState(false)
   useEffect(() => { try { const s = JSON.parse(localStorage.getItem('re-favs-docs') || '[]'); setIsFav(s.includes(id)) } catch {} }, [id])
   const toggleFav = () => { try { const s = JSON.parse(localStorage.getItem('re-favs-docs') || '[]'); const next = s.includes(id) ? s.filter(x => x !== id) : [...s, id]; localStorage.setItem('re-favs-docs', JSON.stringify(next)); setIsFav(next.includes(id)) } catch {} }
-  const [claimMsg, setClaimMsg] = useState('')
-  const [claiming, setClaiming] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -121,26 +118,16 @@ export default function DoctorPage() {
             <Link href={`/dashboard/physician/${doc.id}`} className="text-xs font-semibold text-white bg-brand px-3 py-1.5 rounded-lg hover:bg-brand-dark transition">Edit profile</Link>
           </div>
         ) : doc.owner_id ? null : (
-          claimMsg ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
-              <p className="text-sm text-emerald-800 font-medium">{claimMsg}</p>
-            </div>
-          ) : claiming && user ? (
-            <div className="mb-4">
-              <ClaimForm physicianId={doc.id} entityName={doc.name} userId={user.id} userName={profile?.full_name} accountEmail={profile?.email || ''}
-                onCancel={() => setClaiming(false)}
-                onSubmitted={() => { setClaiming(false); setClaimMsg('Claim submitted. Our team will verify your details and grant access once confirmed.') }} />
-            </div>
-          ) : (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <span className="text-sm text-blue-900 font-medium">Is this you? Claim this profile to manage your availability and referral details.</span>
-              {user
-                ? <button onClick={() => setClaiming(true)} className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Claim this profile</button>
-                : <Link href="/login" className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Sign in to claim</Link>}
+              {!user
+                ? <Link href="/login" className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Sign in to claim</Link>
+                : primaryClinic
+                  ? <Link href={`/dashboard/verify?provider_id=${primaryClinic.id}&physician_id=${doc.id}`} className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Claim this profile</Link>
+                  : <span className="text-xs text-blue-700 font-medium">This doctor needs a clinic linked before it can be verified (the fax code is sent to the clinic's fax).</span>}
             </div>
           </div>
-          )
         )}
 
         {/* Referral readiness */}

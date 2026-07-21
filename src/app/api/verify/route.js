@@ -206,23 +206,16 @@ refereasy.ca
     // Update provider verification status
     const update = type === 'fax' ? { fax_verified: true } : { email_verified: true }
 
-    // Check if all verifications complete
-    const { data: provider } = await supabase.from('providers').select('cpso_verified, fax_verified, email_verified').eq('id', provider_id).single()
+    const { data: provider } = await supabase.from('providers').select('fax_verified, email_verified').eq('id', provider_id).single()
     const faxDone = type === 'fax' ? true : (provider?.fax_verified || false)
     const emailDone = type === 'email' ? true : (provider?.email_verified || false)
-    const cpsoDone = provider?.cpso_verified || false
-
-    if (faxDone && emailDone && cpsoDone) {
-      update.verified = true
-      update.verified_at = new Date().toISOString()
-    }
 
     await supabase.from('providers').update(update).eq('id', provider_id)
 
     return NextResponse.json({
       verified: true,
       message: `${type === 'fax' ? 'Fax' : 'Email'} verified!`,
-      fully_verified: faxDone && emailDone && cpsoDone
+      fully_verified: faxDone && emailDone
     })
   }
 
