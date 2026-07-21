@@ -185,7 +185,7 @@ export default function SearchPage() {
       try {
         const [prov, docs, specs] = await Promise.all([
           supabase.from("providers").select("*").eq("data_status", "complete").order("name"),
-          supabase.from("physicians").select("id, name, specialty, specialty_code, gender, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active"),
+          supabase.from("physicians").select("id, name, specialty, specialty_code, gender, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active"),
           supabase.from("specialties").select("snomed_code, category, name"),
         ])
         if (prov.data) setProviders(prov.data)
@@ -201,7 +201,7 @@ export default function SearchPage() {
   const saveFavs = useCallback(ids => { setFavs(ids); try { localStorage.setItem("re-favs", JSON.stringify(ids)) } catch {} }, [])
   const toggleFav = useCallback(id => saveFavs(favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id]), [favs, saveFavs])
 
-  const allSpecialties = useMemo(() => [...new Set(providers.map(p => p.type))].sort(), [providers])
+  const allSpecialties = useMemo(() => [...new Set(providers.map(p => p.type))].filter(t => t && !/^\d+$/.test(String(t).trim())).sort(), [providers])
   const allServices = useMemo(() => [...new Set(providers.flatMap(p => p.services || []))].sort(), [providers])
   const allLanguages = useMemo(() => [...new Set(providers.flatMap(p => p.languages || []))].sort(), [providers])
   const activeF = useMemo(() => [acc,on,we,ev,mw,mr,md,svc,lang].filter(Boolean).length, [acc,on,we,ev,mw,mr,md,svc,lang])
@@ -244,7 +244,7 @@ export default function SearchPage() {
       accepting_referrals: doc.accepting_referrals, accepting_new_patients: doc.accepting_new_patients,
       wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, verified: doc.verified,
       category: specCatMap[doc.specialty_code] || 'Specialist',
-      clinicName: c?.name || null, lat: c?.lat, lng: c?.lng, hours: c?.hours, services: c?.services || [],
+      clinicName: c?.name || null, lat: c?.lat, lng: c?.lng, hours: doc.hours || c?.hours, services: c?.services || [],
     }
   }), [doctors, specCatMap])
 

@@ -165,6 +165,21 @@ export default function DoctorPage() {
           )}
         </div>
 
+        {/* Doctor's own hours */}
+        {doc.hours && DAYS.some(d => doc.hours[d]) && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Hours</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+              {DAYS.map((d, i) => (
+                <div key={d} className="flex justify-between">
+                  <span className="text-gray-400">{DAY_LABELS[i]}</span>
+                  <span className="text-gray-900">{doc.hours[d] || 'Closed'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Locations */}
         <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
           {locs.length > 1 ? `Practises at ${locs.length} locations` : 'Location'}

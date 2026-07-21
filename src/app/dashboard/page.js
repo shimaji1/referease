@@ -106,11 +106,16 @@ function SpecialistDashboard({ profile, user }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="text-lg font-bold text-gray-900">My Provider Listings</h2>
-        <Link href="/dashboard/provider/new" className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:bg-brand-dark transition">
-          + Add New Listing
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/dashboard/physician/new" className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-brand border border-brand/20 text-sm font-semibold rounded-lg hover:bg-brand/5 transition">
+            + List as Doctor
+          </Link>
+          <Link href="/dashboard/provider/new" className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:bg-brand-dark transition">
+            + Add New Listing
+          </Link>
+        </div>
       </div>
 
       {providers.length === 0 ? (

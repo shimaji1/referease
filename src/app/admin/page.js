@@ -7,7 +7,7 @@ const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
 const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:true, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
-const emptyDoc = () => ({ name:"Dr. ", specialty:"", specialty_code:"", gender:"", accepting_referrals:true, accepting_new_patients:false, wait_weeks:"", criteria:"", referral_types:"", languages:"English" })
+const emptyDoc = () => ({ name:"Dr. ", specialty:"", specialty_code:"", gender:"", accepting_referrals:true, accepting_new_patients:false, wait_weeks:"", criteria:"", referral_types:"", languages:"English", hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -95,6 +95,7 @@ export default function AdminPage() {
       criteria: docForm.criteria || null,
       referral_types: docForm.referral_types ? docForm.referral_types.split(',').map(x=>x.trim()).filter(Boolean) : null,
       languages: docForm.languages ? docForm.languages.split(',').map(x=>x.trim()).filter(Boolean) : null,
+      hours: docForm.hours || null,
       status: 'active',
     }
     const { data: doc, error } = await supabase.from('physicians').insert(rec).select().single()
@@ -460,6 +461,17 @@ export default function AdminPage() {
             <input style={s} value={docForm.languages} onChange={e => setDoc('languages', e.target.value)} placeholder="English, French, Farsi" />
             <label style={lbl}>Referral Criteria</label>
             <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={docForm.criteria} onChange={e => setDoc('criteria', e.target.value)} placeholder="e.g. GP referral required, recent imaging, OHIP card" />
+
+            <label style={{ ...lbl, marginTop:"20px" }}>Hours (start-end, e.g. 9:00-17:00 — blank = closed)</label>
+            <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 8px" }}>For doctors who run their own practice. Leave blank if they only work out of the clinics below.</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:"6px" }}>
+              {DAYS.map((d, i) => (
+                <div key={d}>
+                  <div style={{ fontSize:"9px", color:"#7a8599", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:"3px", textAlign:"center" }}>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}</div>
+                  <input style={{ ...s, marginTop:0, padding:"6px 4px", fontSize:"11px", textAlign:"center" }} value={docForm.hours?.[d] || ''} onChange={e => setDocForm(f => ({ ...f, hours: { ...f.hours, [d]: e.target.value || null } }))} placeholder="9-17" />
+                </div>
+              ))}
+            </div>
 
             <label style={{ ...lbl, marginTop:"20px" }}>Locations (where they practise)</label>
             <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 8px" }}>Each location shows on their profile. Add more with the button below.</div>

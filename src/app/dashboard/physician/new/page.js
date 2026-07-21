@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -7,49 +7,31 @@ import Link from 'next/link'
 
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
+const emptyDoc = () => ({ name:'Dr. ', specialty:'', specialty_code:'', gender:'', accepting_referrals:true, accepting_new_patients:false, wait_weeks:'', criteria:'', referral_types:'', languages:'English', hours:{ mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null } })
 
-export default function EditPhysicianPage({ params }) {
-  const { id } = use(params)
-  const { user, loading: authLoading } = useAuth()
+export default function NewPhysicianPage() {
+  const { user, profile, loading: authLoading } = useAuth()
   const router = useRouter()
-  const [doc, setDoc] = useState(null)
+  const [doc, setDoc] = useState(emptyDoc())
+  const [locations, setLocations] = useState([{ name:'', address:'', phone:'', fax:'' }])
   const [specialties, setSpecialties] = useState([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [denied, setDenied] = useState(false)
+  const [msg, setMsg] = useState('')
 
   useEffect(() => {
     if (!supabase) return
     supabase.from('specialties').select('snomed_code, category, name').order('category_order').order('name').then(({ data }) => { if (data) setSpecialties(data) })
   }, [])
 
-  useEffect(() => {
-    if (!supabase || !id || !user) return
-    supabase.from('physicians').select('*').eq('id', id).single().then(({ data }) => {
-      if (!data) { setLoading(false); return }
-      if (data.owner_id && data.owner_id !== user.id) { setDenied(true); setLoading(false); return }
-      setDoc({
-        ...data,
-        wait_weeks: data.wait_weeks ?? '',
-        referral_types: (data.referral_types || []).join(', '),
-        languages: (data.languages || []).join(', '),
-        criteria: data.criteria || '',
-        specialty: data.specialty || '',
-        specialty_code: data.specialty_code || '',
-        gender: data.gender || '',
-        hours: data.hours || { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
-      })
-      setLoading(false)
-    })
-  }, [id, user])
-
   const spin = <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>
-  if (authLoading || loading) return spin
+  if (authLoading) return spin
   if (!user) { router.push('/login'); return null }
-  if (denied) return <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 text-gray-500 text-sm"><p>You don’t manage this profile.</p><Link href="/dashboard" className="text-brand font-medium hover:underline">← Back to dashboard</Link></div>
-  if (!doc) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400 text-sm">Profile not found.</div>
 
   const set = (k, v) => setDoc(f => ({ ...f, [k]: v }))
+  const addLoc = () => setLocations(l => [...l, { name:'', address:'', phone:'', fax:'' }])
+  const updLoc = (i, patch) => setLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
+  const rmLoc = (i) => setLocations(l => l.filter((_, idx) => idx !== i))
   const inp = "w-full px-3 py-2.5 text-sm bg-white border border-gray-300 rounded-lg text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
   const lbl = "block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5"
 
@@ -57,10 +39,12 @@ export default function EditPhysicianPage({ params }) {
   specialties.forEach(sp => { if (!grouped[sp.category]) grouped[sp.category] = []; grouped[sp.category].push(sp) })
 
   const save = async () => {
-    if (!supabase) return
-    setSaving(true)
-    const payload = {
-      name: doc.name,
+    if (!supabase || !user) return
+    const name = withDr(doc.name)
+    if (!name || /^dr\.?\s*$/i.test(name)) { setMsg('Please enter your name'); return }
+    setSaving(true); setMsg('')
+    const rec = {
+      name,
       specialty: doc.specialty || null,
       specialty_code: doc.specialty_code || null,
       gender: doc.gender || null,
@@ -71,10 +55,28 @@ export default function EditPhysicianPage({ params }) {
       referral_types: doc.referral_types ? doc.referral_types.split(',').map(x => x.trim()).filter(Boolean) : null,
       languages: doc.languages ? doc.languages.split(',').map(x => x.trim()).filter(Boolean) : null,
       hours: doc.hours || null,
+      cpso_number: profile?.cpso_number || null,
+      status: 'active',
+      owner_id: user.id,
     }
-    const { error } = await supabase.from('physicians').update(payload).eq('id', id)
+    const { data: created, error } = await supabase.from('physicians').insert(rec).select().single()
+    if (error || !created) { setMsg('Error: ' + (error?.message || 'could not save')); setSaving(false); return }
+
+    const locs = locations.filter(l => (l.name||'').trim() || (l.address||'').trim() || (l.phone||'').trim() || (l.fax||'').trim())
+    for (let i = 0; i < locs.length; i++) {
+      const l = locs[i]
+      const prov = {
+        name: (l.name||'').trim() || `${name} — Office`,
+        type: doc.specialty || 'Physician office', category: 'Clinic',
+        services: [], address: l.address || null, phone: l.phone || null, fax: l.fax || null,
+        languages: rec.languages || ['English'], hours: { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
+        accepting_referrals: rec.accepting_referrals, wait_weeks: rec.wait_weeks,
+        doctors: [name], data_status: 'partial', specialty_code: rec.specialty_code, owner_id: user.id,
+      }
+      const { data: pRow } = await supabase.from('providers').insert(prov).select().single()
+      if (pRow) await supabase.from('physician_locations').insert({ physician_id: created.id, provider_id: pRow.id, is_primary: i === 0 })
+    }
     setSaving(false)
-    if (error) { alert('Error: ' + error.message); return }
     router.push('/dashboard')
   }
 
@@ -86,27 +88,26 @@ export default function EditPhysicianPage({ params }) {
             <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
             <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
           </Link>
-          <div className="flex items-center gap-3">
-            <Link href={`/doctors/${id}`} className="text-xs font-medium text-gray-500 hover:text-brand border border-gray-200 px-3 py-1.5 rounded-lg">View public page</Link>
-            <Link href="/dashboard" className="text-xs font-medium text-gray-500 hover:text-brand">← Dashboard</Link>
-          </div>
+          <Link href="/dashboard" className="text-xs font-medium text-gray-500 hover:text-brand">← Dashboard</Link>
         </div>
       </nav>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">Edit My Profile</h1>
-        <p className="text-sm text-gray-500 mb-6">Keep your referral status and details current so family doctors send you well-matched referrals.</p>
+        <h1 className="text-xl font-bold text-gray-900 mb-1">List Yourself as a Doctor</h1>
+        <p className="text-sm text-gray-500 mb-6">Create your own doctor profile so family doctors can find you and send well-matched referrals. You’ll own and manage it from your dashboard.</p>
+
+        {msg && <div className="mb-4 p-3 rounded-xl text-sm font-medium border bg-red-50 text-red-700 border-red-200">{msg}</div>}
 
         <div className="space-y-6">
           <section className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="text-sm font-bold text-gray-900 mb-4">About You</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className={lbl}>Full Name</label>
-                <input className={inp} value={doc.name || ''} onChange={e => set('name', e.target.value)} placeholder="Dr. Jane Smith" />
+                <label className={lbl}>Full Name *</label>
+                <input className={inp} value={doc.name} onChange={e => set('name', e.target.value)} placeholder="Dr. Jane Smith" />
               </div>
               <div>
-                <label className={lbl}>Specialty</label>
+                <label className={lbl}>Specialty *</label>
                 <select className={inp} value={doc.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); if (sp) setDoc(f => ({ ...f, specialty_code: sp.snomed_code, specialty: sp.name })); else setDoc(f => ({ ...f, specialty_code: '', specialty: '' })) }}>
                   <option value="">Select specialty...</option>
                   {Object.entries(grouped).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>)}
@@ -157,7 +158,7 @@ export default function EditPhysicianPage({ params }) {
 
           <section className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="text-sm font-bold text-gray-900 mb-1">Hours</h3>
-            <p className="text-xs text-gray-500 mb-4">If you run your own practice, set your hours (e.g. 9:00-17:00). Leave a day blank if closed.</p>
+            <p className="text-xs text-gray-500 mb-4">If you run your own practice, set your hours. Leave a day blank if closed.</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {DAYS.map((d, i) => (
                 <div key={d}>
@@ -168,9 +169,28 @@ export default function EditPhysicianPage({ params }) {
             </div>
           </section>
 
+          <section className="bg-white border border-gray-200 rounded-xl p-5">
+            <h3 className="text-sm font-bold text-gray-900 mb-1">Where You Practise</h3>
+            <p className="text-xs text-gray-500 mb-4">Add each location patients can be referred to. Add more with the button below.</p>
+            {locations.map((l, i) => (
+              <div key={i} className="border border-gray-200 rounded-lg p-3 mb-3">
+                <div className="flex gap-2 items-center mb-2">
+                  <input className={inp} value={l.name} onChange={e => updLoc(i, { name: e.target.value })} placeholder="Clinic / office name (e.g. Disera Medical Centre)" />
+                  {locations.length > 1 && <button onClick={() => rmLoc(i)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-100 shrink-0">Remove</button>}
+                </div>
+                <input className={inp + ' mb-2'} value={l.address} onChange={e => updLoc(i, { address: e.target.value })} placeholder="Address" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input className={inp} value={l.phone} onChange={e => updLoc(i, { phone: e.target.value })} placeholder="Phone" />
+                  <input className={inp} value={l.fax} onChange={e => updLoc(i, { fax: e.target.value })} placeholder="Fax" />
+                </div>
+              </div>
+            ))}
+            <button onClick={addLoc} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">+ Add location</button>
+          </section>
+
           <div className="flex gap-3">
             <button onClick={save} disabled={saving} className="px-6 py-3 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50 text-sm">
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? 'Creating...' : 'Create My Profile'}
             </button>
             <Link href="/dashboard" className="px-6 py-3 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200 transition text-sm">Cancel</Link>
           </div>
