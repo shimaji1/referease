@@ -47,6 +47,7 @@ export default function FormsManager({ providerId = null, physicianId = null, ow
     label: 'block text-[10px] font-semibold uppercase tracking-wider mb-1.5 text-[#7a8599]',
     input: 'w-full px-3 py-2 text-sm rounded-md bg-[#0c0f14] border border-[#1e2530] text-[#e8ecf2] outline-none',
     fileText: 'text-[#7a8599]',
+    chooseBtn: 'inline-flex items-center px-3 py-2 rounded-md text-xs font-semibold bg-[#1e2530] text-[#e8ecf2] border border-[#2a3340] cursor-pointer hover:bg-[#252d3a] transition',
     item: 'flex items-center justify-between gap-2 py-2 border-b border-[#1e2530] last:border-0',
     itemName: 'text-sm text-[#e8ecf2] truncate',
     dl: 'text-xs font-semibold text-[#60a5fa] hover:underline',
@@ -58,6 +59,7 @@ export default function FormsManager({ providerId = null, physicianId = null, ow
     label: 'block text-[11px] font-semibold uppercase tracking-wider mb-1.5 text-gray-500',
     input: 'w-full px-3 py-2 text-sm rounded-lg bg-white border border-gray-300 text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10',
     fileText: 'text-gray-500',
+    chooseBtn: 'inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300 cursor-pointer hover:bg-gray-200 transition',
     item: 'flex items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0',
     itemName: 'text-sm text-gray-900 truncate',
     dl: 'text-xs font-semibold text-brand hover:underline',
@@ -86,15 +88,18 @@ export default function FormsManager({ providerId = null, physicianId = null, ow
         </div>
       ) : <p className={t.muted + ' mb-3'}>No forms uploaded yet.</p>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
-        <div>
-          <label className={t.label}>Form name</label>
-          <input className={t.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. New Patient Referral Form" />
-          <div className="mt-2">
-            <input key={nonce} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => setFile(e.target.files?.[0] || null)} className={'text-xs ' + t.fileText} />
-          </div>
+      <div>
+        <label className={t.label}>Form name</label>
+        <input className={t.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. New Patient Referral Form" />
+        <div className="flex items-center gap-3 mt-2 flex-wrap">
+          <label className={t.chooseBtn}>
+            {file ? 'Change file' : '📎 Choose file'}
+            <input key={nonce} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => setFile(e.target.files?.[0] || null)} className="hidden" />
+          </label>
+          <span className={t.muted + ' truncate min-w-0'}>{file ? file.name : 'No file chosen'}</span>
+          <button onClick={upload} disabled={busy || !file || !name.trim()} className={t.btn + ' ml-auto'}>{busy ? 'Uploading…' : 'Upload'}</button>
         </div>
-        <button onClick={upload} disabled={busy || !file || !name.trim()} className={t.btn}>{busy ? 'Uploading…' : 'Upload'}</button>
+        {(!name.trim() || !file) && <p className={t.muted + ' mt-2'}>Add a name and choose a file, then Upload.</p>}
       </div>
       {err && <p className={t.errCls}>{err}</p>}
     </div>
