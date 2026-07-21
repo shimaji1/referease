@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import ClaimForm from '@/components/ClaimForm'
 
 export default function ClaimPage() {
   const { user, profile, loading: authLoading } = useAuth()
@@ -13,6 +14,7 @@ export default function ClaimPage() {
   const [searching, setSearching] = useState(false)
   const [myClaims, setMyClaims] = useState([])
   const [claimingId, setClaimingId] = useState(null)
+  const [claimTarget, setClaimTarget] = useState(null)
   const [msg, setMsg] = useState('')
 
   // Load user's existing claims
@@ -134,6 +136,19 @@ export default function ClaimPage() {
           </div>
         )}
 
+        {claimTarget && (
+          <div className="mb-6">
+            <ClaimForm providerId={claimTarget.id} entityName={claimTarget.name} userId={user.id} userName={profile.full_name} accountEmail={profile.email}
+              onCancel={() => setClaimTarget(null)}
+              onSubmitted={async () => {
+                setClaimTarget(null); setResults([]); setSearch('')
+                setMsg('Claim submitted. Our team will verify your details and grant access once confirmed.')
+                const { data } = await supabase.from('claims').select('*, providers(name, type, address)').eq('user_id', user.id).order('created_at', { ascending: false })
+                if (data) setMyClaims(data)
+              }} />
+          </div>
+        )}
+
         {/* Search Results */}
         {results.length > 0 && (
           <div className="mb-6">
@@ -151,9 +166,9 @@ export default function ClaimPage() {
                       {p.practitioner_number && <span>ID: {p.practitioner_number}</span>}
                     </div>
                   </div>
-                  <button onClick={() => handleClaim(p)} disabled={claimingId === p.id}
-                    className="px-4 py-2 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-dark transition disabled:opacity-50 shrink-0">
-                    {claimingId === p.id ? 'Claiming...' : 'Claim This'}
+                  <button onClick={() => setClaimTarget(p)}
+                    className="px-4 py-2 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-dark transition shrink-0">
+                    Claim This
                   </button>
                 </div>
               ))}

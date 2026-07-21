@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
+import ClaimForm from '@/components/ClaimForm'
 
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
@@ -31,26 +32,6 @@ export default function DoctorPage() {
   const [forms, setForms] = useState([])
   const [claimMsg, setClaimMsg] = useState('')
   const [claiming, setClaiming] = useState(false)
-
-  const claimProfile = async () => {
-    if (!supabase || !user || !profile || !doc) return
-    setClaiming(true); setClaimMsg('')
-    const { data: existing } = await supabase.from('claims').select('id').eq('user_id', user.id).eq('physician_id', doc.id)
-    if (existing && existing.length) { setClaimMsg('You already submitted a claim for this profile.'); setClaiming(false); return }
-    let auto = false
-    if (profile.cpso_number && doc.cpso_number) {
-      const a = String(profile.cpso_number).replace(/\D/g, ''), b = String(doc.cpso_number).replace(/\D/g, '')
-      if (a && b && a === b) auto = true
-    }
-    const { error } = await supabase.from('claims').insert({
-      user_id: user.id, physician_id: doc.id, user_email: profile.email, user_name: profile.full_name,
-      status: auto ? 'approved' : 'pending', verification_method: auto ? 'cpso_match' : 'manual_review',
-    })
-    if (error) { setClaimMsg('Error: ' + error.message); setClaiming(false); return }
-    if (auto) { await supabase.from('physicians').update({ owner_id: user.id }).eq('id', doc.id); setDoc({ ...doc, owner_id: user.id }); setClaimMsg('Verified — this profile is now linked to your account.') }
-    else setClaimMsg('Claim submitted. Our team will review and verify your identity.')
-    setClaiming(false)
-  }
 
   useEffect(() => {
     let alive = true
@@ -134,15 +115,26 @@ export default function DoctorPage() {
             <Link href={`/dashboard/physician/${doc.id}`} className="text-xs font-semibold text-white bg-brand px-3 py-1.5 rounded-lg hover:bg-brand-dark transition">Edit profile</Link>
           </div>
         ) : doc.owner_id ? null : (
+          claimMsg ? (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
+              <p className="text-sm text-emerald-800 font-medium">{claimMsg}</p>
+            </div>
+          ) : claiming && user ? (
+            <div className="mb-4">
+              <ClaimForm physicianId={doc.id} entityName={doc.name} userId={user.id} userName={profile?.full_name} accountEmail={profile?.email || ''}
+                onCancel={() => setClaiming(false)}
+                onSubmitted={() => { setClaiming(false); setClaimMsg('Claim submitted. Our team will verify your details and grant access once confirmed.') }} />
+            </div>
+          ) : (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <span className="text-sm text-blue-900 font-medium">Is this you? Claim this profile to manage your availability and referral details.</span>
               {user
-                ? <button onClick={claimProfile} disabled={claiming} className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition disabled:opacity-50 shrink-0">{claiming ? 'Claiming…' : 'Claim this profile'}</button>
+                ? <button onClick={() => setClaiming(true)} className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Claim this profile</button>
                 : <Link href="/login" className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Sign in to claim</Link>}
             </div>
-            {claimMsg && <p className="text-xs mt-2 text-blue-800">{claimMsg}</p>}
           </div>
+          )
         )}
 
         {/* Referral readiness */}

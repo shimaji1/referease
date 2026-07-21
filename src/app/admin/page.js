@@ -34,6 +34,8 @@ export default function AdminPage() {
   const [origDocIds, setOrigDocIds] = useState([])   // physician ids present when editing (for reconcile)
   const [docForm, setDocForm] = useState(emptyDoc())
   const [docLocations, setDocLocations] = useState([{ name:'', address:'', phone:'', fax:'' }])
+  const [clinicQuery, setClinicQuery] = useState('')
+  const [clinicResults, setClinicResults] = useState([])
   const PAGE_SIZE = 50
 
   const login = () => {
@@ -79,6 +81,13 @@ export default function AdminPage() {
   // ---- Add-a-Doctor (physician as primary entity, with its own locations) ----
   const setDoc = (k, v) => setDocForm(f => ({ ...f, [k]: v }))
   const addDocLoc = () => setDocLocations(l => [...l, { name:'', address:'', phone:'', fax:'' }])
+  const searchClinics = async (q) => {
+    setClinicQuery(q)
+    if (!supabase || q.trim().length < 2) { setClinicResults([]); return }
+    const { data } = await supabase.from('providers').select('id, name, address, phone, fax').ilike('name', `%${q.trim()}%`).limit(8)
+    setClinicResults(data || [])
+  }
+  const addClinicLoc = (c) => { setDocLocations(l => [...l, { provider_id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax }]); setClinicQuery(''); setClinicResults([]) }
   const updDocLoc = (i, patch) => setDocLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDocLoc = (i) => setDocLocations(l => l.filter((_, idx) => idx !== i))
 
@@ -102,22 +111,26 @@ export default function AdminPage() {
     const { data: doc, error } = await supabase.from('physicians').insert(rec).select().single()
     if (error || !doc) { setMsg("Error saving doctor: " + (error?.message || "no row returned")); return }
 
-    // Each location becomes a linkable provider record (data_status 'partial' so it isn't listed as a public clinic).
+    // Locations: linked clinics reuse the existing provider; typed-in ones create a 'partial' provider.
     let warn = null
-    const locs = docLocations.filter(l => (l.name||'').trim() || (l.address||'').trim() || (l.phone||'').trim() || (l.fax||'').trim())
+    const locs = docLocations.filter(l => l.provider_id || (l.name||'').trim() || (l.address||'').trim() || (l.phone||'').trim() || (l.fax||'').trim())
     for (let i = 0; i < locs.length; i++) {
       const l = locs[i]
-      const prov = {
-        name: (l.name||'').trim() || `${name} — Office`,
-        type: docForm.specialty || 'Physician office', category: 'Clinic',
-        services: [], address: l.address || null, phone: l.phone || null, fax: l.fax || null,
-        languages: rec.languages || ['English'], hours: { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
-        accepting_referrals: rec.accepting_referrals, wait_weeks: rec.wait_weeks,
-        doctors: [name], data_status: 'partial', specialty_code: rec.specialty_code,
+      let provId = l.provider_id
+      if (!provId) {
+        const prov = {
+          name: (l.name||'').trim() || `${name} — Office`,
+          type: docForm.specialty || 'Physician office', category: 'Clinic',
+          services: [], address: l.address || null, phone: l.phone || null, fax: l.fax || null,
+          languages: rec.languages || ['English'], hours: { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
+          accepting_referrals: rec.accepting_referrals, wait_weeks: rec.wait_weeks,
+          doctors: [name], data_status: 'partial', specialty_code: rec.specialty_code,
+        }
+        const { data: pRow, error: pErr } = await supabase.from('providers').insert(prov).select().single()
+        if (pErr || !pRow) { warn = "Doctor saved, but a location failed: " + (pErr?.message || "unknown"); continue }
+        provId = pRow.id
       }
-      const { data: pRow, error: pErr } = await supabase.from('providers').insert(prov).select().single()
-      if (pErr || !pRow) { warn = "Doctor saved, but a location failed: " + (pErr?.message || "unknown"); continue }
-      const { error: lErr } = await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: pRow.id, is_primary: i === 0 })
+      const { error: lErr } = await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: provId, is_primary: i === 0 })
       if (lErr) warn = "Doctor saved, but linking a location failed: " + lErr.message
     }
     setMsg(warn || "Doctor added — their profile page is live and searchable.")
@@ -482,21 +495,47 @@ export default function AdminPage() {
             </div>
 
             <label style={{ ...lbl, marginTop:"20px" }}>Locations (where they practise)</label>
-            <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 8px" }}>Each location shows on their profile. Add more with the button below.</div>
+            <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 8px" }}>Link an existing clinic to auto-fill its address, phone, fax and hours — or type a new location below.</div>
+
+            <div style={{ position:"relative", marginBottom:"10px" }}>
+              <input style={{ ...s, marginTop:0 }} value={clinicQuery} onChange={e => searchClinics(e.target.value)} placeholder="🔎 Search existing clinics to link…" />
+              {clinicResults.length > 0 && (
+                <div style={{ position:"absolute", zIndex:30, left:0, right:0, top:"100%", marginTop:"4px", background:"#0c0f14", border:"1px solid #1e2530", borderRadius:"8px", maxHeight:"220px", overflowY:"auto" }}>
+                  {clinicResults.map(c => (
+                    <button key={c.id} onClick={() => addClinicLoc(c)} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", boxSizing:"border-box", padding:"8px 12px", borderBottom:"1px solid #1e2530" }}>
+                      <div style={{ fontSize:"13px", color:"#e8ecf2", fontWeight:600 }}>{c.name}</div>
+                      {c.address && <div style={{ fontSize:"11px", color:"#7a8599" }}>{c.address}</div>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {docLocations.map((l, i) => (
-              <div key={i} style={{ border:"1px solid #1e2530", borderRadius:"8px", padding:"10px", marginBottom:"8px" }}>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:"8px", alignItems:"center", marginBottom:"6px" }}>
-                  <input style={{ ...s, marginTop:0 }} value={l.name} onChange={e => updDocLoc(i, { name: e.target.value })} placeholder={`Clinic / office name (e.g. Disera Medical Centre)`} />
-                  {docLocations.length > 1 && <button onClick={() => rmDocLoc(i)} title="Remove location" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕</button>}
+              l.provider_id ? (
+                <div key={i} style={{ border:"1px solid #2a3340", background:"#10151c", borderRadius:"8px", padding:"10px 12px", marginBottom:"8px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:"8px" }}>
+                  <div>
+                    <div style={{ fontSize:"13px", color:"#e8ecf2", fontWeight:600 }}>{l.name}<span style={{ fontSize:"9px", color:"#60a5fa", background:"#3b82f620", border:"1px solid #3b82f640", borderRadius:"999px", padding:"1px 6px", marginLeft:"6px" }}>LINKED CLINIC</span></div>
+                    {l.address && <div style={{ fontSize:"11px", color:"#7a8599" }}>{l.address}</div>}
+                    <div style={{ fontSize:"11px", color:"#7a8599" }}>Address, phone, fax &amp; hours are pulled from this clinic automatically.</div>
+                  </div>
+                  <button onClick={() => rmDocLoc(i)} title="Unlink" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕</button>
                 </div>
-                <input style={{ ...s, marginTop:0, marginBottom:"6px" }} value={l.address} onChange={e => updDocLoc(i, { address: e.target.value })} placeholder="Address" />
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
-                  <input style={{ ...s, marginTop:0 }} value={l.phone} onChange={e => updDocLoc(i, { phone: e.target.value })} placeholder="Phone" />
-                  <input style={{ ...s, marginTop:0 }} value={l.fax} onChange={e => updDocLoc(i, { fax: e.target.value })} placeholder="Fax" />
+              ) : (
+                <div key={i} style={{ border:"1px solid #1e2530", borderRadius:"8px", padding:"10px", marginBottom:"8px" }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:"8px", alignItems:"center", marginBottom:"6px" }}>
+                    <input style={{ ...s, marginTop:0 }} value={l.name} onChange={e => updDocLoc(i, { name: e.target.value })} placeholder={`Clinic / office name (e.g. Disera Medical Centre)`} />
+                    {docLocations.length > 1 && <button onClick={() => rmDocLoc(i)} title="Remove location" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕</button>}
+                  </div>
+                  <input style={{ ...s, marginTop:0, marginBottom:"6px" }} value={l.address} onChange={e => updDocLoc(i, { address: e.target.value })} placeholder="Address" />
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
+                    <input style={{ ...s, marginTop:0 }} value={l.phone} onChange={e => updDocLoc(i, { phone: e.target.value })} placeholder="Phone" />
+                    <input style={{ ...s, marginTop:0 }} value={l.fax} onChange={e => updDocLoc(i, { fax: e.target.value })} placeholder="Fax" />
+                  </div>
                 </div>
-              </div>
+              )
             ))}
-            <button onClick={addDocLoc} style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>+ Add location</button>
+            <button onClick={addDocLoc} style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>+ Add location manually</button>
 
             <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
               <button onClick={saveDoctor} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#7c3aed", color:"#fff" }}>Add Doctor</button>
@@ -520,6 +559,14 @@ export default function AdminPage() {
                         <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"4px" }}>
                           Claimed by: <span style={{ color:"#e8ecf2" }}>{c.user_name}</span> ({c.user_email})
                         </div>
+                        {(c.verify_email || c.verify_fax || c.id_doc_url) && (
+                          <div style={{ fontSize:"11px", color:"#7a8599", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"12px", alignItems:"center", background:"#0c0f14", border:"1px solid #1e2530", borderRadius:"6px", padding:"6px 10px" }}>
+                            <span style={{ color:"#8b95a5", fontWeight:600 }}>Verification:</span>
+                            {c.verify_email && <span>✉️ {c.verify_email}</span>}
+                            {c.verify_fax && <span>📠 {c.verify_fax}</span>}
+                            {c.id_doc_url && <a href={c.id_doc_url} target="_blank" rel="noopener noreferrer" style={{ color:"#60a5fa", fontWeight:600 }}>📎 View ID</a>}
+                          </div>
+                        )}
                         <div style={{ fontSize:"10px", color:"#555", marginTop:"2px" }}>
                           {new Date(c.created_at).toLocaleDateString()} · {c.verification_method}
                         </div>

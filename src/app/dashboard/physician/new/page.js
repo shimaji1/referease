@@ -15,6 +15,8 @@ export default function NewPhysicianPage() {
   const router = useRouter()
   const [doc, setDoc] = useState(emptyDoc())
   const [locations, setLocations] = useState([{ name:'', address:'', phone:'', fax:'' }])
+  const [clinicQuery, setClinicQuery] = useState('')
+  const [clinicResults, setClinicResults] = useState([])
   const [specialties, setSpecialties] = useState([])
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
@@ -30,6 +32,13 @@ export default function NewPhysicianPage() {
 
   const set = (k, v) => setDoc(f => ({ ...f, [k]: v }))
   const addLoc = () => setLocations(l => [...l, { name:'', address:'', phone:'', fax:'' }])
+  const searchClinics = async (q) => {
+    setClinicQuery(q)
+    if (!supabase || q.trim().length < 2) { setClinicResults([]); return }
+    const { data } = await supabase.from('providers').select('id, name, address, phone, fax').ilike('name', `%${q.trim()}%`).limit(8)
+    setClinicResults(data || [])
+  }
+  const addClinicLoc = (c) => { setLocations(l => [...l, { provider_id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax }]); setClinicQuery(''); setClinicResults([]) }
   const updLoc = (i, patch) => setLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmLoc = (i) => setLocations(l => l.filter((_, idx) => idx !== i))
   const inp = "w-full px-3 py-2.5 text-sm bg-white border border-gray-300 rounded-lg text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
@@ -62,19 +71,24 @@ export default function NewPhysicianPage() {
     const { data: created, error } = await supabase.from('physicians').insert(rec).select().single()
     if (error || !created) { setMsg('Error: ' + (error?.message || 'could not save')); setSaving(false); return }
 
-    const locs = locations.filter(l => (l.name||'').trim() || (l.address||'').trim() || (l.phone||'').trim() || (l.fax||'').trim())
+    const locs = locations.filter(l => l.provider_id || (l.name||'').trim() || (l.address||'').trim() || (l.phone||'').trim() || (l.fax||'').trim())
     for (let i = 0; i < locs.length; i++) {
       const l = locs[i]
-      const prov = {
-        name: (l.name||'').trim() || `${name} — Office`,
-        type: doc.specialty || 'Physician office', category: 'Clinic',
-        services: [], address: l.address || null, phone: l.phone || null, fax: l.fax || null,
-        languages: rec.languages || ['English'], hours: { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
-        accepting_referrals: rec.accepting_referrals, wait_weeks: rec.wait_weeks,
-        doctors: [name], data_status: 'partial', specialty_code: rec.specialty_code, owner_id: user.id,
+      let provId = l.provider_id
+      if (!provId) {
+        const prov = {
+          name: (l.name||'').trim() || `${name} — Office`,
+          type: doc.specialty || 'Physician office', category: 'Clinic',
+          services: [], address: l.address || null, phone: l.phone || null, fax: l.fax || null,
+          languages: rec.languages || ['English'], hours: { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
+          accepting_referrals: rec.accepting_referrals, wait_weeks: rec.wait_weeks,
+          doctors: [name], data_status: 'partial', specialty_code: rec.specialty_code, owner_id: user.id,
+        }
+        const { data: pRow } = await supabase.from('providers').insert(prov).select().single()
+        if (!pRow) continue
+        provId = pRow.id
       }
-      const { data: pRow } = await supabase.from('providers').insert(prov).select().single()
-      if (pRow) await supabase.from('physician_locations').insert({ physician_id: created.id, provider_id: pRow.id, is_primary: i === 0 })
+      await supabase.from('physician_locations').insert({ physician_id: created.id, provider_id: provId, is_primary: i === 0 })
     }
     setSaving(false)
     router.push('/dashboard')
@@ -171,21 +185,47 @@ export default function NewPhysicianPage() {
 
           <section className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="text-sm font-bold text-gray-900 mb-1">Where You Practise</h3>
-            <p className="text-xs text-gray-500 mb-4">Add each location patients can be referred to. Add more with the button below.</p>
+            <p className="text-xs text-gray-500 mb-4">Link an existing clinic to auto-fill its address, phone, fax and hours — or type a new location below.</p>
+
+            <div className="relative mb-3">
+              <input className={inp} value={clinicQuery} onChange={e => searchClinics(e.target.value)} placeholder="🔎 Search existing clinics to link…" />
+              {clinicResults.length > 0 && (
+                <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                  {clinicResults.map(c => (
+                    <button key={c.id} onClick={() => addClinicLoc(c)} className="block w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-gray-50">
+                      <div className="text-sm font-semibold text-gray-900">{c.name}</div>
+                      {c.address && <div className="text-xs text-gray-500">{c.address}</div>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {locations.map((l, i) => (
-              <div key={i} className="border border-gray-200 rounded-lg p-3 mb-3">
-                <div className="flex gap-2 items-center mb-2">
-                  <input className={inp} value={l.name} onChange={e => updLoc(i, { name: e.target.value })} placeholder="Clinic / office name (e.g. Disera Medical Centre)" />
-                  {locations.length > 1 && <button onClick={() => rmLoc(i)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-100 shrink-0">Remove</button>}
+              l.provider_id ? (
+                <div key={i} className="border border-brand/20 bg-brand/5 rounded-lg p-3 mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{l.name} <span className="text-[9px] font-bold text-brand bg-white border border-brand/20 rounded-full px-2 py-0.5 ml-1">LINKED CLINIC</span></div>
+                    {l.address && <div className="text-xs text-gray-500">{l.address}</div>}
+                    <div className="text-xs text-gray-400">Address, phone, fax &amp; hours come from this clinic automatically.</div>
+                  </div>
+                  <button onClick={() => rmLoc(i)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-100 shrink-0">Unlink</button>
                 </div>
-                <input className={inp + ' mb-2'} value={l.address} onChange={e => updLoc(i, { address: e.target.value })} placeholder="Address" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input className={inp} value={l.phone} onChange={e => updLoc(i, { phone: e.target.value })} placeholder="Phone" />
-                  <input className={inp} value={l.fax} onChange={e => updLoc(i, { fax: e.target.value })} placeholder="Fax" />
+              ) : (
+                <div key={i} className="border border-gray-200 rounded-lg p-3 mb-3">
+                  <div className="flex gap-2 items-center mb-2">
+                    <input className={inp} value={l.name} onChange={e => updLoc(i, { name: e.target.value })} placeholder="Clinic / office name (e.g. Disera Medical Centre)" />
+                    {locations.length > 1 && <button onClick={() => rmLoc(i)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-100 shrink-0">Remove</button>}
+                  </div>
+                  <input className={inp + ' mb-2'} value={l.address} onChange={e => updLoc(i, { address: e.target.value })} placeholder="Address" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input className={inp} value={l.phone} onChange={e => updLoc(i, { phone: e.target.value })} placeholder="Phone" />
+                    <input className={inp} value={l.fax} onChange={e => updLoc(i, { fax: e.target.value })} placeholder="Fax" />
+                  </div>
                 </div>
-              </div>
+              )
             ))}
-            <button onClick={addLoc} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">+ Add location</button>
+            <button onClick={addLoc} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">+ Add location manually</button>
           </section>
 
           <div className="flex gap-3">
