@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import ProviderForm from '@/components/ProviderForm'
 import Link from 'next/link'
+import FormsManager from '@/components/FormsManager'
 
 export default function EditProviderPage({ params }) {
   const { id } = use(params)
@@ -76,6 +77,12 @@ export default function EditProviderPage({ params }) {
           <button onClick={handleDelete} className="text-xs font-medium text-red-500 hover:text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition">Delete Listing</button>
         </div>
         <ProviderForm initial={provider} onSubmit={handleSubmit} loading={saving} submitLabel="Save Changes" />
+
+        <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5">
+          <h3 className="text-sm font-bold text-gray-900 mb-1">Forms</h3>
+          <p className="text-xs text-gray-500 mb-4">Upload referral or intake forms. They appear on your public listing for referring doctors to download.</p>
+          <FormsManager providerId={id} ownerId={user.id} />
+        </div>
       </div>
     </div>
   )

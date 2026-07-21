@@ -100,11 +100,15 @@ function Detail({ p, onBack, isFav, onFav }) {
   const dist = distKm(CENTER.lat, CENTER.lng, p.lat, p.lng).toFixed(1)
   const open = isOpenNow(p.hours)
   const [docs, setDocs] = useState([])
+  const [pforms, setPforms] = useState([])
   useEffect(() => {
     let alive = true
     if (!supabase || !p?.id) return () => { alive = false }
     supabase.from('physician_locations').select('physicians(id, name, specialty)').eq('provider_id', p.id).then(({ data }) => {
       if (alive) setDocs((data || []).map(l => l.physicians).filter(Boolean))
+    })
+    supabase.from('listing_forms').select('*').eq('provider_id', p.id).then(({ data }) => {
+      if (alive) setPforms(data || [])
     })
     return () => { alive = false }
   }, [p?.id])
@@ -148,6 +152,9 @@ function Detail({ p, onBack, isFav, onFav }) {
           {docs.length > 0
             ? docs.map(d => <Link key={d.id} href={`/doctors/${d.id}`} className="flex items-center justify-between py-1.5 text-xs border-b border-gray-100 last:border-0 group"><span className="text-gray-900 group-hover:text-brand font-medium">{d.name}{d.specialty ? ` — ${d.specialty}` : ''}</span><span className="text-gray-300 group-hover:text-brand">→</span></Link>)
             : p.doctors.map((d, i) => <div key={i} className="py-1 text-xs text-gray-900 border-b border-gray-100 last:border-0">{d}</div>)}
+        </B>}
+        {pforms.length > 0 && <B title="Forms">
+          {pforms.map(f => <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between py-1.5 text-xs border-b border-gray-100 last:border-0 group"><span className="text-gray-900 group-hover:text-brand font-medium">📄 {f.name}</span><span className="text-brand font-semibold group-hover:underline shrink-0">Download</span></a>)}
         </B>}
         {p.services?.length > 0 && <B title="Services"><div className="flex flex-wrap gap-1">{p.services.map(s => <span key={s} className="text-[11px] text-brand bg-brand/5 border border-brand/10 px-2 py-0.5 rounded-md">{s}</span>)}</div></B>}
       </div>

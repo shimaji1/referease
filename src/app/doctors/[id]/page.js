@@ -28,6 +28,7 @@ export default function DoctorPage() {
   const [locs, setLocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [missing, setMissing] = useState(false)
+  const [forms, setForms] = useState([])
   const [claimMsg, setClaimMsg] = useState('')
   const [claiming, setClaiming] = useState(false)
 
@@ -62,6 +63,9 @@ export default function DoctorPage() {
       const { data: links } = await supabase.from('physician_locations').select('is_primary, providers(*)').eq('physician_id', id)
       if (!alive) return
       setLocs((links || []).filter(l => l.providers).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)))
+      const { data: fdata } = await supabase.from('listing_forms').select('*').eq('physician_id', id).order('created_at', { ascending: false })
+      if (!alive) return
+      setForms(fdata || [])
       setLoading(false)
     }
     load()
@@ -175,6 +179,20 @@ export default function DoctorPage() {
                   <span className="text-gray-400">{DAY_LABELS[i]}</span>
                   <span className="text-gray-900">{doc.hours[d] || 'Closed'}</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {forms.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Forms</h4>
+            <div className="flex flex-col">
+              {forms.map(f => (
+                <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between py-1.5 text-xs border-b border-gray-100 last:border-0 group">
+                  <span className="text-gray-900 group-hover:text-brand font-medium flex items-center gap-2">📄 {f.name}</span>
+                  <span className="text-brand font-semibold group-hover:underline shrink-0">Download</span>
+                </a>
               ))}
             </div>
           </div>

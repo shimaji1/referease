@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
+import FormsManager from "@/components/FormsManager"
 
 const CATS = ["Family Medicine","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -436,6 +437,13 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+            {editing && (
+              <div style={{ marginTop:"20px", paddingTop:"16px", borderTop:"1px solid #1e2530" }}>
+                <label style={lbl}>Forms</label>
+                <div style={{ fontSize:"11px", color:"#7a8599", margin:"2px 0 10px" }}>Uploaded forms appear on the public listing for referring doctors to download.</div>
+                <FormsManager providerId={editing} dark />
+              </div>
+            )}
             <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
               <button onClick={save} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#3b82f6", color:"#fff" }}>{editing ? "Save" : "Add"}</button>
               <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#1e2530", color:"#7a8599" }}>Cancel</button>

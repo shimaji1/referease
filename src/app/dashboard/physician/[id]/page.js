@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import FormsManager from '@/components/FormsManager'
 
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
@@ -166,6 +167,12 @@ export default function EditPhysicianPage({ params }) {
                 </div>
               ))}
             </div>
+          </section>
+
+          <section className="bg-white border border-gray-200 rounded-xl p-5">
+            <h3 className="text-sm font-bold text-gray-900 mb-1">Forms</h3>
+            <p className="text-xs text-gray-500 mb-4">Upload referral or intake forms. They appear on your public profile for referring doctors to download.</p>
+            <FormsManager physicianId={id} ownerId={user.id} />
           </section>
 
           <div className="flex gap-3">
