@@ -17,8 +17,13 @@ export default function EditProviderPage({ params }) {
 
   useEffect(() => {
     if (!supabase || !id) return
-    supabase.from('providers').select('*').eq('id', id).single().then(({ data }) => {
+    supabase.from('providers').select('*').eq('id', id).single().then(async ({ data }) => {
       if (data) {
+        let docRows = []
+        try {
+          const { data: links } = await supabase.from('physician_locations').select('physicians(*)').eq('provider_id', id)
+          docRows = (links || []).filter(l => l.physicians).map(l => ({ id: l.physicians.id, name: l.physicians.name || '', specialty: l.physicians.specialty || '', specialty_code: l.physicians.specialty_code || '', accepting_referrals: l.physicians.accepting_referrals !== false }))
+        } catch {}
         setProvider({
           ...data,
           rating: data.rating || '',
@@ -29,6 +34,7 @@ export default function EditProviderPage({ params }) {
           doctors: data.doctors || [],
           languages: data.languages || ['English'],
           hours: data.hours || { mon: null, tue: null, wed: null, thu: null, fri: null, sat: null, sun: null },
+          _doctors: docRows,
         })
       }
       setLoading(false)
@@ -41,9 +47,26 @@ export default function EditProviderPage({ params }) {
   const handleSubmit = async (data) => {
     if (!supabase) return
     setSaving(true)
+    const docs = data._doctors || []
+    delete data._doctors
     const { error } = await supabase.from('providers').update(data).eq('id', id)
+    if (error) { setSaving(false); alert('Error: ' + error.message); return }
+    // reconcile doctors: update existing, create+link new, unlink removed
+    const origIds = (provider._doctors || []).map(r => r.id).filter(Boolean)
+    for (const r of docs) {
+      const payload = { name: r.name, specialty: r.specialty || null, specialty_code: r.specialty_code || null, accepting_referrals: r.accepting_referrals !== false, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist' }
+      if (r.id) {
+        await supabase.from('physicians').update(payload).eq('id', r.id)
+      } else {
+        const { data: doc } = await supabase.from('physicians').insert({ ...payload, status: 'active' }).select().single()
+        if (doc) await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: parseInt(id), is_primary: true })
+      }
+    }
+    const keptIds = docs.map(r => r.id).filter(Boolean)
+    for (const rid of origIds.filter(x => !keptIds.includes(x))) {
+      await supabase.from('physician_locations').delete().eq('physician_id', rid).eq('provider_id', parseInt(id))
+    }
     setSaving(false)
-    if (error) { alert('Error: ' + error.message); return }
     router.push('/dashboard')
   }
 

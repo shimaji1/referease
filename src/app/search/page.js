@@ -17,6 +17,7 @@ const CENTER = { lat: 43.810, lng: -79.430 }
 
 // Map a SNOMED specialty (category + name) to one of the search category buttons — same rules as the admin form.
 function specToCategory(specCategory, specName) {
+  if (/famil/i.test(specName || '')) return 'Family Medicine'
   if (specCategory === 'Diagnostics and imaging') return 'Imaging'
   if (specName === 'Physiotherapy') return 'Physiotherapy'
   if (specCategory === 'Rehab and pain') return 'Rehab'
@@ -196,7 +197,7 @@ export default function SearchPage() {
       try {
         const [prov, docs, specs] = await Promise.all([
           supabase.from("providers").select("*").eq("data_status", "complete").order("name"),
-          supabase.from("physicians").select("id, name, specialty, specialty_code, gender, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active"),
+          supabase.from("physicians").select("id, name, specialty, specialty_code, gender, category, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active"),
           supabase.from("specialties").select("snomed_code, category, name"),
         ])
         if (prov.data) setProviders(prov.data)
@@ -287,7 +288,7 @@ export default function SearchPage() {
       id: doc.id, name: doc.name, specialty: doc.specialty, specialty_code: doc.specialty_code,
       accepting_referrals: doc.accepting_referrals, accepting_new_patients: doc.accepting_new_patients,
       wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, verified: doc.verified,
-      category: specCatMap[doc.specialty_code] || 'Specialist',
+      category: doc.category || specCatMap[doc.specialty_code] || (/famil/i.test(doc.specialty || '') ? 'Family Medicine' : 'Specialist'),
       clinicName: c?.name || null, lat: c?.lat, lng: c?.lng, hours: doc.hours || c?.hours, services: c?.services || [],
     }
   }), [doctors, specCatMap])

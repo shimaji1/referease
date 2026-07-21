@@ -34,6 +34,11 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
   }
   const [form, setForm] = useState(initial || empty)
   const [specialties, setSpecialties] = useState([])
+  const [doctorRows, setDoctorRows] = useState(initial?._doctors || [])
+  const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
+  const addDoctorRow = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', accepting_referrals: true }])
+  const updDoctorRow = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
+  const rmDoctorRow = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
   const [servicesText, setServicesText] = useState(joinList(initial?.services))
   const [doctorsText, setDoctorsText] = useState(joinList(initial?.doctors))
   const [languagesText, setLanguagesText] = useState(joinList(initial?.languages || ['English']))
@@ -75,15 +80,17 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
 
   const handleSubmit = () => {
     if (!form.name || !form.type) return
+    const validDocs = doctorRows.filter(r => r.name && r.name.trim() && !/^dr\.?\s*$/i.test(r.name.trim())).map(r => ({ ...r, name: withDr(r.name) }))
     const data = {
       ...form,
       services: parseList(servicesText),
-      doctors: parseList(doctorsText),
+      doctors: validDocs.length > 0 ? validDocs.map(r => r.specialty ? `${r.name} — ${r.specialty}` : r.name) : parseList(doctorsText),
       languages: parseList(languagesText),
       rating: form.rating ? parseFloat(form.rating) : null,
       reviews: parseInt(form.reviews) || 0,
       wait_weeks: form.wait_weeks !== '' && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null,
       email: form.email || null,
+      _doctors: validDocs,
     }
     delete data.id; delete data.created_at; delete data.updated_at; delete data.owner_id
     onSubmit(data)
@@ -211,9 +218,22 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <p className="text-[10px] text-gray-400 mt-1">Separate with commas</p>
           </div>
           <div>
-            <label className={lbl}>Physicians</label>
-            <textarea className={inp + " min-h-[60px] resize-y"} value={doctorsText} onChange={e => setDoctorsText(e.target.value)} placeholder="Dr. Smith, Dr. Jones (Cardiology), Dr. Lee" />
-            <p className="text-[10px] text-gray-400 mt-1">Separate with commas</p>
+            <label className={lbl}>Doctors at this clinic</label>
+            <p className="text-[10px] text-gray-400 mb-2">Each doctor gets their own searchable profile page, linked to this listing.</p>
+            {doctorRows.map((r, i) => (
+              <div key={i} className="grid grid-cols-1 sm:grid-cols-[1.2fr_1.2fr_0.9fr_auto] gap-2 mb-2 items-center">
+                <input className={inp} placeholder="Dr. Full Name" value={r.name} onChange={e => updDoctorRow(i, { name: e.target.value })} />
+                <select className={inp} value={r.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); updDoctorRow(i, sp ? { specialty_code: sp.snomed_code, specialty: sp.name } : { specialty_code: '', specialty: '' }) }}>
+                  <option value="">Specialty…</option>
+                  {Object.entries(grouped).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>)}
+                </select>
+                <select className={inp} value={r.accepting_referrals ? 'true' : 'false'} onChange={e => updDoctorRow(i, { accepting_referrals: e.target.value === 'true' })}>
+                  <option value="true">Accepting</option><option value="false">Not accepting</option>
+                </select>
+                <button type="button" onClick={() => rmDoctorRow(i)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-100">✕</button>
+              </div>
+            ))}
+            <button type="button" onClick={addDoctorRow} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">+ Add doctor</button>
           </div>
         </div>
       </section>
