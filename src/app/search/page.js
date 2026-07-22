@@ -51,7 +51,7 @@ function Card({ p, onSelect, isFav, onFav }) {
     <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
       <button onClick={() => onFav(p.id)} className={`absolute top-3 right-3 text-lg transition ${isFav ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
       <button onClick={() => onSelect(p)} className="text-left w-[calc(100%-30px)]">
-        <h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3>
+        <div className="flex items-center gap-1.5 flex-wrap"><span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15 tracking-wide">{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3></div>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
           {p.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
@@ -79,7 +79,7 @@ function DoctorCard({ d, isFav, onFav }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15 tracking-wide">DOCTOR</span>
+            <span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15 tracking-wide">{(d.category || "Doctor").toUpperCase()}</span>
             <h3 className="font-semibold text-gray-900 text-base leading-snug">{d.name}</h3>
             {d.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
           </div>

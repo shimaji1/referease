@@ -42,9 +42,9 @@ export default function DoctorPage() {
       if (!alive) return
       if (!d) { setMissing(true); setLoading(false); return }
       setDoc(d)
-      const { data: links } = await supabase.from('physician_locations').select('is_primary, providers(*)').eq('physician_id', id)
+      const { data: links } = await supabase.from('physician_locations').select('is_primary, name, address, phone, fax, hours, providers(*)').eq('physician_id', id)
       if (!alive) return
-      { const arr = (links || []).filter(l => l.providers).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)); const seen = new Set(); setLocs(arr.filter(l => { if (seen.has(l.providers.id)) return false; seen.add(l.providers.id); return true })) }
+      { const arr = (links || []).filter(l => l.providers).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)); const seen = new Set(); const uniq = arr.filter(l => { if (seen.has(l.providers.id)) return false; seen.add(l.providers.id); return true }); setLocs(uniq.map(l => ({ ...l, providers: { ...l.providers, name: l.name || l.providers.name, address: l.address || l.providers.address, phone: l.phone || l.providers.phone, fax: l.fax || l.providers.fax, hours: l.hours || l.providers.hours } }))) }
       const { data: fdata } = await supabase.from('listing_forms').select('*').eq('physician_id', id).order('created_at', { ascending: false })
       if (!alive) return
       setForms(fdata || [])

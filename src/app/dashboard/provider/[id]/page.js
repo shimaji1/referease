@@ -59,7 +59,7 @@ export default function EditProviderPage({ params }) {
         await supabase.from('physicians').update(payload).eq('id', r.id)
       } else {
         const { data: doc } = await supabase.from('physicians').insert({ ...payload, status: 'active' }).select().single()
-        if (doc) await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: parseInt(id), is_primary: true })
+        if (doc) await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: parseInt(id), is_primary: true, name: data.name || null, address: data.address || null, phone: data.phone || null, fax: data.fax || null, hours: data.hours || null })
       }
     }
     const keptIds = docs.map(r => r.id).filter(Boolean)

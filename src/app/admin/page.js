@@ -117,7 +117,7 @@ export default function AdminPage() {
     const { data } = await supabase.from('providers').select('id, name, address, phone, fax').ilike('name', `%${q.trim()}%`).limit(8)
     setClinicResults(data || [])
   }
-  const addClinicLoc = (c) => { setDocLocations(l => [...l, { provider_id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax }]); setClinicQuery(''); setClinicResults([]) }
+  const addClinicLoc = (c) => { setDocLocations(l => [...l, { provider_id: c.id, name: c.name || '', address: c.address || '', phone: c.phone || '', fax: c.fax || '', hours: c.hours || null }]); setClinicQuery(''); setClinicResults([]) }
   const updDocLoc = (i, patch) => setDocLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDocLoc = (i) => setDocLocations(l => l.filter((_, idx) => idx !== i))
 
@@ -257,10 +257,10 @@ export default function AdminPage() {
     })
     setClinicQuery(''); setClinicResults([]); setTab('doctor')
     // Load their existing locations so they can be seen, unlinked, or reordered
-    const { data: links } = await supabase.from('physician_locations').select('provider_id, is_primary, providers(id, name, address, phone, fax)').eq('physician_id', p.id)
+    const { data: links } = await supabase.from('physician_locations').select('provider_id, is_primary, name, address, phone, fax, hours, providers(id, name, address, phone, fax, hours)').eq('physician_id', p.id)
     const rows = (links || []).filter(l => l.providers)
       .sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
-      .map(l => ({ provider_id: l.providers.id, name: l.providers.name, address: l.providers.address, phone: l.providers.phone, fax: l.providers.fax }))
+      .map(l => ({ provider_id: l.providers.id, name: l.name || l.providers.name || '', address: l.address || l.providers.address || '', phone: l.phone || l.providers.phone || '', fax: l.fax || l.providers.fax || '', hours: l.hours || l.providers.hours || null }))
     // dedupe by provider id
     const seen = new Set(); const uniq = rows.filter(r => { if (seen.has(r.provider_id)) return false; seen.add(r.provider_id); return true })
     setDocLocations(uniq.length ? uniq : [{ name:'', address:'', phone:'', fax:'' }])
@@ -326,7 +326,7 @@ export default function AdminPage() {
         if (pErr || !pRow) { warn = "Doctor saved, but a location failed: " + (pErr?.message || "unknown"); continue }
         provId = pRow.id
       }
-      const { error: lErr } = await supabase.from('physician_locations').insert({ physician_id: docId, provider_id: provId, is_primary: i === 0 })
+      const { error: lErr } = await supabase.from('physician_locations').insert({ physician_id: docId, provider_id: provId, is_primary: i === 0, name: (l.name||'').trim() || null, address: l.address || null, phone: l.phone || null, fax: l.fax || null, hours: l.hours || null })
       if (lErr) warn = "Doctor saved, but linking a location failed: " + lErr.message
     }
     setMsg(warn || (editingDoc ? "Doctor updated." : "Doctor added — their profile page is live and searchable."))
@@ -373,7 +373,7 @@ export default function AdminPage() {
         } else {
           const { data: doc, error: docErr } = await supabase.from("physicians").insert(payload).select().single()
           if (docErr || !doc) { warn = "Clinic saved, but adding a doctor failed: " + (docErr?.message || "unknown"); continue }
-          const { error: linkErr } = await supabase.from("physician_locations").insert({ physician_id: doc.id, provider_id: providerId, is_primary: true })
+          const { error: linkErr } = await supabase.from("physician_locations").insert({ physician_id: doc.id, provider_id: providerId, is_primary: true, name: rec.name || null, address: rec.address || null, phone: rec.phone || null, fax: rec.fax || null, hours: rec.hours || null })
           if (linkErr) warn = "Clinic saved, but linking a doctor failed: " + linkErr.message
         }
       }
@@ -470,8 +470,7 @@ export default function AdminPage() {
           <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#ffffff", color:tab==="claims"?"#fff":"#64748b", border:"1px solid " + (tab==="claims"?"#d97706":"#e2e8f0"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
           <button onClick={() => { setTab("dupes"); if (dupGroups.length === 0) scanDupes() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="dupes"?"#dc2626":"#ffffff", color:tab==="dupes"?"#fff":"#64748b", border:"1px solid " + (tab==="dupes"?"#dc2626":"#e2e8f0") }}>Duplicates</button>
           <button onClick={() => { setTab("site"); if (!siteP) loadSite() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="site"?"#0891b2":"#ffffff", color:tab==="site"?"#fff":"#64748b", border:"1px solid " + (tab==="site"?"#0891b2":"#e2e8f0") }}>Site</button>
-          <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#ffffff", color:tab==="edit"&&!editing?"#fff":"#64748b", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#e2e8f0") }}>+ Clinic</button>
-          <button onClick={() => { setTab("doctor"); setEditing(null); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="doctor"&&!editingDoc?"#7c3aed":"#ffffff", color:tab==="doctor"&&!editingDoc?"#fff":"#64748b", border:"1px solid " + (tab==="doctor"&&!editingDoc?"#7c3aed":"#e2e8f0") }}>+ Doctor</button>
+          <button onClick={() => { setTab("newprov"); setEditing(null); setEditingDoc(null) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="newprov"?"#059669":"#ffffff", color:tab==="newprov"?"#fff":"#64748b", border:"1px solid " + (tab==="newprov"?"#059669":"#e2e8f0") }}>+ Add Provider</button>
           <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#ffffff", color:"#64748b", border:"1px solid #e2e8f0", textDecoration:"none" }}>← Site</a>
           <button onClick={logout} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Log out</button>
         </div>
@@ -524,7 +523,7 @@ export default function AdminPage() {
                 <div key={'doc-' + d.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff", border:"1px solid #7c3aed40", borderRadius:"8px", padding:"10px 14px", gap:"8px" }}>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:"13px", fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                      <span style={{ fontSize:"9px", fontWeight:700, color:"#7c3aed", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"1px 6px", marginRight:"6px" }}>DOCTOR</span>
+                      <span style={{ fontSize:"9px", fontWeight:700, color:"#7c3aed", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"1px 6px", marginRight:"6px" }}>{(docCategory(d) || 'Doctor').toUpperCase()}</span>
                       {d.name}
                       {d.verified && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#2563eb", background:"#3b82f620", border:"1px solid #3b82f640", borderRadius:"999px", padding:"1px 6px" }}>VERIFIED</span>}
                       {d.owner_id && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#059669", background:"#05966920", border:"1px solid #05966940", borderRadius:"999px", padding:"1px 6px" }}>CLAIMED</span>}
@@ -541,7 +540,8 @@ export default function AdminPage() {
               {providers.map(p => (
                 <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"10px 14px", gap:"8px" }}>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:"13px", fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.name}</div>
+                    <div style={{ fontSize:"13px", fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>                      <span style={{ fontSize:"9px", fontWeight:700, color:"#0369a1", background:"#0ea5e920", border:"1px solid #0ea5e940", borderRadius:"999px", padding:"1px 6px", marginRight:"6px" }}>{(p.category || 'Clinic').toUpperCase()}</span>
+{p.name}</div>
                     <div style={{ fontSize:"11px", color:"#64748b" }}>
                       {p.type} · {p.category}
                       {p.phone && ` · ${p.phone}`}
@@ -749,13 +749,18 @@ export default function AdminPage() {
 
             {docLocations.map((l, i) => (
               l.provider_id ? (
-                <div key={i} style={{ border:"1px solid #cbd5e1", background:"#f1f5f9", borderRadius:"8px", padding:"10px 12px", marginBottom:"8px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:"8px" }}>
-                  <div>
-                    <div style={{ fontSize:"13px", color:"#111827", fontWeight:600 }}>{l.name}<span style={{ fontSize:"9px", color:"#2563eb", background:"#3b82f620", border:"1px solid #3b82f640", borderRadius:"999px", padding:"1px 6px", marginLeft:"6px" }}>LINKED CLINIC</span></div>
-                    {l.address && <div style={{ fontSize:"11px", color:"#64748b" }}>{l.address}</div>}
-                    <div style={{ fontSize:"11px", color:"#64748b" }}>Address, phone, fax &amp; hours are pulled from this clinic automatically.</div>
+                <div key={i} style={{ border:"1px solid #7c3aed40", background:"#faf9ff", borderRadius:"8px", padding:"10px", marginBottom:"8px" }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto", gap:"8px", alignItems:"center", marginBottom:"6px" }}>
+                    <input style={{ ...s, marginTop:0 }} value={l.name || ''} onChange={e => updDocLoc(i, { name: e.target.value })} placeholder="Location name" />
+                    <span style={{ fontSize:"9px", fontWeight:700, color:"#7c3aed", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"3px 8px" }}>LINKED</span>
+                    <button onClick={() => rmDocLoc(i)} title="Unlink" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕ Unlink</button>
                   </div>
-                  <button onClick={() => rmDocLoc(i)} title="Unlink" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕</button>
+                  <input style={{ ...s, marginTop:0, marginBottom:"6px" }} value={l.address || ''} onChange={e => updDocLoc(i, { address: e.target.value })} placeholder="Address (this doctor's copy — editable)" />
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
+                    <input style={{ ...s, marginTop:0 }} value={l.phone || ''} onChange={e => updDocLoc(i, { phone: e.target.value })} placeholder="Phone" />
+                    <input style={{ ...s, marginTop:0 }} value={l.fax || ''} onChange={e => updDocLoc(i, { fax: e.target.value })} placeholder="Fax" />
+                  </div>
+                  <div style={{ fontSize:"10px", color:"#64748b", marginTop:"6px" }}>Copied from the linked clinic — edits here change only this doctor's listing, not the clinic.</div>
                 </div>
               ) : (
                 <div key={i} style={{ border:"1px solid #e2e8f0", borderRadius:"8px", padding:"10px", marginBottom:"8px" }}>
@@ -776,6 +781,26 @@ export default function AdminPage() {
             <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
               <button onClick={saveDoctor} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#7c3aed", color:"#fff" }}>{editingDoc ? 'Save Changes' : 'Add Doctor'}</button>
               <button onClick={() => { setTab("list"); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#e2e8f0", color:"#64748b" }}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {tab === "newprov" && (
+          <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"12px", padding:"24px" }}>
+            <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>Add Provider</h3>
+            <p style={{ margin:"0 0 18px", fontSize:"12px", color:"#64748b" }}>Pick what they are — the category becomes their badge and opens the right form. Everything is editable after.</p>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(160px, 1fr))", gap:"10px" }}>
+              {CATS.map(c => {
+                const isDoc = ['Family Medicine','Specialist'].includes(c)
+                return (
+                  <button key={c} onClick={() => {
+                    if (isDoc) { setEditingDoc(null); setDocForm({ ...emptyDoc(), category: c }); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]); setClinicQuery(''); setClinicResults([]); setTab("doctor") }
+                    else { setEditing(null); setForm({ ...empty(), category: c }); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]); setTab("edit") }
+                  }} style={{ all:"unset", cursor:"pointer", textAlign:"center", padding:"18px 10px", borderRadius:"10px", border:"1px solid #e2e8f0", background:"#f8fafc", fontSize:"13px", fontWeight:600, color:"#111827" }}>
+                    {c}
+                    <div style={{ fontSize:"10px", fontWeight:400, color:"#64748b", marginTop:"4px" }}>{isDoc ? 'Individual profile' : 'Facility listing'}</div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}

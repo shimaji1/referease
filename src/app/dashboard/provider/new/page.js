@@ -24,7 +24,7 @@ export default function NewProviderPage() {
     if (error || !created) { alert('Error: ' + (error?.message || 'could not save')); return }
     for (const r of docs) {
       const { data: doc } = await supabase.from('physicians').insert({ name: r.name, specialty: r.specialty || null, specialty_code: r.specialty_code || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist', status: 'active' }).select().single()
-      if (doc) await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: created.id, is_primary: true })
+      if (doc) await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: created.id, is_primary: true, name: data.name || null, address: data.address || null, phone: data.phone || null, fax: data.fax || null, hours: data.hours || null })
     }
     router.push('/dashboard')
   }
