@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import ProfileHeader from '@/components/ProfileHeader'
+import ProfileView from '@/components/ProfileView'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 
@@ -20,6 +20,18 @@ function WaitBadge({ weeks }) {
 function Pill({ ok, children }) {
   const cls = ok ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200'
   return <span className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full border ${cls}`}>{children}</span>
+}
+
+
+function isOpen(hours) {
+  if (!hours) return false
+  const d = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]
+  const span = hours[d]
+  if (!span || typeof span !== 'string' || !span.includes('-')) return false
+  const [a, b] = span.split('-')
+  const toMin = t => { const [h, m] = t.trim().split(':').map(Number); return (h || 0) * 60 + (m || 0) }
+  const now = new Date().getHours() * 60 + new Date().getMinutes()
+  return now >= toMin(a) && now <= toMin(b)
 }
 
 export default function DoctorPage() {
@@ -66,28 +78,16 @@ export default function DoctorPage() {
   const primaryClinic = locs.find(l => l.is_primary)?.providers || locs[0]?.providers
   const googleRating = doc.rating || primaryClinic?.rating
 
-  const Box = ({ title, children }) => (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5">
-      <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">{title}</h4>
-      {children}
-    </div>
-  )
-  const Row = ({ l, v }) => (
-    <div className="flex justify-between py-1 text-xs gap-2">
-      <span className="text-gray-400 shrink-0">{l}</span>
-      <span className="text-gray-900 font-medium text-right break-words">{v}</span>
-    </div>
-  )
+  const docHours = (doc.hours && Object.values(doc.hours).some(v => v)) ? doc.hours : (primaryClinic?.hours || null)
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-5 py-6">
-        <Link href="/search" className="text-sm text-brand font-medium hover:underline">← Back to search</Link>
+        <Link href="/search" className="text-sm text-brand font-semibold mb-4 hover:underline inline-block">← Back to search</Link>
         <div className="mt-4" />
-
-        <ProfileHeader
+        <ProfileView
           name={doc.name}
-          subtitle={`${doc.specialty || 'Physician'}${doc.sub_specialty ? ` · ${doc.sub_specialty}` : ''}${doc.gender ? ` · ${doc.gender[0].toUpperCase() + doc.gender.slice(1)}` : ''}`}
+          subtitle={`${doc.specialty || 'Physician'}${doc.sub_specialty ? ` · ${doc.sub_specialty}` : ''}${doc.category ? ` · ${doc.category}` : ''}`}
           verified={doc.verified}
           action={<button onClick={toggleFav} title={isFav ? 'Remove favourite' : 'Add to favourites'} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
           tiles={[
@@ -95,126 +95,39 @@ export default function DoctorPage() {
               ? { big: doc.accepting_new_patients == null ? 'Unknown' : doc.accepting_new_patients ? 'Accepting' : 'Roster full', small: 'New patients', good: doc.accepting_new_patients }
               : { big: doc.accepting_referrals == null ? 'Unknown' : doc.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: doc.accepting_referrals },
             { big: doc.wait_weeks == null ? 'Varies' : doc.wait_weeks === 0 ? 'No wait' : `~${doc.wait_weeks} wk`, small: 'Wait time', color: doc.wait_weeks == null ? null : doc.wait_weeks <= 4 ? 'text-emerald-600' : doc.wait_weeks <= 12 ? 'text-amber-500' : 'text-red-500' },
+            { big: locs.length === 0 ? 'Closed' : (isOpen(docHours) ? 'Open now' : 'Closed'), small: 'Right now', good: locs.length === 0 ? null : isOpen(docHours) },
             { big: (doc.languages && doc.languages.length) ? doc.languages[0] + (doc.languages.length > 1 ? ` +${doc.languages.length - 1}` : '') : 'English', small: 'Languages', good: null },
           ]}
-          footer={googleRating ? <div className="flex items-center gap-2 mt-3 justify-center"><span className="text-amber-500 font-semibold text-sm">★ {Number(googleRating).toFixed(1)}</span><span className="text-xs text-gray-400">Google rating</span></div> : null}
+          headerFooter={googleRating ? <div className="flex items-center gap-2 mt-3 justify-center"><span className="text-amber-500 font-semibold text-sm">★ {Number(googleRating).toFixed(1)}</span><span className="text-xs text-gray-400">Google rating</span></div> : null}
+          banner={
+            doc.owner_id && user && doc.owner_id === user.id ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
+                <span className="text-sm text-emerald-800 font-medium">You manage this profile.</span>
+                <Link href={`/dashboard/physician/${doc.id}`} className="text-xs font-semibold text-white bg-brand px-3 py-1.5 rounded-lg hover:bg-brand-dark transition">Edit profile</Link>
+              </div>
+            ) : doc.owner_id ? null : (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span className="text-sm text-blue-900 font-medium">Is this you? Claim this profile to manage your availability and referral details.</span>
+                  {!user
+                    ? <Link href="/login" className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Sign in to claim</Link>
+                    : primaryClinic
+                      ? <Link href={`/dashboard/verify?provider_id=${primaryClinic.id}&physician_id=${doc.id}`} className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Claim this profile</Link>
+                      : <span className="text-xs text-blue-700 font-medium">This doctor needs a clinic linked before it can be verified (the fax code is sent to the clinic's fax).</span>}
+                </div>
+              </div>
+            )
+          }
+          contact={{ languages: doc.languages || ['English'] }}
+          hours={docHours}
+          referral={{
+            wait: doc.wait_weeks == null ? 'Varies' : doc.wait_weeks === 0 ? 'No wait' : `~${doc.wait_weeks} week${doc.wait_weeks === 1 ? '' : 's'}`,
+            criteria: doc.criteria, types: doc.referral_types, cpso_number: doc.cpso_number, cpso_url: doc.cpso_url,
+          }}
+          howToRefer={primaryClinic ? <>Send the referral to <span className="font-semibold text-gray-900">{primaryClinic.name}</span>{primaryClinic.fax ? <> by fax at <span className="font-semibold text-gray-900">{primaryClinic.fax}</span></> : primaryClinic.phone ? <> — call <span className="font-semibold text-gray-900">{primaryClinic.phone}</span></> : null}. Include the patient's OHIP number and reason for consult.</> : null}
+          locations={locs.map(l => ({ id: l.providers.id, name: l.providers.name, address: l.providers.address, phone: l.providers.phone, fax: l.providers.fax, website: l.providers.website }))}
+          forms={forms.map(f => ({ id: f.id, name: f.name, url: f.file_url }))}
         />
-
-        {/* Claim / manage */}
-        {doc.owner_id && user && doc.owner_id === user.id ? (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
-            <span className="text-sm text-emerald-800 font-medium">You manage this profile.</span>
-            <Link href={`/dashboard/physician/${doc.id}`} className="text-xs font-semibold text-white bg-brand px-3 py-1.5 rounded-lg hover:bg-brand-dark transition">Edit profile</Link>
-          </div>
-        ) : doc.owner_id ? null : (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-sm text-blue-900 font-medium">Is this you? Claim this profile to manage your availability and referral details.</span>
-              {!user
-                ? <Link href="/login" className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Sign in to claim</Link>
-                : primaryClinic
-                  ? <Link href={`/dashboard/verify?provider_id=${primaryClinic.id}&physician_id=${doc.id}`} className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Claim this profile</Link>
-                  : <span className="text-xs text-blue-700 font-medium">This doctor needs a clinic linked before it can be verified (the fax code is sent to the clinic's fax).</span>}
-            </div>
-          </div>
-        )}
-
-        {/* Referral readiness */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <Box title="Referral details">
-            {doc.referral_types?.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-2">
-                {doc.referral_types.map(t => <span key={t} className="text-[11px] text-brand bg-brand/5 border border-brand/10 px-2 py-0.5 rounded-md">{t}</span>)}
-              </div>
-            )}
-            <Row l="Criteria" v={doc.criteria || '—'} />
-            {!isFamily && <Row l="Wait" v={doc.wait_weeks == null ? 'Varies' : `~${doc.wait_weeks} week${doc.wait_weeks === 1 ? '' : 's'}`} />}
-            {doc.cpso_number && <Row l="CPSO #" v={doc.cpso_number} />}
-            {doc.cpso_url && <div className="flex justify-between py-1.5 text-sm gap-2"><span className="text-gray-400 shrink-0">CPSO</span><a href={doc.cpso_url} target="_blank" rel="noopener noreferrer" className="text-brand font-semibold hover:underline">View CPSO profile →</a></div>}
-          </Box>
-
-          {primaryClinic && (
-            <Box title="How to refer">
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Send the referral to <span className="font-medium text-gray-900">{primaryClinic.name}</span>
-                {primaryClinic.fax ? <> by fax at <span className="font-medium text-gray-900">{primaryClinic.fax}</span></> : primaryClinic.phone ? <> — call <span className="font-medium text-gray-900">{primaryClinic.phone}</span></> : ''}.
-                Include the patient’s OHIP number and reason for consult.
-              </p>
-            </Box>
-          )}
-        </div>
-
-        {/* Doctor's own hours */}
-        {doc.hours && DAYS.some(d => doc.hours[d]) && (
-          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Hours</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
-              {DAYS.map((d, i) => (
-                <div key={d} className="flex justify-between">
-                  <span className="text-gray-400">{DAY_LABELS[i]}</span>
-                  <span className="text-gray-900">{doc.hours[d] || 'Closed'}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {forms.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Forms</h4>
-            <div className="flex flex-col">
-              {forms.map(f => (
-                <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between py-1.5 text-xs border-b border-gray-100 last:border-0 group">
-                  <span className="text-gray-900 group-hover:text-brand font-medium flex items-center gap-2">📄 {f.name}</span>
-                  <span className="text-brand font-semibold group-hover:underline shrink-0">Download</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-
-        {doc.hours && Object.values(doc.hours).some(v => v) && (
-          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-brand/60 mb-2">This doctor's hours</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-sm">
-              {DAYS.map((d, i) => { const todayName = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]; const isToday = d === todayName; return <div key={d} className={`flex justify-between ${isToday ? 'font-bold' : ''}`}><span className={isToday ? 'text-brand' : 'text-gray-400'}>{DAY_LABELS[i]}{isToday ? ' · Today' : ''}</span><span className={doc.hours[d] ? 'text-gray-900' : 'text-gray-300'}>{doc.hours[d] || 'Closed'}</span></div> })}
-            </div>
-          </div>
-        )}
-
-        {/* Locations */}
-        <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
-          {locs.length > 1 ? `Practises at ${locs.length} locations` : 'Location'}
-        </h4>
-        <div className="flex flex-col gap-3">
-          {locs.length === 0 && <div className="bg-white border border-gray-200 rounded-xl p-4 text-xs text-gray-400">No clinic linked yet.</div>}
-          {locs.map(({ providers: c }, li) => (
-            <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="flex justify-between items-start gap-3 mb-2">
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">{c.name}</div>
-                  <div className="text-xs text-gray-400">{c.category}{c.type ? ` · ${c.type}` : ''}</div>
-                </div>
-                {li === 0 && locs.length > 1 && <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">Main clinic</span>}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 text-xs text-gray-600">
-                <div className="space-y-1">
-                  {c.address && <div>📍 {c.address}</div>}
-                  {c.phone && <div>📞 {c.phone}</div>}
-                  {c.fax && <div>📠 Fax {c.fax}</div>}
-                  {c.website && <div>🔗 <a href={c.website.startsWith('http') ? c.website : `https://${c.website}`} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline break-all">{c.website}</a></div>}
-                </div>
-                {c.hours && (
-                  <div className="mt-2 sm:mt-0">
-                    {DAYS.map((d, i) => <div key={d} className="flex justify-between"><span className="text-gray-400">{DAY_LABELS[i]}</span><span>{c.hours[d] || 'Closed'}</span></div>)}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
         <p className="text-[11px] text-gray-400 text-center mt-8 leading-relaxed">
           Wait times and referral criteria are provider-managed and may change.
         </p>

@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
-import ProfileHeader from '@/components/ProfileHeader'
+import ProfileView from '@/components/ProfileView'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -129,13 +129,10 @@ function Detail({ p, onBack, isFav, onFav }) {
     })
     return () => { alive = false }
   }, [p?.id])
-  const B = ({ title, children }) => <div className="bg-white border border-gray-200 rounded-2xl p-5"><h4 className="text-xs font-bold uppercase tracking-wider text-brand/60 mb-3">{title}</h4>{children}</div>
-  const R = ({ l, v, href }) => { const val = href ? <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand font-semibold text-right break-words hover:underline">{v}</a> : <span className="text-gray-900 font-medium text-right break-words">{v}</span>; return <div className="flex justify-between py-1.5 text-sm gap-2 border-b border-gray-50 last:border-0"><span className="text-gray-400 shrink-0">{l}</span>{val}</div> }
   return (
     <div className="animate-fade-in">
       <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back to results</button>
-
-      <ProfileHeader
+      <ProfileView
         name={p.name}
         subtitle={`${p.type}${p.category ? ` · ${p.category}` : ''}`}
         verified={p.verified}
@@ -146,36 +143,18 @@ function Detail({ p, onBack, isFav, onFav }) {
           { big: open ? 'Open now' : 'Closed', small: 'Right now', good: open },
           { big: `${dist} km`, small: 'Distance', good: null },
         ]}
-        footer={p.rating ? <div className="flex items-center gap-2 mt-3 justify-center"><Stars r={p.rating} /><span className="text-xs text-gray-400">{Number(p.rating).toFixed(1)} · {p.reviews} reviews</span></div> : null}
+        headerFooter={p.rating ? <div className="flex items-center gap-2 mt-3 justify-center"><Stars r={p.rating} /><span className="text-xs text-gray-400">{Number(p.rating).toFixed(1)} · {p.reviews} reviews</span></div> : null}
+        contact={{ address: p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
+        hours={p.hours}
+        referral={{ wait: p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`, requirements: p.requirements }}
+        people={docs.length > 0 ? docs.map(d => ({ id: d.id, name: d.name, detail: d.specialty, href: `/doctors/${d.id}` })) : null}
+        forms={pforms.map(f => ({ id: f.id, name: f.name, url: f.file_url }))}
+        services={p.services}
       />
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <B title="Contact & Location">
-          <R l="Address" v={p.address || '—'} href={p.address ? `https://maps.google.com/?q=${encodeURIComponent(p.address)}` : null} />
-          {p.phone && <R l="Phone" v={p.phone} href={`tel:${p.phone}`} />}
-          {p.fax && <R l="Fax" v={p.fax} />}
-          {p.email && <R l="Email" v={p.email} href={`mailto:${p.email}`} />}
-          {p.website && <R l="Website" v={p.website.replace(/^https?:\/\//, '')} href={p.website.startsWith('http') ? p.website : `https://${p.website}`} />}
-          <R l="Languages" v={(p.languages || ['English']).join(', ')} />
-        </B>
-        <B title="Hours">{p.hours && DAYS.map((d,i) => { const todayName = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]; const isToday = d === todayName; return <div key={d} className={`flex justify-between py-1.5 text-sm gap-2 border-b border-gray-50 last:border-0 ${isToday ? 'font-bold' : ''}`}><span className={isToday ? 'text-brand' : 'text-gray-400'}>{DAY_LABELS[i].slice(0,3)}{isToday ? ' · Today' : ''}</span><span className={p.hours[d] ? 'text-gray-900 font-medium' : 'text-gray-300'}>{p.hours[d] || 'Closed'}</span></div> })}</B>
-        <B title="Referral Info">
-          <R l="Wait" v={p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`} />
-          <R l="Requirements" v={p.requirements || '—'} />
-        </B>
-        {(docs.length > 0 || p.doctors?.length > 0) && <B title="Physicians">
-          {docs.length > 0
-            ? docs.map(d => <Link key={d.id} href={`/doctors/${d.id}`} className="flex items-center justify-between py-2 text-sm border-b border-gray-50 last:border-0 group"><span className="text-gray-900 group-hover:text-brand font-semibold">{d.name}{d.specialty ? ` — ${d.specialty}` : ''}</span><span className="text-gray-300 group-hover:text-brand">→</span></Link>)
-            : p.doctors.map((d, i) => <div key={i} className="py-2 text-sm text-gray-900 border-b border-gray-50 last:border-0">{d}</div>)}
-        </B>}
-        {pforms.length > 0 && <B title="Forms">
-          {pforms.map(f => <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between py-2 text-sm border-b border-gray-50 last:border-0 group"><span className="text-gray-900 group-hover:text-brand font-medium">📄 {f.name}</span><span className="text-brand font-semibold group-hover:underline shrink-0">Download</span></a>)}
-        </B>}
-        {p.services?.length > 0 && <B title="Services"><div className="flex flex-wrap gap-1.5">{p.services.map(s => <span key={s} className="text-xs text-brand bg-brand/5 border border-brand/10 px-2.5 py-1 rounded-md">{s}</span>)}</div></B>}
-      </div>
     </div>
   )
 }
+
 
 export default function SearchPage() {
   const [providers, setProviders] = useState([])
