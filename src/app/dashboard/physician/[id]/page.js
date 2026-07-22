@@ -65,6 +65,8 @@ export default function EditPhysicianPage({ params }) {
       specialty: doc.specialty || null,
       specialty_code: doc.specialty_code || null,
       gender: doc.gender || null,
+      cpso_number: doc.cpso_number || null,
+      cpso_url: doc.cpso_url || null,
       accepting_referrals: doc.accepting_referrals ?? null,
       accepting_new_patients: doc.accepting_new_patients ?? null,
       wait_weeks: (doc.wait_weeks !== '' && doc.wait_weeks !== null) ? parseInt(doc.wait_weeks) : null,
@@ -85,7 +87,7 @@ export default function EditPhysicianPage({ params }) {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
-            <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
+            <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href={`/doctors/${id}`} className="text-xs font-medium text-gray-500 hover:text-brand border border-gray-200 px-3 py-1.5 rounded-lg">View public page</Link>
@@ -118,6 +120,14 @@ export default function EditPhysicianPage({ params }) {
                 <select className={inp} value={doc.gender || ''} onChange={e => set('gender', e.target.value)}>
                   <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
                 </select>
+              </div>
+              <div>
+                <label className={lbl}>CPSO Number</label>
+                <input className={inp} value={doc.cpso_number || ''} onChange={e => set('cpso_number', e.target.value)} placeholder="e.g. 87654" />
+              </div>
+              <div>
+                <label className={lbl}>CPSO Profile Link</label>
+                <input className={inp} value={doc.cpso_url || ''} onChange={e => set('cpso_url', e.target.value)} placeholder="https://doctors.cpso.on.ca/DoctorDetails/..." />
               </div>
               <div className="sm:col-span-2">
                 <label className={lbl}>Languages (comma-separated)</label>

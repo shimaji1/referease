@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import ProfileHeader from '@/components/ProfileHeader'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 
@@ -82,34 +83,22 @@ export default function DoctorPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-5 py-6">
         <Link href="/search" className="text-sm text-brand font-medium hover:underline">← Back to search</Link>
+        <div className="mt-4" />
 
-        {/* Header */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 mt-4 mb-4">
-          <div className="flex justify-between items-start flex-wrap gap-3">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{doc.name}</h1>
-              <p className="text-sm text-brand font-medium mt-1">
-                {doc.specialty || 'Physician'}{doc.sub_specialty ? ` · ${doc.sub_specialty}` : ''}
-              </p>
-              <div className="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
-                {doc.gender && <span className="capitalize">{doc.gender}</span>}
-                {(doc.languages?.length > 0) && <span>{doc.languages.join(', ')}</span>}
-                {googleRating && <span className="text-amber-500 font-semibold">★ {Number(googleRating).toFixed(1)}</span>}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {doc.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">✓ Verified</span>}
-              <button onClick={toggleFav} title={isFav ? 'Remove favourite' : 'Add to favourites'} className={`text-2xl leading-none ${isFav ? 'text-amber-400' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-3 items-center">
-            {isFamily
-              ? (doc.accepting_new_patients == null ? <span className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full border text-gray-500 bg-gray-100 border-gray-200">Availability unknown</span> : <Pill ok={doc.accepting_new_patients}>{doc.accepting_new_patients ? 'Accepting new patients' : 'Roster full'}</Pill>)
-              : (doc.accepting_referrals == null ? <span className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full border text-gray-500 bg-gray-100 border-gray-200">Availability unknown</span> : <Pill ok={doc.accepting_referrals}>{doc.accepting_referrals ? 'Accepting referrals' : 'Not accepting referrals'}</Pill>)}
-            {!isFamily && doc.accepting_referrals && <WaitBadge weeks={doc.wait_weeks} />}
-            {isFamily && doc.accepting_referrals && <span className="text-[11px] font-semibold text-brand bg-brand/5 border border-brand/15 px-2.5 py-1 rounded-full">Takes procedure referrals</span>}
-          </div>
-        </div>
+        <ProfileHeader
+          name={doc.name}
+          subtitle={`${doc.specialty || 'Physician'}${doc.sub_specialty ? ` · ${doc.sub_specialty}` : ''}${doc.gender ? ` · ${doc.gender[0].toUpperCase() + doc.gender.slice(1)}` : ''}`}
+          verified={doc.verified}
+          action={<button onClick={toggleFav} title={isFav ? 'Remove favourite' : 'Add to favourites'} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
+          tiles={[
+            isFamily
+              ? { big: doc.accepting_new_patients == null ? 'Unknown' : doc.accepting_new_patients ? 'Accepting' : 'Roster full', small: 'New patients', good: doc.accepting_new_patients }
+              : { big: doc.accepting_referrals == null ? 'Unknown' : doc.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: doc.accepting_referrals },
+            { big: doc.wait_weeks == null ? 'Varies' : doc.wait_weeks === 0 ? 'No wait' : `~${doc.wait_weeks} wk`, small: 'Wait time', good: doc.wait_weeks != null && doc.wait_weeks <= 4 ? true : null },
+            { big: (doc.languages && doc.languages.length) ? doc.languages[0] + (doc.languages.length > 1 ? ` +${doc.languages.length - 1}` : '') : 'English', small: 'Languages', good: null },
+            { big: googleRating ? `★ ${Number(googleRating).toFixed(1)}` : '—', small: 'Rating', good: null },
+          ]}
+        />
 
         {/* Claim / manage */}
         {doc.owner_id && user && doc.owner_id === user.id ? (
@@ -141,6 +130,7 @@ export default function DoctorPage() {
             <Row l="Criteria" v={doc.criteria || '—'} />
             {!isFamily && <Row l="Wait" v={doc.wait_weeks == null ? 'Varies' : `~${doc.wait_weeks} week${doc.wait_weeks === 1 ? '' : 's'}`} />}
             {doc.cpso_number && <Row l="CPSO #" v={doc.cpso_number} />}
+            {doc.cpso_url && <div className="flex justify-between py-1.5 text-sm gap-2"><span className="text-gray-400 shrink-0">CPSO</span><a href={doc.cpso_url} target="_blank" rel="noopener noreferrer" className="text-brand font-semibold hover:underline">View CPSO profile →</a></div>}
           </Box>
 
           {primaryClinic && (
@@ -179,6 +169,16 @@ export default function DoctorPage() {
                   <span className="text-brand font-semibold group-hover:underline shrink-0">Download</span>
                 </a>
               ))}
+            </div>
+          </div>
+        )}
+
+
+        {doc.hours && Object.values(doc.hours).some(v => v) && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-brand/60 mb-2">This doctor's hours</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-sm">
+              {DAYS.map((d, i) => { const todayName = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]; const isToday = d === todayName; return <div key={d} className={`flex justify-between ${isToday ? 'font-bold' : ''}`}><span className={isToday ? 'text-brand' : 'text-gray-400'}>{DAY_LABELS[i]}{isToday ? ' · Today' : ''}</span><span className={doc.hours[d] ? 'text-gray-900' : 'text-gray-300'}>{doc.hours[d] || 'Closed'}</span></div> })}
             </div>
           </div>
         )}

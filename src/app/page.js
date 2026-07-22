@@ -67,7 +67,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">R</span></div>
-            <span className="text-xl font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
+            <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </Link>
           <div className="hidden sm:flex items-center gap-6">
             <Link href="/search" className="text-sm font-medium text-gray-600 hover:text-brand transition">Find care</Link>
@@ -241,7 +241,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
-            <span className="font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
+            <span className="font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </div>
           <div className="flex gap-6 text-sm text-gray-500">
             <Link href="/search" className="hover:text-brand">Find care</Link>

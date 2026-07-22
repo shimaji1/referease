@@ -27,7 +27,7 @@ export default function PricingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">R</span></div>
-            <span className="text-xl font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
+            <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </Link>
           <div className="flex items-center gap-6">
             <Link href="/search" className="hidden sm:block text-sm font-medium text-gray-600 hover:text-brand transition">Find care</Link>
@@ -76,7 +76,7 @@ export default function PricingPage() {
 
       <footer className="border-t border-gray-200 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="text-sm font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
+          <span className="text-sm font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           <p className="text-xs text-gray-400">© 2026 ReferEasy · Ontario, Canada</p>
         </div>
       </footer>

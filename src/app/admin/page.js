@@ -19,7 +19,7 @@ const normalizeHours = (h) => {
   })
   return out
 }
-const emptyDoc = () => ({ name:"Dr. ", specialty:"", specialty_code:"", gender:"", category:"Specialist", accepting_referrals:null, accepting_new_patients:null, wait_weeks:"", criteria:"", referral_types:"", languages:"English", hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
+const emptyDoc = () => ({ name:"Dr. ", specialty:"", specialty_code:"", gender:"", category:"Specialist", cpso_number:"", cpso_url:"", accepting_referrals:null, accepting_new_patients:null, wait_weeks:"", criteria:"", referral_types:"", languages:"English", hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -104,7 +104,7 @@ export default function AdminPage() {
   useEffect(() => { if (authed) { load(); loadStats() } }, [authed, load, loadStats])
 
   const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
-  const addDoctor = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '', accepting_referrals: null }])
+  const addDoctor = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: '', specialty_code: '', gender: '', accepting_referrals: null }])
   const updateDoctor = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const removeDoctor = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
 
@@ -120,6 +120,24 @@ export default function AdminPage() {
   const addClinicLoc = (c) => { setDocLocations(l => [...l, { provider_id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax }]); setClinicQuery(''); setClinicResults([]) }
   const updDocLoc = (i, patch) => setDocLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDocLoc = (i) => setDocLocations(l => l.filter((_, idx) => idx !== i))
+
+  // ── Convert a provider record that is actually a person into a real doctor ──
+  const convertToDoctor = async (pr) => {
+    if (typeof window !== 'undefined' && !window.confirm(`Convert "${pr.name}" into a doctor profile? The current listing becomes their office record (kept, hidden from the public clinic list) and a full doctor profile is created.`)) return
+    const spName = (() => { const t = String(pr.type || '').trim(); if (t && !/^\d+$/.test(t)) return t; const sp = specialties.find(x => x.snomed_code === (pr.specialty_code || t)); return sp?.name || null })()
+    const rec = {
+      name: withDr(pr.name), specialty: spName, specialty_code: pr.specialty_code || null,
+      category: /famil/i.test(spName || '') ? 'Family Medicine' : 'Specialist',
+      accepting_referrals: pr.accepting_referrals ?? null, wait_weeks: pr.wait_weeks ?? null,
+      languages: pr.languages || ['English'], hours: pr.hours || null, status: 'active',
+    }
+    const { data: doc, error } = await supabase.from('physicians').insert(rec).select().single()
+    if (error || !doc) { setMsg('Convert failed: ' + (error?.message || 'unknown')); return }
+    await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: pr.id, is_primary: true })
+    await supabase.from('providers').update({ data_status: 'partial' }).eq('id', pr.id)
+    setMsg(`Converted — "${doc.name}" is now a doctor profile; the old listing is their office record.`)
+    editDoctor(doc)
+  }
 
   // ── Duplicates ──
   const scanDupes = async () => {
@@ -231,7 +249,7 @@ export default function AdminPage() {
   const editDoctor = (p) => {
     setEditingDoc(p.id)
     setDocForm({
-      name: p.name || 'Dr. ', specialty: p.specialty || '', specialty_code: p.specialty_code || '', gender: p.gender || '', category: p.category || (/famil/i.test(p.specialty || '') ? 'Family Medicine' : 'Specialist'),
+      name: p.name || 'Dr. ', specialty: p.specialty || '', specialty_code: p.specialty_code || '', gender: p.gender || '', category: p.category || (/famil/i.test(p.specialty || '') ? 'Family Medicine' : 'Specialist'), cpso_number: p.cpso_number || '', cpso_url: p.cpso_url || '',
       accepting_referrals: !!p.accepting_referrals, accepting_new_patients: !!p.accepting_new_patients,
       wait_weeks: p.wait_weeks ?? '', criteria: p.criteria || '',
       referral_types: (p.referral_types || []).join(', '), languages: (p.languages || ['English']).join(', '),
@@ -259,6 +277,8 @@ export default function AdminPage() {
       specialty_code: docForm.specialty_code || null,
       gender: docForm.gender || null,
       category: docForm.category || (/famil/i.test(docForm.specialty || '') ? 'Family Medicine' : 'Specialist'),
+      cpso_number: docForm.cpso_number || null,
+      cpso_url: docForm.cpso_url || null,
       accepting_referrals: docForm.accepting_referrals ?? null,
       accepting_new_patients: docForm.accepting_new_patients ?? null,
       wait_weeks: (docForm.wait_weeks !== '' && docForm.wait_weeks !== null) ? parseInt(docForm.wait_weeks) : null,
@@ -337,7 +357,7 @@ export default function AdminPage() {
       for (let i = 0; i < doctorRows.length; i++) {
         const r = doctorRows[i]
         if (!r.name || !r.name.trim() || /^dr\.?\s*$/i.test(r.name.trim())) continue
-        const payload = { name: withDr(r.name), specialty: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist' }
+        const payload = { name: withDr(r.name), specialty: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist', hours: form.hours || null }
         if (r.id) {
           const { error } = await supabase.from("physicians").update(payload).eq("id", r.id)
           if (error) warn = "Clinic saved, but updating a doctor failed: " + error.message
@@ -526,6 +546,7 @@ export default function AdminPage() {
                     <button onClick={() => edit(p)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>Edit</button>
                     <button onClick={() => del(p.id)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Del</button>
                     {p.email && <button onClick={() => invite(p)} disabled={inviting === p.id} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:p.invited_at?"#05966920":"#0891b220", color:p.invited_at?"#059669":"#0891b2", border:"1px solid " + (p.invited_at?"#05966940":"#0891b240") }}>{inviting === p.id ? "…" : p.invited_at ? "✓ Invited" : "✉ Invite"}</button>}
+                    <button onClick={() => convertToDoctor(p)} title="Convert this listing into a doctor profile" style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#7c3aed20", color:"#7c3aed", border:"1px solid #7c3aed40" }}>→ Doctor</button>
                   </div>
                 </div>
               ))}
@@ -676,6 +697,8 @@ export default function AdminPage() {
               <div><label style={lbl}>Specialty *</label><select style={s} value={docForm.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); if (sp) setDocForm(f => ({ ...f, specialty_code: sp.snomed_code, specialty: sp.name })); else setDocForm(f => ({ ...f, specialty_code:'', specialty:'' })) }}><option value="">Select specialty...</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
               <div><label style={lbl}>Gender</label><select style={s} value={docForm.gender || ''} onChange={e => setDoc('gender', e.target.value)}><option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
               <div><label style={lbl}>Category (search tab they appear under)</label><select style={s} value={docForm.category || 'Specialist'} onChange={e => setDoc('category', e.target.value)}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+              <div><label style={lbl}>CPSO Number</label><input style={s} value={docForm.cpso_number || ''} onChange={e => setDoc('cpso_number', e.target.value)} placeholder="e.g. 87654" /></div>
+              <div><label style={lbl}>CPSO Profile Link</label><input style={s} value={docForm.cpso_url || ''} onChange={e => setDoc('cpso_url', e.target.value)} placeholder="https://doctors.cpso.on.ca/DoctorDetails/..." /></div>
               <div><label style={lbl}>Wait (weeks)</label><input style={s} type="number" min="0" value={docForm.wait_weeks} onChange={e => setDoc('wait_weeks', e.target.value)} placeholder="Leave blank if varies" /></div>
               <div><label style={lbl}>Accepting Referrals</label><select style={s} value={docForm.accepting_referrals == null ? 'unknown' : docForm.accepting_referrals ? 'true' : 'false'} onChange={e => setDoc('accepting_referrals', e.target.value === 'unknown' ? null : e.target.value === 'true')}><option value="unknown">Unknown (grey)</option><option value="true">Yes</option><option value="false">No</option></select></div>
               <div><label style={lbl}>Accepting New Patients</label><select style={s} value={docForm.accepting_new_patients == null ? 'unknown' : docForm.accepting_new_patients ? 'true' : 'false'} onChange={e => setDoc('accepting_new_patients', e.target.value === 'unknown' ? null : e.target.value === 'true')}><option value="unknown">Unknown (grey)</option><option value="false">No</option><option value="true">Yes</option></select></div>

@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
+import ProfileHeader from '@/components/ProfileHeader'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -118,46 +119,23 @@ function Detail({ p, onBack, isFav, onFav }) {
   }, [p?.id])
   const B = ({ title, children }) => <div className="bg-white border border-gray-200 rounded-2xl p-5"><h4 className="text-xs font-bold uppercase tracking-wider text-brand/60 mb-3">{title}</h4>{children}</div>
   const R = ({ l, v, href }) => { const val = href ? <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand font-semibold text-right break-words hover:underline">{v}</a> : <span className="text-gray-900 font-medium text-right break-words">{v}</span>; return <div className="flex justify-between py-1.5 text-sm gap-2 border-b border-gray-50 last:border-0"><span className="text-gray-400 shrink-0">{l}</span>{val}</div> }
-  const initials = (p.name || '?').replace(/^(dr\.?|the)\s+/i, '').split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()
   return (
     <div className="animate-fade-in">
       <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back to results</button>
 
-      {/* Header banner */}
-      <div className="rounded-2xl overflow-hidden border border-gray-200 mb-4">
-        <div className="bg-gradient-to-r from-brand to-[#2c4f7c] px-6 pt-6 pb-16 relative">
-          <div className="flex justify-between items-start gap-3">
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="w-16 h-16 rounded-2xl bg-white/15 border border-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-xl shrink-0">{initials}</div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-2xl font-bold text-white leading-tight">{p.name}</h2>
-                  {p.verified && <span className="text-[11px] font-bold text-white bg-white/20 border border-white/25 px-2.5 py-0.5 rounded-full">✓ Verified</span>}
-                </div>
-                <p className="text-sm text-white/80 font-medium mt-1">{p.type}{p.category ? ` · ${p.category}` : ''}</p>
-              </div>
-            </div>
-            <button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>
-          </div>
-        </div>
-        {/* Quick-stat tiles overlapping the banner */}
-        <div className="bg-white px-4 pb-4 -mt-10">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              [p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', 'Referrals', p.accepting_referrals],
-              [p.wait_weeks == null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} wk`, 'Wait time', p.wait_weeks != null && p.wait_weeks <= 4],
-              [open ? 'Open now' : 'Closed', 'Right now', open],
-              [`${dist} km`, 'Distance', null],
-            ].map(([big, small, good], i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-xl p-3 text-center shadow-sm">
-                <div className={`text-base font-bold ${good === true ? 'text-emerald-600' : good === false ? 'text-red-500' : 'text-gray-900'}`}>{big}</div>
-                <div className="text-[11px] text-gray-400 mt-0.5 uppercase tracking-wide">{small}</div>
-              </div>
-            ))}
-          </div>
-          {p.rating && <div className="flex items-center gap-2 mt-3 justify-center"><Stars r={p.rating} /><span className="text-xs text-gray-400">{Number(p.rating).toFixed(1)} · {p.reviews} reviews</span></div>}
-        </div>
-      </div>
+      <ProfileHeader
+        name={p.name}
+        subtitle={`${p.type}${p.category ? ` · ${p.category}` : ''}`}
+        verified={p.verified}
+        action={<button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
+        tiles={[
+          { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },
+          { big: p.wait_weeks == null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} wk`, small: 'Wait time', good: p.wait_weeks != null && p.wait_weeks <= 4 ? true : null },
+          { big: open ? 'Open now' : 'Closed', small: 'Right now', good: open },
+          { big: `${dist} km`, small: 'Distance', good: null },
+        ]}
+        footer={p.rating ? <div className="flex items-center gap-2 mt-3 justify-center"><Stars r={p.rating} /><span className="text-xs text-gray-400">{Number(p.rating).toFixed(1)} · {p.reviews} reviews</span></div> : null}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <B title="Contact & Location">
@@ -168,7 +146,7 @@ function Detail({ p, onBack, isFav, onFav }) {
           {p.website && <R l="Website" v={p.website.replace(/^https?:\/\//, '')} href={p.website.startsWith('http') ? p.website : `https://${p.website}`} />}
           <R l="Languages" v={(p.languages || ['English']).join(', ')} />
         </B>
-        <B title="Hours">{p.hours && DAYS.map((d,i) => { const today = new Date().getDay(); const isToday = ((today + 6) % 7) === i; return <div key={d} className={`flex justify-between py-1.5 text-sm gap-2 border-b border-gray-50 last:border-0 ${isToday ? 'font-bold' : ''}`}><span className={isToday ? 'text-brand' : 'text-gray-400'}>{DAY_LABELS[i].slice(0,3)}{isToday ? ' · Today' : ''}</span><span className={p.hours[d] ? 'text-gray-900 font-medium' : 'text-gray-300'}>{p.hours[d] || 'Closed'}</span></div> })}</B>
+        <B title="Hours">{p.hours && DAYS.map((d,i) => { const todayName = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]; const isToday = d === todayName; return <div key={d} className={`flex justify-between py-1.5 text-sm gap-2 border-b border-gray-50 last:border-0 ${isToday ? 'font-bold' : ''}`}><span className={isToday ? 'text-brand' : 'text-gray-400'}>{DAY_LABELS[i].slice(0,3)}{isToday ? ' · Today' : ''}</span><span className={p.hours[d] ? 'text-gray-900 font-medium' : 'text-gray-300'}>{p.hours[d] || 'Closed'}</span></div> })}</B>
         <B title="Referral Info">
           <R l="Wait" v={p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`} />
           <R l="Requirements" v={p.requirements || '—'} />
@@ -356,7 +334,7 @@ export default function SearchPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
-            <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
+            <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </Link>
           <div className="flex items-center gap-3">
             <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>

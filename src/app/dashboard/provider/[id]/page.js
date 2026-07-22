@@ -83,7 +83,7 @@ export default function EditProviderPage({ params }) {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
-            <span className="text-lg font-bold text-gray-900">Refer<span className="text-brand">Easy</span></span>
+            <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href={`/dashboard/provider/${id}/preview`} className="text-xs font-medium text-gray-500 hover:text-brand border border-gray-200 px-3 py-1.5 rounded-lg">Preview</Link>
