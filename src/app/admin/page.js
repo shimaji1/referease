@@ -8,6 +8,17 @@ const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
 const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:true, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
+const normalizeHours = (h) => {
+  if (!h || typeof h !== 'object') return null
+  const out = {}
+  DAYS.forEach(d => {
+    let v = h[d]
+    if (typeof v === 'string') { v = v.trim(); if (!v || /null|closed|unknown|n\/a/i.test(v)) v = null }
+    else v = null
+    out[d] = v
+  })
+  return out
+}
 const emptyDoc = () => ({ name:"Dr. ", specialty:"", specialty_code:"", gender:"", category:"Specialist", accepting_referrals:true, accepting_new_patients:false, wait_weeks:"", criteria:"", referral_types:"", languages:"English", hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
 
 export default function AdminPage() {
@@ -38,6 +49,11 @@ export default function AdminPage() {
   const [clinicResults, setClinicResults] = useState([])
   const [physicians, setPhysicians] = useState([])
   const [editingDoc, setEditingDoc] = useState(null)
+  const [dupGroups, setDupGroups] = useState([])
+  const [dupScanning, setDupScanning] = useState(false)
+  const [dupKeeper, setDupKeeper] = useState({})
+  const [inviting, setInviting] = useState(null)
+  const [siteP, setSiteP] = useState(null)
   const PAGE_SIZE = 50
 
   const login = () => {
@@ -104,6 +120,100 @@ export default function AdminPage() {
   const addClinicLoc = (c) => { setDocLocations(l => [...l, { provider_id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax }]); setClinicQuery(''); setClinicResults([]) }
   const updDocLoc = (i, patch) => setDocLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDocLoc = (i) => setDocLocations(l => l.filter((_, idx) => idx !== i))
+
+  // ── Duplicates ──
+  const scanDupes = async () => {
+    if (!supabase) return
+    setDupScanning(true); setDupGroups([])
+    let all = [], from = 0
+    while (true) {
+      const { data } = await supabase.from('providers').select('id,name,phone,address,email,data_status').range(from, from + 999)
+      if (!data || data.length === 0) break
+      all = all.concat(data)
+      if (data.length < 1000) break
+      from += 1000
+    }
+    const norm = x => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const normPhone = x => String(x || '').replace(/\D/g, '').slice(-10)
+    const byKey = {}
+    all.forEach(pr => {
+      const keys = []
+      const np = normPhone(pr.phone); if (np.length === 10) keys.push('p:' + np)
+      const nn = norm(pr.name); if (nn.length > 3) keys.push('n:' + nn)
+      keys.forEach(k => { if (!byKey[k]) byKey[k] = []; byKey[k].push(pr) })
+    })
+    const seen = new Set(); const out = []
+    Object.values(byKey).forEach(arr => {
+      if (arr.length < 2) return
+      const uniq = [...new Map(arr.map(x => [x.id, x])).values()].sort((a, b) => a.id - b.id)
+      if (uniq.length < 2) return
+      const sig = uniq.map(x => x.id).join(',')
+      if (seen.has(sig)) return
+      seen.add(sig); out.push(uniq)
+    })
+    out.sort((a, b) => b.length - a.length)
+    setDupGroups(out.slice(0, 150))
+    setDupScanning(false)
+    setMsg(out.length + ' potential duplicate groups found' + (out.length > 150 ? ' (showing 150)' : ''))
+  }
+
+  const mergeGroup = async (gi) => {
+    const group = dupGroups[gi]
+    const keeperId = dupKeeper[gi] ?? group[0].id
+    if (typeof window !== 'undefined' && !window.confirm('Merge this group into the selected listing? Doctors, links and forms move to it; the other listings are deleted.')) return
+    for (const pr of group) {
+      if (pr.id === keeperId) continue
+      const { data: links } = await supabase.from('physician_locations').select('physician_id, is_primary').eq('provider_id', pr.id)
+      for (const l of (links || [])) {
+        await supabase.from('physician_locations').insert({ physician_id: l.physician_id, provider_id: keeperId, is_primary: false })
+      }
+      await supabase.from('physician_locations').delete().eq('provider_id', pr.id)
+      await supabase.from('listing_forms').update({ provider_id: keeperId }).eq('provider_id', pr.id)
+      await supabase.from('providers').delete().eq('id', pr.id)
+    }
+    setDupGroups(gs => gs.filter((_, idx) => idx !== gi))
+    setMsg('Group merged.'); load(); loadStats()
+  }
+
+  const dupDelete = async (gi, id) => {
+    if (typeof window !== 'undefined' && !window.confirm('Delete this listing?')) return
+    await supabase.from('physician_locations').delete().eq('provider_id', id)
+    await supabase.from('providers').delete().eq('id', id)
+    setDupGroups(gs => gs.map((g, idx) => idx === gi ? g.filter(x => x.id !== id) : g).filter(g => g.length > 1))
+    setMsg('Deleted.'); load(); loadStats()
+  }
+
+  // ── Outreach ──
+  const invite = async (pr) => {
+    setInviting(pr.id)
+    const res = await fetch('/api/outreach', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ provider_id: pr.id, email: pr.email, name: pr.name }] }) })
+    const r = await res.json().catch(() => ({}))
+    setInviting(null)
+    if (r.error || !r.sent) { setMsg('Invite failed: ' + (r.error || (r.errors && r.errors[0]) || 'unknown')); return }
+    setMsg('Invitation sent to ' + pr.email)
+    load()
+  }
+  const inviteAll = async () => {
+    const items = providers.filter(pr => pr.email && !pr.invited_at).map(pr => ({ provider_id: pr.id, email: pr.email, name: pr.name }))
+    if (!items.length) { setMsg('No un-invited providers with emails on this page.'); return }
+    if (typeof window !== 'undefined' && !window.confirm('Send claim invitations to ' + items.length + ' providers on this page?')) return
+    setMsg('Sending ' + items.length + ' invitations…')
+    const res = await fetch('/api/outreach', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) })
+    const r = await res.json().catch(() => ({}))
+    setMsg(r.error ? ('Invites failed: ' + r.error) : ('Sent ' + (r.sent || 0) + ' invitations' + (r.errors && r.errors.length ? ' · ' + r.errors.length + ' failed' : '')))
+    load()
+  }
+
+  // ── Site settings (pricing) ──
+  const loadSite = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'pricing').single()
+    setSiteP(data?.value || { tiers: [] })
+  }
+  const saveSite = async () => {
+    const { error } = await supabase.from('site_settings').upsert({ key: 'pricing', value: siteP, updated_at: new Date().toISOString() })
+    setMsg(error ? 'Error saving: ' + error.message : 'Pricing saved — live on /pricing.')
+  }
+  const updTier = (i, patch) => setSiteP(sp => ({ ...sp, tiers: sp.tiers.map((t, idx) => idx === i ? { ...t, ...patch } : t) }))
 
   // Map a doctor's specialty to an admin category (for the category filter)
   const docCategory = (p) => {
@@ -319,6 +429,8 @@ export default function AdminPage() {
         <div style={{ display:"flex", gap:"8px" }}>
           <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="list"?"#3b82f6":"#ffffff", color:tab==="list"?"#fff":"#64748b", border:"1px solid " + (tab==="list"?"#3b82f6":"#e2e8f0") }}>Providers</button>
           <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#ffffff", color:tab==="claims"?"#fff":"#64748b", border:"1px solid " + (tab==="claims"?"#d97706":"#e2e8f0"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
+          <button onClick={() => { setTab("dupes"); if (dupGroups.length === 0) scanDupes() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="dupes"?"#dc2626":"#ffffff", color:tab==="dupes"?"#fff":"#64748b", border:"1px solid " + (tab==="dupes"?"#dc2626":"#e2e8f0") }}>Duplicates</button>
+          <button onClick={() => { setTab("site"); if (!siteP) loadSite() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="site"?"#0891b2":"#ffffff", color:tab==="site"?"#fff":"#64748b", border:"1px solid " + (tab==="site"?"#0891b2":"#e2e8f0") }}>Site</button>
           <button onClick={() => { setTab("edit"); setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit"&&!editing?"#059669":"#ffffff", color:tab==="edit"&&!editing?"#fff":"#64748b", border:"1px solid " + (tab==="edit"&&!editing?"#059669":"#e2e8f0") }}>+ Clinic</button>
           <button onClick={() => { setTab("doctor"); setEditing(null); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="doctor"&&!editingDoc?"#7c3aed":"#ffffff", color:tab==="doctor"&&!editingDoc?"#fff":"#64748b", border:"1px solid " + (tab==="doctor"&&!editingDoc?"#7c3aed":"#e2e8f0") }}>+ Doctor</button>
           <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#ffffff", color:"#64748b", border:"1px solid #e2e8f0", textDecoration:"none" }}>← Site</a>
@@ -364,6 +476,7 @@ export default function AdminPage() {
               <div style={{ display:"flex", gap:"4px" }}>
                 <button disabled={page===0} onClick={() => setPage(p=>p-1)} style={{ all:"unset", cursor:page===0?"default":"pointer", padding:"4px 10px", fontSize:"11px", borderRadius:"6px", background:"#ffffff", color:page===0?"#cbd5e1":"#64748b", border:"1px solid #e2e8f0" }}>← Prev</button>
                 <button disabled={page>=totalPages-1} onClick={() => setPage(p=>p+1)} style={{ all:"unset", cursor:page>=totalPages-1?"default":"pointer", padding:"4px 10px", fontSize:"11px", borderRadius:"6px", background:"#ffffff", color:page>=totalPages-1?"#cbd5e1":"#64748b", border:"1px solid #e2e8f0" }}>Next →</button>
+                <button onClick={inviteAll} style={{ all:"unset", cursor:"pointer", padding:"4px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#0891b220", color:"#0891b2", border:"1px solid #0891b240", marginLeft:"8px" }}>✉ Invite page</button>
               </div>
             </div>
 
@@ -402,6 +515,7 @@ export default function AdminPage() {
                     </select>
                     <button onClick={() => edit(p)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>Edit</button>
                     <button onClick={() => del(p.id)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Del</button>
+                    {p.email && <button onClick={() => invite(p)} disabled={inviting === p.id} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:p.invited_at?"#05966920":"#0891b220", color:p.invited_at?"#059669":"#0891b2", border:"1px solid " + (p.invited_at?"#05966940":"#0891b240") }}>{inviting === p.id ? "…" : p.invited_at ? "✓ Invited" : "✉ Invite"}</button>}
                   </div>
                 </div>
               ))}
@@ -452,7 +566,7 @@ export default function AdminPage() {
                         } else {
                           // Just fill the form with first location
                           const d = result.data
-                          setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: d.hours || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
+                          setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: normalizeHours(d.hours) || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
                           setServicesText((d.services || []).join(', '))
                           setDoctorsText((d.doctors || []).join(', '))
                         setDoctorRows((d.doctors || []).map(n => ({ name: n, specialty: d.type || '', specialty_code: '', gender: '' })))
@@ -462,7 +576,7 @@ export default function AdminPage() {
                       } else {
                         // Single location — fill the form
                         const d = result.data
-                        setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: d.hours || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
+                        setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: normalizeHours(d.hours) || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
                         setServicesText((d.services || []).join(', '))
                         setDoctorsText((d.doctors || []).join(', '))
                         setDoctorRows((d.doctors || []).map(n => ({ name: n, specialty: d.type || '', specialty_code: '', gender: '' })))
@@ -621,6 +735,64 @@ export default function AdminPage() {
               <button onClick={saveDoctor} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#7c3aed", color:"#fff" }}>{editingDoc ? 'Save Changes' : 'Add Doctor'}</button>
               <button onClick={() => { setTab("list"); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#e2e8f0", color:"#64748b" }}>Cancel</button>
             </div>
+          </div>
+        )}
+        {tab === "dupes" && (
+          <>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"14px", gap:"10px", flexWrap:"wrap" }}>
+              <div style={{ fontSize:"13px", color:"#64748b" }}>Groups of listings sharing the same phone number or name. Pick which one to keep, then merge — doctors, links and forms move to the kept listing.</div>
+              <button onClick={scanDupes} disabled={dupScanning} style={{ all:"unset", cursor:"pointer", padding:"8px 18px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#dc2626", color:"#fff", opacity:dupScanning?0.6:1 }}>{dupScanning ? "Scanning…" : "Re-scan"}</button>
+            </div>
+            {dupScanning && <div style={{ textAlign:"center", padding:"40px", color:"#64748b", fontSize:"13px" }}>Scanning all listings…</div>}
+            {!dupScanning && dupGroups.length === 0 && <div style={{ textAlign:"center", padding:"40px", color:"#64748b", fontSize:"13px" }}>No duplicate groups found.</div>}
+            <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+              {dupGroups.map((g, gi) => (
+                <div key={gi} style={{ background:"#ffffff", border:"1px solid #fca5a5", borderRadius:"10px", padding:"12px 14px" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"8px" }}>
+                    <span style={{ fontSize:"11px", fontWeight:700, color:"#dc2626", textTransform:"uppercase", letterSpacing:"0.05em" }}>{g.length} possible duplicates</span>
+                    <button onClick={() => mergeGroup(gi)} style={{ all:"unset", cursor:"pointer", padding:"5px 14px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#059669", color:"#fff" }}>Merge into selected</button>
+                  </div>
+                  {g.map(pr => (
+                    <div key={pr.id} style={{ display:"flex", alignItems:"center", gap:"10px", padding:"7px 0", borderTop:"1px solid #f1f5f9" }}>
+                      <input type="radio" name={"keep" + gi} checked={(dupKeeper[gi] ?? g[0].id) === pr.id} onChange={() => setDupKeeper(k => ({ ...k, [gi]: pr.id }))} style={{ cursor:"pointer" }} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:"13px", fontWeight:600, color:"#111827" }}>{pr.name} <span style={{ fontSize:"10px", color:"#94a3b8" }}>#{pr.id} · {pr.data_status}</span></div>
+                        <div style={{ fontSize:"11px", color:"#64748b" }}>{pr.address || "no address"}{pr.phone ? " · " + pr.phone : ""}{pr.email ? " · " + pr.email : ""}</div>
+                      </div>
+                      <button onClick={() => edit(pr)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>Edit</button>
+                      <button onClick={() => dupDelete(gi, pr.id)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Del</button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {tab === "site" && (
+          <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"12px", padding:"20px" }}>
+            <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>Site Content — Pricing</h3>
+            <p style={{ margin:"0 0 16px", fontSize:"12px", color:"#64748b" }}>Edits here go live on the public /pricing page when you hit Save.</p>
+            {!siteP ? <div style={{ color:"#64748b", fontSize:"13px" }}>Loading…</div> : (
+              <>
+                {(siteP.tiers || []).map((t, i) => (
+                  <div key={i} style={{ border:"1px solid #e2e8f0", borderRadius:"10px", padding:"14px", marginBottom:"12px" }}>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 0.6fr 0.6fr 1.4fr", gap:"10px" }}>
+                      <div><label style={lbl}>Plan name</label><input style={s} value={t.name || ""} onChange={e => updTier(i, { name: e.target.value })} /></div>
+                      <div><label style={lbl}>Price</label><input style={s} value={t.price || ""} onChange={e => updTier(i, { price: e.target.value })} placeholder="$29" /></div>
+                      <div><label style={lbl}>Period</label><input style={s} value={t.period || ""} onChange={e => updTier(i, { period: e.target.value })} placeholder="/month" /></div>
+                      <div><label style={lbl}>Tagline</label><input style={s} value={t.tagline || ""} onChange={e => updTier(i, { tagline: e.target.value })} /></div>
+                    </div>
+                    <label style={lbl}>Features (one per line)</label>
+                    <textarea style={{ ...s, minHeight:"90px", resize:"vertical" }} value={(t.features || []).join("\n")} onChange={e => updTier(i, { features: e.target.value.split("\n") })} />
+                    <div style={{ display:"flex", gap:"16px", marginTop:"10px", alignItems:"center" }}>
+                      <div style={{ flex:1 }}><label style={lbl}>Button text</label><input style={s} value={t.cta || ""} onChange={e => updTier(i, { cta: e.target.value })} /></div>
+                      <label style={{ fontSize:"12px", color:"#64748b", display:"flex", alignItems:"center", gap:"6px", cursor:"pointer", marginTop:"18px" }}><input type="checkbox" checked={!!t.highlight} onChange={e => updTier(i, { highlight: e.target.checked })} /> Highlight as most popular</label>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={saveSite} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#0891b2", color:"#fff" }}>Save — publish to /pricing</button>
+              </>
+            )}
           </div>
         )}
         {tab === "claims" && (

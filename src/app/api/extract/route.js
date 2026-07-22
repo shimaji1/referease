@@ -90,7 +90,8 @@ Rules:
 - Services and doctors can be shared across locations unless the website specifies different services per location
 - If hours differ by location, use location-specific hours
 - Extract ALL doctors/physicians mentioned anywhere on the site
-- Extract ALL services mentioned anywhere on the site`
+- Extract ALL services mentioned anywhere on the site
+- HOURS ARE IMPORTANT: hunt for opening hours anywhere in the text (e.g. "Mon-Fri 9am-5pm", "Open until 8", "Hours of operation"). Convert to 24h "9:00-17:00" format. Use null ONLY when hours are genuinely absent from the page — never output placeholder text.`
         }]
       })
     })
