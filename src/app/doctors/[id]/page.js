@@ -67,7 +67,7 @@ export default function DoctorPage() {
   const googleRating = doc.rating || primaryClinic?.rating
 
   const Box = ({ title, children }) => (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
+    <div className="bg-white border border-gray-200 rounded-2xl p-5">
       <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">{title}</h4>
       {children}
     </div>
@@ -81,7 +81,7 @@ export default function DoctorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-5 py-6">
+      <div className="max-w-5xl mx-auto px-5 py-6">
         <Link href="/search" className="text-sm text-brand font-medium hover:underline">← Back to search</Link>
         <div className="mt-4" />
 
@@ -96,8 +96,8 @@ export default function DoctorPage() {
               : { big: doc.accepting_referrals == null ? 'Unknown' : doc.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: doc.accepting_referrals },
             { big: doc.wait_weeks == null ? 'Varies' : doc.wait_weeks === 0 ? 'No wait' : `~${doc.wait_weeks} wk`, small: 'Wait time', color: doc.wait_weeks == null ? null : doc.wait_weeks <= 4 ? 'text-emerald-600' : doc.wait_weeks <= 12 ? 'text-amber-500' : 'text-red-500' },
             { big: (doc.languages && doc.languages.length) ? doc.languages[0] + (doc.languages.length > 1 ? ` +${doc.languages.length - 1}` : '') : 'English', small: 'Languages', good: null },
-            { big: googleRating ? `★ ${Number(googleRating).toFixed(1)}` : '—', small: 'Rating', good: null },
           ]}
+          footer={googleRating ? <div className="flex items-center gap-2 mt-3 justify-center"><span className="text-amber-500 font-semibold text-sm">★ {Number(googleRating).toFixed(1)}</span><span className="text-xs text-gray-400">Google rating</span></div> : null}
         />
 
         {/* Claim / manage */}

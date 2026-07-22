@@ -8,6 +8,8 @@ const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
 const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:null, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
+const CAT_HEX = { 'Family Medicine':'#059669','Specialist':'#7c3aed','Multi-Specialty':'#4f46e5','Clinic':'#2563eb','Hospital':'#0891b2','Imaging':'#d97706','Lab':'#0d9488','Physiotherapy':'#ea580c','Rehab':'#db2777' }
+const catHex = (c) => CAT_HEX[c] || '#64748b'
 const normalizeHours = (h) => {
   if (!h || typeof h !== 'object') return null
   const out = {}
@@ -523,7 +525,7 @@ export default function AdminPage() {
                 <div key={'doc-' + d.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff", border:"1px solid #7c3aed40", borderRadius:"8px", padding:"10px 14px", gap:"8px" }}>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:"13px", fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                      <span style={{ fontSize:"9px", fontWeight:700, color:"#7c3aed", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"1px 6px", marginRight:"6px" }}>{(docCategory(d) || 'Doctor').toUpperCase()}</span>
+                      <span style={{ fontSize:"9px", fontWeight:700, color:catHex(docCategory(d)), background:catHex(docCategory(d))+"20", border:"1px solid "+catHex(docCategory(d))+"40", borderRadius:"999px", padding:"1px 6px", marginRight:"6px" }}>{(docCategory(d) || 'Doctor').toUpperCase()}</span>
                       {d.name}
                       {d.verified && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#2563eb", background:"#3b82f620", border:"1px solid #3b82f640", borderRadius:"999px", padding:"1px 6px" }}>VERIFIED</span>}
                       {d.owner_id && <span style={{ marginLeft:"6px", fontSize:"9px", fontWeight:700, color:"#059669", background:"#05966920", border:"1px solid #05966940", borderRadius:"999px", padding:"1px 6px" }}>CLAIMED</span>}
@@ -540,7 +542,7 @@ export default function AdminPage() {
               {providers.map(p => (
                 <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"10px 14px", gap:"8px" }}>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:"13px", fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>                      <span style={{ fontSize:"9px", fontWeight:700, color:"#0369a1", background:"#0ea5e920", border:"1px solid #0ea5e940", borderRadius:"999px", padding:"1px 6px", marginRight:"6px" }}>{(p.category || 'Clinic').toUpperCase()}</span>
+                    <div style={{ fontSize:"13px", fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>                      <span style={{ fontSize:"9px", fontWeight:700, color:catHex(p.category || 'Clinic'), background:catHex(p.category || 'Clinic')+"20", border:"1px solid "+catHex(p.category || 'Clinic')+"40", borderRadius:"999px", padding:"1px 6px", marginRight:"6px" }}>{(p.category || 'Clinic').toUpperCase()}</span>
 {p.name}</div>
                     <div style={{ fontSize:"11px", color:"#64748b" }}>
                       {p.type} · {p.category}

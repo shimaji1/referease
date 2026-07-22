@@ -33,6 +33,18 @@ function WaitBadge({ weeks }) {
   return <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>
 }
 
+const CAT_BADGE = {
+  'Family Medicine': 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  'Specialist': 'text-purple-700 bg-purple-50 border-purple-200',
+  'Multi-Specialty': 'text-indigo-700 bg-indigo-50 border-indigo-200',
+  'Clinic': 'text-blue-700 bg-blue-50 border-blue-200',
+  'Hospital': 'text-cyan-700 bg-cyan-50 border-cyan-200',
+  'Imaging': 'text-amber-700 bg-amber-50 border-amber-200',
+  'Lab': 'text-teal-700 bg-teal-50 border-teal-200',
+  'Physiotherapy': 'text-orange-700 bg-orange-50 border-orange-200',
+  'Rehab': 'text-pink-700 bg-pink-50 border-pink-200',
+}
+const catBadge = (c) => CAT_BADGE[c] || 'text-gray-600 bg-gray-100 border-gray-200'
 function AcceptPill({ v, patient }) {
   if (v === null || v === undefined) return <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Unknown</span>
   const label = patient ? (v ? 'Accepting patients' : 'Roster full') : (v ? 'Accepting referrals' : 'Not accepting')
@@ -51,7 +63,7 @@ function Card({ p, onSelect, isFav, onFav }) {
     <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
       <button onClick={() => onFav(p.id)} className={`absolute top-3 right-3 text-lg transition ${isFav ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
       <button onClick={() => onSelect(p)} className="text-left w-[calc(100%-30px)]">
-        <div className="flex items-center gap-1.5 flex-wrap"><span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15 tracking-wide">{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3></div>
+        <div className="flex items-center gap-1.5 flex-wrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3></div>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
           {p.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
@@ -79,7 +91,7 @@ function DoctorCard({ d, isFav, onFav }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15 tracking-wide">{(d.category || "Doctor").toUpperCase()}</span>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(d.category || "Specialist")}`}>{(d.category || "Specialist").toUpperCase()}</span>
             <h3 className="font-semibold text-gray-900 text-base leading-snug">{d.name}</h3>
             {d.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
           </div>
