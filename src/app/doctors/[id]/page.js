@@ -44,7 +44,7 @@ export default function DoctorPage() {
       setDoc(d)
       const { data: links } = await supabase.from('physician_locations').select('is_primary, providers(*)').eq('physician_id', id)
       if (!alive) return
-      setLocs((links || []).filter(l => l.providers).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)))
+      { const arr = (links || []).filter(l => l.providers).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)); const seen = new Set(); setLocs(arr.filter(l => { if (seen.has(l.providers.id)) return false; seen.add(l.providers.id); return true })) }
       const { data: fdata } = await supabase.from('listing_forms').select('*').eq('physician_id', id).order('created_at', { ascending: false })
       if (!alive) return
       setForms(fdata || [])
@@ -94,7 +94,7 @@ export default function DoctorPage() {
             isFamily
               ? { big: doc.accepting_new_patients == null ? 'Unknown' : doc.accepting_new_patients ? 'Accepting' : 'Roster full', small: 'New patients', good: doc.accepting_new_patients }
               : { big: doc.accepting_referrals == null ? 'Unknown' : doc.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: doc.accepting_referrals },
-            { big: doc.wait_weeks == null ? 'Varies' : doc.wait_weeks === 0 ? 'No wait' : `~${doc.wait_weeks} wk`, small: 'Wait time', good: doc.wait_weeks != null && doc.wait_weeks <= 4 ? true : null },
+            { big: doc.wait_weeks == null ? 'Varies' : doc.wait_weeks === 0 ? 'No wait' : `~${doc.wait_weeks} wk`, small: 'Wait time', color: doc.wait_weeks == null ? null : doc.wait_weeks <= 4 ? 'text-emerald-600' : doc.wait_weeks <= 12 ? 'text-amber-500' : 'text-red-500' },
             { big: (doc.languages && doc.languages.length) ? doc.languages[0] + (doc.languages.length > 1 ? ` +${doc.languages.length - 1}` : '') : 'English', small: 'Languages', good: null },
             { big: googleRating ? `★ ${Number(googleRating).toFixed(1)}` : '—', small: 'Rating', good: null },
           ]}
@@ -189,14 +189,14 @@ export default function DoctorPage() {
         </h4>
         <div className="flex flex-col gap-3">
           {locs.length === 0 && <div className="bg-white border border-gray-200 rounded-xl p-4 text-xs text-gray-400">No clinic linked yet.</div>}
-          {locs.map(({ providers: c, is_primary }) => (
+          {locs.map(({ providers: c }, li) => (
             <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="flex justify-between items-start gap-3 mb-2">
                 <div>
                   <div className="text-sm font-semibold text-gray-900">{c.name}</div>
                   <div className="text-xs text-gray-400">{c.category}{c.type ? ` · ${c.type}` : ''}</div>
                 </div>
-                {is_primary && <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">Main clinic</span>}
+                {li === 0 && locs.length > 1 && <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">Main clinic</span>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 text-xs text-gray-600">
                 <div className="space-y-1">

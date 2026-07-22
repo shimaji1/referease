@@ -246,17 +246,24 @@ export default function AdminPage() {
     return 'Specialist'
   }
 
-  const editDoctor = (p) => {
+  const editDoctor = async (p) => {
     setEditingDoc(p.id)
     setDocForm({
       name: p.name || 'Dr. ', specialty: p.specialty || '', specialty_code: p.specialty_code || '', gender: p.gender || '', category: p.category || (/famil/i.test(p.specialty || '') ? 'Family Medicine' : 'Specialist'), cpso_number: p.cpso_number || '', cpso_url: p.cpso_url || '',
-      accepting_referrals: !!p.accepting_referrals, accepting_new_patients: !!p.accepting_new_patients,
+      accepting_referrals: p.accepting_referrals ?? null, accepting_new_patients: p.accepting_new_patients ?? null,
       wait_weeks: p.wait_weeks ?? '', criteria: p.criteria || '',
       referral_types: (p.referral_types || []).join(', '), languages: (p.languages || ['English']).join(', '),
       hours: p.hours || { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
     })
-    setDocLocations([{ name:'', address:'', phone:'', fax:'' }]); setClinicQuery(''); setClinicResults([])
-    setTab('doctor')
+    setClinicQuery(''); setClinicResults([]); setTab('doctor')
+    // Load their existing locations so they can be seen, unlinked, or reordered
+    const { data: links } = await supabase.from('physician_locations').select('provider_id, is_primary, providers(id, name, address, phone, fax)').eq('physician_id', p.id)
+    const rows = (links || []).filter(l => l.providers)
+      .sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
+      .map(l => ({ provider_id: l.providers.id, name: l.providers.name, address: l.providers.address, phone: l.providers.phone, fax: l.providers.fax }))
+    // dedupe by provider id
+    const seen = new Set(); const uniq = rows.filter(r => { if (seen.has(r.provider_id)) return false; seen.add(r.provider_id); return true })
+    setDocLocations(uniq.length ? uniq : [{ name:'', address:'', phone:'', fax:'' }])
   }
 
   const deleteDoctor = async (p) => {
@@ -298,7 +305,9 @@ export default function AdminPage() {
       docId = doc.id
     }
 
-    // Locations: linked clinics reuse the existing provider; typed-in ones create a 'partial' provider.
+    // Locations: reconcile — replace the doctor's links with exactly the rows below.
+    // First row = Main clinic. Removing a row unlinks it (the clinic itself is kept).
+    await supabase.from('physician_locations').delete().eq('physician_id', docId)
     let warn = null
     const locs = docLocations.filter(l => l.provider_id || (l.name||'').trim() || (l.address||'').trim() || (l.phone||'').trim() || (l.fax||'').trim())
     for (let i = 0; i < locs.length; i++) {

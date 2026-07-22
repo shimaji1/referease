@@ -130,7 +130,7 @@ function Detail({ p, onBack, isFav, onFav }) {
         action={<button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
         tiles={[
           { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },
-          { big: p.wait_weeks == null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} wk`, small: 'Wait time', good: p.wait_weeks != null && p.wait_weeks <= 4 ? true : null },
+          { big: p.wait_weeks == null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} wk`, small: 'Wait time', color: p.wait_weeks == null ? null : p.wait_weeks <= 4 ? 'text-emerald-600' : p.wait_weeks <= 12 ? 'text-amber-500' : 'text-red-500' },
           { big: open ? 'Open now' : 'Closed', small: 'Right now', good: open },
           { big: `${dist} km`, small: 'Distance', good: null },
         ]}

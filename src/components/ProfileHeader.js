@@ -24,7 +24,7 @@ export default function ProfileHeader({ name, subtitle, verified, action, tiles 
       <div className="relative z-10 px-4 pb-4 -mt-10">
         <div className={`grid grid-cols-2 sm:grid-cols-${Math.min(tiles.length, 4) || 2} gap-3`} style={{ gridTemplateColumns: `repeat(${Math.min(tiles.length, 4) || 2}, minmax(0, 1fr))` }}>
           {tiles.map((t, i) => {
-            const tone = t.good === true ? 'text-emerald-600' : t.good === false ? 'text-red-500' : 'text-gray-900'
+            const tone = t.color ? t.color : t.good === true ? 'text-emerald-600' : t.good === false ? 'text-red-500' : 'text-gray-900'
             return (
               <div key={i} className="bg-white border border-gray-200 rounded-xl p-3 text-center shadow-sm">
                 <div className={`text-base font-bold ${tone}`}>{t.big}</div>
