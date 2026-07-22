@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import FormsManager from "@/components/FormsManager"
 
-const CATS = ["Family Medicine","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
+const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 

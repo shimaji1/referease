@@ -44,8 +44,8 @@ function Card({ p, onSelect, isFav, onFav }) {
     <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
       <button onClick={() => onFav(p.id)} className={`absolute top-3 right-3 text-lg transition ${isFav ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
       <button onClick={() => onSelect(p)} className="text-left w-[calc(100%-30px)]">
-        <h3 className="font-semibold text-gray-900 text-[14px] leading-snug">{p.name}</h3>
-        <p className="text-xs text-brand/80 font-medium mt-0.5">{p.type}</p>
+        <h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3>
+        <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
           {p.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
           {p.accepting_referrals
@@ -55,7 +55,7 @@ function Card({ p, onSelect, isFav, onFav }) {
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
           <span className="text-[10px] text-gray-400">{dist} km</span>
         </div>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 text-xs text-gray-500">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 text-sm text-gray-500">
           <span>📍 {p.address}</span>
           {p.phone && <span>📞 {p.phone}</span>}
           {p.fax && <span>📠 {p.fax}</span>}
@@ -75,10 +75,10 @@ function DoctorCard({ d, isFav, onFav }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15 tracking-wide">DOCTOR</span>
-            <h3 className="font-semibold text-gray-900 text-[14px] leading-snug">{d.name}</h3>
+            <h3 className="font-semibold text-gray-900 text-base leading-snug">{d.name}</h3>
             {d.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
           </div>
-          <p className="text-xs text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
+          <p className="text-sm text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
           <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
             {isFamily
               ? (d.accepting_new_patients
@@ -116,51 +116,72 @@ function Detail({ p, onBack, isFav, onFav }) {
     })
     return () => { alive = false }
   }, [p?.id])
-  const B = ({ title, children }) => <div className="bg-white border border-gray-200 rounded-xl p-4"><h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">{title}</h4>{children}</div>
-  const R = ({ l, v }) => <div className="flex justify-between py-1 text-xs gap-2"><span className="text-gray-400 shrink-0">{l}</span><span className="text-gray-900 font-medium text-right break-words">{v}</span></div>
+  const B = ({ title, children }) => <div className="bg-white border border-gray-200 rounded-2xl p-5"><h4 className="text-xs font-bold uppercase tracking-wider text-brand/60 mb-3">{title}</h4>{children}</div>
+  const R = ({ l, v, href }) => { const val = href ? <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand font-semibold text-right break-words hover:underline">{v}</a> : <span className="text-gray-900 font-medium text-right break-words">{v}</span>; return <div className="flex justify-between py-1.5 text-sm gap-2 border-b border-gray-50 last:border-0"><span className="text-gray-400 shrink-0">{l}</span>{val}</div> }
+  const initials = (p.name || '?').replace(/^(dr\.?|the)\s+/i, '').split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()
   return (
     <div className="animate-fade-in">
-      <button onClick={onBack} className="text-sm text-brand font-medium mb-4 hover:underline">← Back to results</button>
-      <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
-        <div className="flex justify-between items-start flex-wrap gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">{p.name}</h2>
-            <p className="text-sm text-brand font-medium mt-1">{p.type}</p>
+      <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back to results</button>
+
+      {/* Header banner */}
+      <div className="rounded-2xl overflow-hidden border border-gray-200 mb-4">
+        <div className="bg-gradient-to-r from-brand to-[#2c4f7c] px-6 pt-6 pb-16 relative">
+          <div className="flex justify-between items-start gap-3">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-16 h-16 rounded-2xl bg-white/15 border border-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-xl shrink-0">{initials}</div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-2xl font-bold text-white leading-tight">{p.name}</h2>
+                  {p.verified && <span className="text-[11px] font-bold text-white bg-white/20 border border-white/25 px-2.5 py-0.5 rounded-full">✓ Verified</span>}
+                </div>
+                <p className="text-sm text-white/80 font-medium mt-1">{p.type}{p.category ? ` · ${p.category}` : ''}</p>
+              </div>
+            </div>
+            <button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>
           </div>
-          <button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${isFav ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>{isFav ? '★ Favourited' : '☆ Add to Favourites'}</button>
         </div>
-        <div className="flex flex-wrap gap-2 mt-3 items-center">
-          {p.rating && <Stars r={p.rating} />}
-          {p.rating && <span className="text-[10px] text-gray-400">({p.reviews} reviews)</span>}
-          {p.accepting_referrals ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">Accepting Referrals</span> : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">Not Accepting</span>}
-          <WaitBadge weeks={p.wait_weeks} />
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
-          <span className="text-xs text-gray-400">{dist} km</span>
+        {/* Quick-stat tiles overlapping the banner */}
+        <div className="bg-white px-4 pb-4 -mt-10">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              [p.accepting_referrals ? 'Accepting' : 'Not accepting', 'Referrals', p.accepting_referrals],
+              [p.wait_weeks == null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} wk`, 'Wait time', p.wait_weeks != null && p.wait_weeks <= 4],
+              [open ? 'Open now' : 'Closed', 'Right now', open],
+              [`${dist} km`, 'Distance', null],
+            ].map(([big, small, good], i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-xl p-3 text-center shadow-sm">
+                <div className={`text-base font-bold ${good === true ? 'text-emerald-600' : good === false ? 'text-red-500' : 'text-gray-900'}`}>{big}</div>
+                <div className="text-[11px] text-gray-400 mt-0.5 uppercase tracking-wide">{small}</div>
+              </div>
+            ))}
+          </div>
+          {p.rating && <div className="flex items-center gap-2 mt-3 justify-center"><Stars r={p.rating} /><span className="text-xs text-gray-400">{Number(p.rating).toFixed(1)} · {p.reviews} reviews</span></div>}
         </div>
       </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <B title="Contact & Location">
-          <R l="Address" v={p.address || '—'} />
-          {p.phone && <R l="Phone" v={p.phone} />}
+          <R l="Address" v={p.address || '—'} href={p.address ? `https://maps.google.com/?q=${encodeURIComponent(p.address)}` : null} />
+          {p.phone && <R l="Phone" v={p.phone} href={`tel:${p.phone}`} />}
           {p.fax && <R l="Fax" v={p.fax} />}
-          {p.email && <R l="Email" v={p.email} />}
-          {p.website && <R l="Website" v={p.website} />}
+          {p.email && <R l="Email" v={p.email} href={`mailto:${p.email}`} />}
+          {p.website && <R l="Website" v={p.website.replace(/^https?:\/\//, '')} href={p.website.startsWith('http') ? p.website : `https://${p.website}`} />}
           <R l="Languages" v={(p.languages || ['English']).join(', ')} />
         </B>
-        <B title="Hours">{p.hours && DAYS.map((d,i) => <R key={d} l={DAY_LABELS[i].slice(0,3)} v={p.hours[d] || 'Closed'} />)}</B>
+        <B title="Hours">{p.hours && DAYS.map((d,i) => { const today = new Date().getDay(); const isToday = ((today + 6) % 7) === i; return <div key={d} className={`flex justify-between py-1.5 text-sm gap-2 border-b border-gray-50 last:border-0 ${isToday ? 'font-bold' : ''}`}><span className={isToday ? 'text-brand' : 'text-gray-400'}>{DAY_LABELS[i].slice(0,3)}{isToday ? ' · Today' : ''}</span><span className={p.hours[d] ? 'text-gray-900 font-medium' : 'text-gray-300'}>{p.hours[d] || 'Closed'}</span></div> })}</B>
         <B title="Referral Info">
           <R l="Wait" v={p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`} />
           <R l="Requirements" v={p.requirements || '—'} />
         </B>
         {(docs.length > 0 || p.doctors?.length > 0) && <B title="Physicians">
           {docs.length > 0
-            ? docs.map(d => <Link key={d.id} href={`/doctors/${d.id}`} className="flex items-center justify-between py-1.5 text-xs border-b border-gray-100 last:border-0 group"><span className="text-gray-900 group-hover:text-brand font-medium">{d.name}{d.specialty ? ` — ${d.specialty}` : ''}</span><span className="text-gray-300 group-hover:text-brand">→</span></Link>)
-            : p.doctors.map((d, i) => <div key={i} className="py-1 text-xs text-gray-900 border-b border-gray-100 last:border-0">{d}</div>)}
+            ? docs.map(d => <Link key={d.id} href={`/doctors/${d.id}`} className="flex items-center justify-between py-2 text-sm border-b border-gray-50 last:border-0 group"><span className="text-gray-900 group-hover:text-brand font-semibold">{d.name}{d.specialty ? ` — ${d.specialty}` : ''}</span><span className="text-gray-300 group-hover:text-brand">→</span></Link>)
+            : p.doctors.map((d, i) => <div key={i} className="py-2 text-sm text-gray-900 border-b border-gray-50 last:border-0">{d}</div>)}
         </B>}
         {pforms.length > 0 && <B title="Forms">
-          {pforms.map(f => <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between py-1.5 text-xs border-b border-gray-100 last:border-0 group"><span className="text-gray-900 group-hover:text-brand font-medium">📄 {f.name}</span><span className="text-brand font-semibold group-hover:underline shrink-0">Download</span></a>)}
+          {pforms.map(f => <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between py-2 text-sm border-b border-gray-50 last:border-0 group"><span className="text-gray-900 group-hover:text-brand font-medium">📄 {f.name}</span><span className="text-brand font-semibold group-hover:underline shrink-0">Download</span></a>)}
         </B>}
-        {p.services?.length > 0 && <B title="Services"><div className="flex flex-wrap gap-1">{p.services.map(s => <span key={s} className="text-[11px] text-brand bg-brand/5 border border-brand/10 px-2 py-0.5 rounded-md">{s}</span>)}</div></B>}
+        {p.services?.length > 0 && <B title="Services"><div className="flex flex-wrap gap-1.5">{p.services.map(s => <span key={s} className="text-xs text-brand bg-brand/5 border border-brand/10 px-2.5 py-1 rounded-md">{s}</span>)}</div></B>}
       </div>
     </div>
   )

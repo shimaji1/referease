@@ -4,9 +4,9 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 const IMG = {
-  hero: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?auto=format&fit=crop&w=1000&q=80',
-  problem: 'https://images.unsplash.com/photo-1666214280557-f1b5022eb634?auto=format&fit=crop&w=900&q=80',
-  cta: 'https://images.unsplash.com/photo-1538108149393-fbbd81895907?auto=format&fit=crop&w=1200&q=80',
+  hero: '/img/hero.jpg',
+  problem: '/img/invite.jpg',
+  cta: '/img/consult2.jpg',
 }
 
 const paths = {
@@ -92,9 +92,13 @@ export default function HomePage() {
               </Link>
               <Link href="/signup" className="inline-flex items-center justify-center px-7 py-3.5 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:border-brand hover:text-brand transition text-sm">List your practice — free</Link>
             </div>
-            <div className="flex gap-10">
-              <div><div className="text-2xl font-bold text-gray-900">{fmt(counts.prov)}</div><div className="text-xs text-gray-400 mt-0.5">Providers listed</div></div>
-              <div><div className="text-2xl font-bold text-gray-900">{fmt(counts.docs)}</div><div className="text-xs text-gray-400 mt-0.5">Doctor profiles</div></div>
+            <div className="inline-flex items-center gap-3 bg-brand/5 border border-brand/15 rounded-2xl px-5 py-3">
+              <div className="text-4xl font-extrabold text-brand leading-none">0</div>
+              <div className="text-sm text-gray-600 leading-snug">rejected referrals from<br/><span className="font-semibold text-gray-900">complete, well-matched</span> submissions</div>
+            </div>
+            <div className="flex gap-8 mt-8">
+              <div><div className="text-2xl font-bold text-gray-900">1,000+</div><div className="text-xs text-gray-400 mt-0.5">Specialists</div></div>
+              <div><div className="text-2xl font-bold text-gray-900">1,000+</div><div className="text-xs text-gray-400 mt-0.5">Doctors</div></div>
               <div><div className="text-2xl font-bold text-gray-900">{fmt(counts.specs)}</div><div className="text-xs text-gray-400 mt-0.5">Specialties</div></div>
             </div>
           </div>
