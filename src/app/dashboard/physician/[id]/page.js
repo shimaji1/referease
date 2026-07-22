@@ -65,8 +65,8 @@ export default function EditPhysicianPage({ params }) {
       specialty: doc.specialty || null,
       specialty_code: doc.specialty_code || null,
       gender: doc.gender || null,
-      accepting_referrals: !!doc.accepting_referrals,
-      accepting_new_patients: !!doc.accepting_new_patients,
+      accepting_referrals: doc.accepting_referrals ?? null,
+      accepting_new_patients: doc.accepting_new_patients ?? null,
       wait_weeks: (doc.wait_weeks !== '' && doc.wait_weeks !== null) ? parseInt(doc.wait_weeks) : null,
       criteria: doc.criteria || null,
       referral_types: doc.referral_types ? doc.referral_types.split(',').map(x => x.trim()).filter(Boolean) : null,
@@ -131,14 +131,14 @@ export default function EditPhysicianPage({ params }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Accepting Referrals</label>
-                <select className={inp} value={doc.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'true')}>
-                  <option value="true">Yes — Accepting</option><option value="false">No — Not Accepting</option>
+                <select className={inp} value={doc.accepting_referrals == null ? 'unknown' : doc.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
+                  <option value="unknown">Unknown</option><option value="true">Yes — Accepting</option><option value="false">No — Not Accepting</option>
                 </select>
               </div>
               <div>
                 <label className={lbl}>Accepting New Patients</label>
-                <select className={inp} value={doc.accepting_new_patients ? 'true' : 'false'} onChange={e => set('accepting_new_patients', e.target.value === 'true')}>
-                  <option value="false">No</option><option value="true">Yes</option>
+                <select className={inp} value={doc.accepting_new_patients == null ? 'unknown' : doc.accepting_new_patients ? 'true' : 'false'} onChange={e => set('accepting_new_patients', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
+                  <option value="unknown">Unknown</option><option value="false">No</option><option value="true">Yes</option>
                 </select>
               </div>
               <div>

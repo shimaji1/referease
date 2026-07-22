@@ -104,8 +104,8 @@ export default function DoctorPage() {
           </div>
           <div className="flex flex-wrap gap-2 mt-3 items-center">
             {isFamily
-              ? <Pill ok={doc.accepting_new_patients}>{doc.accepting_new_patients ? 'Accepting new patients' : 'Roster full'}</Pill>
-              : <Pill ok={doc.accepting_referrals}>{doc.accepting_referrals ? 'Accepting referrals' : 'Not accepting referrals'}</Pill>}
+              ? (doc.accepting_new_patients == null ? <span className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full border text-gray-500 bg-gray-100 border-gray-200">Availability unknown</span> : <Pill ok={doc.accepting_new_patients}>{doc.accepting_new_patients ? 'Accepting new patients' : 'Roster full'}</Pill>)
+              : (doc.accepting_referrals == null ? <span className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full border text-gray-500 bg-gray-100 border-gray-200">Availability unknown</span> : <Pill ok={doc.accepting_referrals}>{doc.accepting_referrals ? 'Accepting referrals' : 'Not accepting referrals'}</Pill>)}
             {!isFamily && doc.accepting_referrals && <WaitBadge weeks={doc.wait_weeks} />}
             {isFamily && doc.accepting_referrals && <span className="text-[11px] font-semibold text-brand bg-brand/5 border border-brand/15 px-2.5 py-1 rounded-full">Takes procedure referrals</span>}
           </div>

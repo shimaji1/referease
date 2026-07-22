@@ -54,7 +54,7 @@ export default function EditProviderPage({ params }) {
     // reconcile doctors: update existing, create+link new, unlink removed
     const origIds = (provider._doctors || []).map(r => r.id).filter(Boolean)
     for (const r of docs) {
-      const payload = { name: r.name, specialty: r.specialty || null, specialty_code: r.specialty_code || null, accepting_referrals: r.accepting_referrals !== false, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist' }
+      const payload = { name: r.name, specialty: r.specialty || null, specialty_code: r.specialty_code || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist' }
       if (r.id) {
         await supabase.from('physicians').update(payload).eq('id', r.id)
       } else {

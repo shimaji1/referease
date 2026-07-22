@@ -36,7 +36,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
   const [specialties, setSpecialties] = useState([])
   const [doctorRows, setDoctorRows] = useState(initial?._doctors || [])
   const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
-  const addDoctorRow = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', accepting_referrals: true }])
+  const addDoctorRow = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', accepting_referrals: null }])
   const updDoctorRow = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDoctorRow = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
   const [servicesText, setServicesText] = useState(joinList(initial?.services))
@@ -227,8 +227,8 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
                   <option value="">Specialty…</option>
                   {Object.entries(grouped).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>)}
                 </select>
-                <select className={inp} value={r.accepting_referrals ? 'true' : 'false'} onChange={e => updDoctorRow(i, { accepting_referrals: e.target.value === 'true' })}>
-                  <option value="true">Accepting</option><option value="false">Not accepting</option>
+                <select className={inp} value={r.accepting_referrals == null ? 'unknown' : r.accepting_referrals ? 'true' : 'false'} onChange={e => updDoctorRow(i, { accepting_referrals: e.target.value === 'unknown' ? null : e.target.value === 'true' })}>
+                  <option value="unknown">Unknown</option><option value="true">Accepting</option><option value="false">Not accepting</option>
                 </select>
                 <button type="button" onClick={() => rmDoctorRow(i)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-100">✕</button>
               </div>

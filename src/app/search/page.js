@@ -32,6 +32,12 @@ function WaitBadge({ weeks }) {
   return <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>
 }
 
+function AcceptPill({ v, patient }) {
+  if (v === null || v === undefined) return <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Unknown</span>
+  const label = patient ? (v ? 'Accepting patients' : 'Roster full') : (v ? 'Accepting referrals' : 'Not accepting')
+  const cls = v ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200'
+  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>
+}
 function Stars({ r }) {
   if (!r) return null
   return <span className="text-xs font-semibold text-amber-500">★ {Number(r).toFixed(1)}</span>
@@ -48,9 +54,7 @@ function Card({ p, onSelect, isFav, onFav }) {
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
           {p.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
-          {p.accepting_referrals
-            ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>
-            : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not Accepting</span>}
+          <AcceptPill v={p.accepting_referrals} />
           <WaitBadge weeks={p.wait_weeks} />
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
           <span className="text-[10px] text-gray-400">{dist} km</span>
@@ -81,12 +85,8 @@ function DoctorCard({ d, isFav, onFav }) {
           <p className="text-sm text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
           <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
             {isFamily
-              ? (d.accepting_new_patients
-                  ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting patients</span>
-                  : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Roster full</span>)
-              : (d.accepting_referrals
-                  ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting referrals</span>
-                  : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>)}
+              ? <AcceptPill v={d.accepting_new_patients} patient />
+              : <AcceptPill v={d.accepting_referrals} />}
             <WaitBadge weeks={d.wait_weeks} />
             {dist && <span className="text-[10px] text-gray-400">{dist} km</span>}
           </div>
@@ -144,7 +144,7 @@ function Detail({ p, onBack, isFav, onFav }) {
         <div className="bg-white px-4 pb-4 -mt-10">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              [p.accepting_referrals ? 'Accepting' : 'Not accepting', 'Referrals', p.accepting_referrals],
+              [p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', 'Referrals', p.accepting_referrals],
               [p.wait_weeks == null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} wk`, 'Wait time', p.wait_weeks != null && p.wait_weeks <= 4],
               [open ? 'Open now' : 'Closed', 'Right now', open],
               [`${dist} km`, 'Distance', null],

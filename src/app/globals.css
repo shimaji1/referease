@@ -3,9 +3,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @theme {
-  --color-brand: #1e3a5f;
-  --color-brand-light: #2a5082;
-  --color-brand-dark: #152a45;
+  --color-brand: #2563eb;
+  --color-brand-light: #3b82f6;
+  --color-brand-dark: #1d4ed8;
   --color-navy-50: #f0f3f9;
   --color-navy-100: #d9e0ef;
   --color-navy-200: #b3c1df;

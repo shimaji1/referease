@@ -7,7 +7,7 @@ const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospita
 const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
-const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:true, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
+const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:null, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
 const normalizeHours = (h) => {
   if (!h || typeof h !== 'object') return null
   const out = {}
@@ -19,7 +19,7 @@ const normalizeHours = (h) => {
   })
   return out
 }
-const emptyDoc = () => ({ name:"Dr. ", specialty:"", specialty_code:"", gender:"", category:"Specialist", accepting_referrals:true, accepting_new_patients:false, wait_weeks:"", criteria:"", referral_types:"", languages:"English", hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
+const emptyDoc = () => ({ name:"Dr. ", specialty:"", specialty_code:"", gender:"", category:"Specialist", accepting_referrals:null, accepting_new_patients:null, wait_weeks:"", criteria:"", referral_types:"", languages:"English", hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -104,7 +104,7 @@ export default function AdminPage() {
   useEffect(() => { if (authed) { load(); loadStats() } }, [authed, load, loadStats])
 
   const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
-  const addDoctor = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '', accepting_referrals: true }])
+  const addDoctor = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '', accepting_referrals: null }])
   const updateDoctor = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const removeDoctor = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
 
@@ -259,8 +259,8 @@ export default function AdminPage() {
       specialty_code: docForm.specialty_code || null,
       gender: docForm.gender || null,
       category: docForm.category || (/famil/i.test(docForm.specialty || '') ? 'Family Medicine' : 'Specialist'),
-      accepting_referrals: !!docForm.accepting_referrals,
-      accepting_new_patients: !!docForm.accepting_new_patients,
+      accepting_referrals: docForm.accepting_referrals ?? null,
+      accepting_new_patients: docForm.accepting_new_patients ?? null,
       wait_weeks: (docForm.wait_weeks !== '' && docForm.wait_weeks !== null) ? parseInt(docForm.wait_weeks) : null,
       criteria: docForm.criteria || null,
       referral_types: docForm.referral_types ? docForm.referral_types.split(',').map(x=>x.trim()).filter(Boolean) : null,
@@ -304,9 +304,19 @@ export default function AdminPage() {
     setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]); setTab("list"); load(); loadStats()
   }
 
+  const ensureSpecialty = async (label, category) => {
+    const name = (label || '').trim()
+    if (!name || !supabase) return
+    if (specialties.some(sp => (sp.name || '').toLowerCase() === name.toLowerCase())) return
+    const code = 'custom-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+    const { data } = await supabase.from('specialties').upsert({ snomed_code: code, name, category: category || 'Other', category_order: 99 }, { onConflict: 'snomed_code' }).select().single()
+    if (data) setSpecialties(list => [...list.filter(x => x.snomed_code !== code), data])
+  }
+
   const save = async () => {
     // keep the legacy providers.doctors[] string array in sync from the structured rows
     const doctorNames = doctorRows.map(r => { const nm = withDr(r.name); return nm && r.specialty ? `${nm} — ${r.specialty}` : nm }).map(x => (x || '').trim()).filter(Boolean)
+    if (form.type && form.type.trim() && !form.specialty_code) { await ensureSpecialty(form.type, form.category) }
     const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorNames, languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null }
     delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id
 
@@ -327,7 +337,7 @@ export default function AdminPage() {
       for (let i = 0; i < doctorRows.length; i++) {
         const r = doctorRows[i]
         if (!r.name || !r.name.trim() || /^dr\.?\s*$/i.test(r.name.trim())) continue
-        const payload = { name: withDr(r.name), specialty: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals !== false, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist' }
+        const payload = { name: withDr(r.name), specialty: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist' }
         if (r.id) {
           const { error } = await supabase.from("physicians").update(payload).eq("id", r.id)
           if (error) warn = "Clinic saved, but updating a doctor failed: " + error.message
@@ -394,7 +404,7 @@ export default function AdminPage() {
     let rows = []
     try {
       const { data: links } = await supabase.from('physician_locations').select('is_primary, physicians(*)').eq('provider_id', p.id)
-      rows = (links || []).filter(l => l.physicians).map(l => ({ id: l.physicians.id, name: l.physicians.name || '', specialty: l.physicians.specialty || '', specialty_code: l.physicians.specialty_code || '', gender: l.physicians.gender || '', accepting_referrals: l.physicians.accepting_referrals !== false }))
+      rows = (links || []).filter(l => l.physicians).map(l => ({ id: l.physicians.id, name: l.physicians.name || '', specialty: l.physicians.specialty || '', specialty_code: l.physicians.specialty_code || '', gender: l.physicians.gender || '', accepting_referrals: l.physicians.accepting_referrals }))
     } catch {}
     // fallback: if no linked doctors yet but legacy string names exist, seed rows so admin can convert them (saving creates real physician records)
     if (rows.length === 0 && (p.doctors || []).length > 0) {
@@ -596,7 +606,7 @@ export default function AdminPage() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
               <div><label style={lbl}>Name *</label><input style={s} value={form.name} onChange={e => setForm({...form, name:e.target.value})} /></div>
               <div><label style={lbl}>Specialty *</label><select style={s} value={form.specialty_code || ''} onChange={e => { const spec = specialties.find(s => s.snomed_code === e.target.value); if (spec) setForm({...form, specialty_code: e.target.value, type: spec.name}); else setForm({...form, specialty_code: '', type: form.type}) }}><option value="">Select specialty...</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
-              <div><label style={lbl}>Custom Type Label</label><input style={s} value={form.type} onChange={e => setForm({...form, type:e.target.value})} placeholder="Override SNOMED name if needed" /></div>
+              <div><label style={lbl}>Custom Type Label</label><input style={s} value={form.type} onChange={e => setForm({...form, type:e.target.value})} placeholder="Or type a new specialty — it gets added to the list" /></div>
               <div><label style={lbl}>Category</label><select style={s} value={form.category} onChange={e => setForm({...form, category:e.target.value})}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
               <div><label style={lbl}>Data Status</label><select style={s} value={form.data_status || 'complete'} onChange={e => setForm({...form, data_status:e.target.value})}>{STATUSES.map(st => <option key={st} value={st}>{st}</option>)}</select></div>
               <div><label style={lbl}>Address</label><input style={s} value={form.address || ""} onChange={e => setForm({...form, address:e.target.value})} /></div>
@@ -623,8 +633,8 @@ export default function AdminPage() {
                 <select style={{ ...s, marginTop:0 }} value={r.gender || ''} onChange={e => updateDoctor(i, { gender: e.target.value })}>
                   <option value="">Gender…</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
                 </select>
-                <select style={{ ...s, marginTop:0 }} value={r.accepting_referrals !== false ? 'true' : 'false'} onChange={e => updateDoctor(i, { accepting_referrals: e.target.value === 'true' })}>
-                  <option value="true">Accepting</option><option value="false">Not accepting</option>
+                <select style={{ ...s, marginTop:0 }} value={r.accepting_referrals == null ? 'unknown' : r.accepting_referrals ? 'true' : 'false'} onChange={e => updateDoctor(i, { accepting_referrals: e.target.value === 'unknown' ? null : e.target.value === 'true' })}>
+                  <option value="unknown">Unknown</option><option value="true">Accepting</option><option value="false">Not accepting</option>
                 </select>
                 <button onClick={() => removeDoctor(i)} title="Remove doctor" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640", textAlign:"center" }}>✕</button>
               </div>
@@ -667,8 +677,8 @@ export default function AdminPage() {
               <div><label style={lbl}>Gender</label><select style={s} value={docForm.gender || ''} onChange={e => setDoc('gender', e.target.value)}><option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
               <div><label style={lbl}>Category (search tab they appear under)</label><select style={s} value={docForm.category || 'Specialist'} onChange={e => setDoc('category', e.target.value)}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
               <div><label style={lbl}>Wait (weeks)</label><input style={s} type="number" min="0" value={docForm.wait_weeks} onChange={e => setDoc('wait_weeks', e.target.value)} placeholder="Leave blank if varies" /></div>
-              <div><label style={lbl}>Accepting Referrals</label><select style={s} value={docForm.accepting_referrals ? 'true' : 'false'} onChange={e => setDoc('accepting_referrals', e.target.value === 'true')}><option value="true">Yes</option><option value="false">No</option></select></div>
-              <div><label style={lbl}>Accepting New Patients</label><select style={s} value={docForm.accepting_new_patients ? 'true' : 'false'} onChange={e => setDoc('accepting_new_patients', e.target.value === 'true')}><option value="false">No</option><option value="true">Yes</option></select></div>
+              <div><label style={lbl}>Accepting Referrals</label><select style={s} value={docForm.accepting_referrals == null ? 'unknown' : docForm.accepting_referrals ? 'true' : 'false'} onChange={e => setDoc('accepting_referrals', e.target.value === 'unknown' ? null : e.target.value === 'true')}><option value="unknown">Unknown (grey)</option><option value="true">Yes</option><option value="false">No</option></select></div>
+              <div><label style={lbl}>Accepting New Patients</label><select style={s} value={docForm.accepting_new_patients == null ? 'unknown' : docForm.accepting_new_patients ? 'true' : 'false'} onChange={e => setDoc('accepting_new_patients', e.target.value === 'unknown' ? null : e.target.value === 'true')}><option value="unknown">Unknown (grey)</option><option value="false">No</option><option value="true">Yes</option></select></div>
             </div>
             <label style={lbl}>Referral Types (comma-separated)</label>
             <input style={s} value={docForm.referral_types} onChange={e => setDoc('referral_types', e.target.value)} placeholder="Consultation, Procedure, Follow-up" />
