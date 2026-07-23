@@ -8,7 +8,7 @@ const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
 const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:null, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
-const CAT_HEX = { 'Family Medicine':'#059669','Specialist':'#7c3aed','Multi-Specialty':'#4f46e5','Clinic':'#2563eb','Hospital':'#0891b2','Imaging':'#d97706','Lab':'#0d9488','Physiotherapy':'#ea580c','Rehab':'#db2777' }
+const CAT_HEX = { 'Family Medicine':'#2563eb','Specialist':'#7c3aed','Multi-Specialty':'#4f46e5','Clinic':'#475569','Hospital':'#0891b2','Imaging':'#d97706','Lab':'#0d9488','Physiotherapy':'#ea580c','Rehab':'#db2777' }
 const catHex = (c) => CAT_HEX[c] || '#64748b'
 const normalizeHours = (h) => {
   if (!h || typeof h !== 'object') return null

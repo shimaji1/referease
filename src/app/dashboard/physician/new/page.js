@@ -8,7 +8,8 @@ import Link from 'next/link'
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
-const emptyDoc = () => ({ name:'Dr. ', specialty:'', specialty_code:'', gender:'', accepting_referrals:true, accepting_new_patients:false, wait_weeks:'', criteria:'', referral_types:'', languages:'English', hours:{ mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null } })
+const CATS = ['Family Medicine','Multi-Specialty','Clinic','Specialist','Hospital','Imaging','Lab','Physiotherapy','Rehab']
+const emptyDoc = () => ({ name:'Dr. ', specialty:'', specialty_code:'', gender:'', category:'Specialist', cpso_url:'', accepting_referrals:null, accepting_new_patients:null, wait_weeks:'', criteria:'', referral_types:'', languages:'English', hours:{ mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null } })
 
 export default function NewPhysicianPage() {
   const { user, profile, loading: authLoading } = useAuth()
@@ -38,7 +39,7 @@ export default function NewPhysicianPage() {
     const { data } = await supabase.from('providers').select('id, name, address, phone, fax').ilike('name', `%${q.trim()}%`).limit(8)
     setClinicResults(data || [])
   }
-  const addClinicLoc = (c) => { setLocations(l => [...l, { provider_id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax }]); setClinicQuery(''); setClinicResults([]) }
+  const addClinicLoc = (c) => { setLocations(l => [...l, { provider_id: c.id, name: c.name || '', address: c.address || '', phone: c.phone || '', fax: c.fax || '', hours: c.hours || null }]); setClinicQuery(''); setClinicResults([]) }
   const updLoc = (i, patch) => setLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmLoc = (i) => setLocations(l => l.filter((_, idx) => idx !== i))
   const inp = "w-full px-3 py-2.5 text-sm bg-white border border-gray-300 rounded-lg text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
@@ -57,14 +58,16 @@ export default function NewPhysicianPage() {
       specialty: doc.specialty || null,
       specialty_code: doc.specialty_code || null,
       gender: doc.gender || null,
-      accepting_referrals: !!doc.accepting_referrals,
-      accepting_new_patients: !!doc.accepting_new_patients,
+      accepting_referrals: doc.accepting_referrals ?? null,
+      accepting_new_patients: doc.accepting_new_patients ?? null,
+      category: doc.category || (/famil/i.test(doc.specialty || '') ? 'Family Medicine' : 'Specialist'),
+      cpso_url: doc.cpso_url || null,
       wait_weeks: (doc.wait_weeks !== '' && doc.wait_weeks !== null) ? parseInt(doc.wait_weeks) : null,
       criteria: doc.criteria || null,
       referral_types: doc.referral_types ? doc.referral_types.split(',').map(x => x.trim()).filter(Boolean) : null,
       languages: doc.languages ? doc.languages.split(',').map(x => x.trim()).filter(Boolean) : null,
       hours: doc.hours || null,
-      cpso_number: profile?.cpso_number || null,
+      cpso_number: doc.cpso_number || profile?.cpso_number || null,
       status: 'active',
       owner_id: user.id,
     }
@@ -88,7 +91,7 @@ export default function NewPhysicianPage() {
         if (!pRow) continue
         provId = pRow.id
       }
-      await supabase.from('physician_locations').insert({ physician_id: created.id, provider_id: provId, is_primary: i === 0 })
+      await supabase.from('physician_locations').insert({ physician_id: created.id, provider_id: provId, is_primary: i === 0, name: (l.name||'').trim() || null, address: l.address || null, phone: l.phone || null, fax: l.fax || null, hours: l.hours || null })
     }
     setSaving(false)
     router.push('/dashboard')
@@ -133,6 +136,18 @@ export default function NewPhysicianPage() {
                   <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
                 </select>
               </div>
+              <div>
+                <label className={lbl}>Category (search tab you appear under)</label>
+                <select className={inp} value={doc.category || 'Specialist'} onChange={e => set('category', e.target.value)}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
+              </div>
+              <div>
+                <label className={lbl}>CPSO Number</label>
+                <input className={inp} value={doc.cpso_number || ''} onChange={e => set('cpso_number', e.target.value)} placeholder="e.g. 87654" />
+              </div>
+              <div>
+                <label className={lbl}>CPSO Profile Link</label>
+                <input className={inp} value={doc.cpso_url || ''} onChange={e => set('cpso_url', e.target.value)} placeholder="https://doctors.cpso.on.ca/DoctorDetails/..." />
+              </div>
               <div className="sm:col-span-2">
                 <label className={lbl}>Languages (comma-separated)</label>
                 <input className={inp} value={doc.languages} onChange={e => set('languages', e.target.value)} placeholder="English, French, Farsi" />
@@ -145,14 +160,14 @@ export default function NewPhysicianPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Accepting Referrals</label>
-                <select className={inp} value={doc.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'true')}>
-                  <option value="true">Yes — Accepting</option><option value="false">No — Not Accepting</option>
+                <select className={inp} value={doc.accepting_referrals == null ? 'unknown' : doc.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
+                  <option value="unknown">Unknown</option><option value="true">Yes — Accepting</option><option value="false">No — Not Accepting</option>
                 </select>
               </div>
               <div>
                 <label className={lbl}>Accepting New Patients</label>
-                <select className={inp} value={doc.accepting_new_patients ? 'true' : 'false'} onChange={e => set('accepting_new_patients', e.target.value === 'true')}>
-                  <option value="false">No</option><option value="true">Yes</option>
+                <select className={inp} value={doc.accepting_new_patients == null ? 'unknown' : doc.accepting_new_patients ? 'true' : 'false'} onChange={e => set('accepting_new_patients', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
+                  <option value="unknown">Unknown</option><option value="false">No</option><option value="true">Yes</option>
                 </select>
               </div>
               <div>
@@ -203,13 +218,18 @@ export default function NewPhysicianPage() {
 
             {locations.map((l, i) => (
               l.provider_id ? (
-                <div key={i} className="border border-brand/20 bg-brand/5 rounded-lg p-3 mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{l.name} <span className="text-[9px] font-bold text-brand bg-white border border-brand/20 rounded-full px-2 py-0.5 ml-1">LINKED CLINIC</span></div>
-                    {l.address && <div className="text-xs text-gray-500">{l.address}</div>}
-                    <div className="text-xs text-gray-400">Address, phone, fax &amp; hours come from this clinic automatically.</div>
+                <div key={i} className="border border-brand/20 bg-brand/5 rounded-lg p-3 mb-3">
+                  <div className="flex gap-2 items-center mb-2">
+                    <input className={inp} value={l.name || ''} onChange={e => updLoc(i, { name: e.target.value })} placeholder="Location name" />
+                    <span className="text-[9px] font-bold text-brand bg-white border border-brand/20 rounded-full px-2 py-0.5 shrink-0">LINKED</span>
+                    <button onClick={() => rmLoc(i)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-100 shrink-0">Unlink</button>
                   </div>
-                  <button onClick={() => rmLoc(i)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-100 shrink-0">Unlink</button>
+                  <input className={inp + ' mb-2'} value={l.address || ''} onChange={e => updLoc(i, { address: e.target.value })} placeholder="Address (your copy — editable)" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input className={inp} value={l.phone || ''} onChange={e => updLoc(i, { phone: e.target.value })} placeholder="Phone" />
+                    <input className={inp} value={l.fax || ''} onChange={e => updLoc(i, { fax: e.target.value })} placeholder="Fax" />
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1.5">Copied from the linked clinic — edits change only your listing, not the clinic.</p>
                 </div>
               ) : (
                 <div key={i} className="border border-gray-200 rounded-lg p-3 mb-3">

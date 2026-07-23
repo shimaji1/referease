@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import FormsManager from '@/components/FormsManager'
 
+const CATS = ['Family Medicine','Multi-Specialty','Clinic','Specialist','Hospital','Imaging','Lab','Physiotherapy','Rehab']
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
@@ -65,6 +66,7 @@ export default function EditPhysicianPage({ params }) {
       specialty: doc.specialty || null,
       specialty_code: doc.specialty_code || null,
       gender: doc.gender || null,
+      category: doc.category || (/famil/i.test(doc.specialty || '') ? 'Family Medicine' : 'Specialist'),
       cpso_number: doc.cpso_number || null,
       cpso_url: doc.cpso_url || null,
       accepting_referrals: doc.accepting_referrals ?? null,
@@ -120,6 +122,10 @@ export default function EditPhysicianPage({ params }) {
                 <select className={inp} value={doc.gender || ''} onChange={e => set('gender', e.target.value)}>
                   <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
                 </select>
+              </div>
+              <div>
+                <label className={lbl}>Category (search tab you appear under)</label>
+                <select className={inp} value={doc.category || 'Specialist'} onChange={e => set('category', e.target.value)}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
               </div>
               <div>
                 <label className={lbl}>CPSO Number</label>

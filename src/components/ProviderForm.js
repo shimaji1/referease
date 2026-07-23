@@ -36,7 +36,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
   const [specialties, setSpecialties] = useState([])
   const [doctorRows, setDoctorRows] = useState(initial?._doctors || [])
   const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
-  const addDoctorRow = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', accepting_referrals: null }])
+  const addDoctorRow = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '', accepting_referrals: null }])
   const updDoctorRow = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDoctorRow = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
   const [servicesText, setServicesText] = useState(joinList(initial?.services))
@@ -221,11 +221,14 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <label className={lbl}>Doctors at this clinic</label>
             <p className="text-[10px] text-gray-400 mb-2">Each doctor gets their own searchable profile page, linked to this listing.</p>
             {doctorRows.map((r, i) => (
-              <div key={i} className="grid grid-cols-1 sm:grid-cols-[1.2fr_1.2fr_0.9fr_auto] gap-2 mb-2 items-center">
+              <div key={i} className="grid grid-cols-1 sm:grid-cols-[1.2fr_1.2fr_0.7fr_0.9fr_auto] gap-2 mb-2 items-center">
                 <input className={inp} placeholder="Dr. Full Name" value={r.name} onChange={e => updDoctorRow(i, { name: e.target.value })} />
                 <select className={inp} value={r.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); updDoctorRow(i, sp ? { specialty_code: sp.snomed_code, specialty: sp.name } : { specialty_code: '', specialty: '' }) }}>
                   <option value="">Specialty…</option>
                   {Object.entries(grouped).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>)}
+                </select>
+                <select className={inp} value={r.gender || ''} onChange={e => updDoctorRow(i, { gender: e.target.value })}>
+                  <option value="">Gender…</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
                 </select>
                 <select className={inp} value={r.accepting_referrals == null ? 'unknown' : r.accepting_referrals ? 'true' : 'false'} onChange={e => updDoctorRow(i, { accepting_referrals: e.target.value === 'unknown' ? null : e.target.value === 'true' })}>
                   <option value="unknown">Unknown</option><option value="true">Accepting</option><option value="false">Not accepting</option>

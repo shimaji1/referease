@@ -34,10 +34,10 @@ function WaitBadge({ weeks }) {
 }
 
 const CAT_BADGE = {
-  'Family Medicine': 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  'Family Medicine': 'text-blue-700 bg-blue-50 border-blue-200',
   'Specialist': 'text-purple-700 bg-purple-50 border-purple-200',
   'Multi-Specialty': 'text-indigo-700 bg-indigo-50 border-indigo-200',
-  'Clinic': 'text-blue-700 bg-blue-50 border-blue-200',
+  'Clinic': 'text-slate-700 bg-slate-100 border-slate-300',
   'Hospital': 'text-cyan-700 bg-cyan-50 border-cyan-200',
   'Imaging': 'text-amber-700 bg-amber-50 border-amber-200',
   'Lab': 'text-teal-700 bg-teal-50 border-teal-200',
