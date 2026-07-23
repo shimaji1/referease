@@ -82,7 +82,7 @@ export default function DoctorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-5 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <Link href="/search" className="text-sm text-brand font-semibold mb-4 hover:underline inline-block">← Back to search</Link>
         <div className="mt-4" />
         <ProfileView
