@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
 import ProfileView from '@/components/ProfileView'
+import { useAuth } from '@/context/AuthContext'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -114,6 +115,7 @@ function DoctorCard({ d, isFav, onFav }) {
 }
 
 function Detail({ p, onBack, isFav, onFav }) {
+  const { user } = useAuth()
   const dist = distKm(CENTER.lat, CENTER.lng, p.lat, p.lng).toFixed(1)
   const open = isOpenNow(p.hours)
   const [docs, setDocs] = useState([])
@@ -144,6 +146,18 @@ function Detail({ p, onBack, isFav, onFav }) {
           { big: `${dist} km`, small: 'Distance', good: null },
         ]}
         headerFooter={p.rating ? <div className="flex items-center gap-2 mt-3 justify-center"><Stars r={p.rating} /><span className="text-xs text-gray-400">{Number(p.rating).toFixed(1)} · {p.reviews} reviews</span></div> : null}
+        banner={
+          p.owner_id ? null : (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <span className="text-sm text-blue-900 font-medium">Is this your practice? Claim this listing to manage availability, wait times and referral details.</span>
+                {user
+                  ? <Link href={`/dashboard/verify?provider_id=${p.id}`} className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Claim this listing</Link>
+                  : <Link href="/login" className="text-xs font-semibold text-white bg-brand px-4 py-2 rounded-lg hover:bg-brand-dark transition shrink-0">Sign in to claim</Link>}
+              </div>
+            </div>
+          )
+        }
         contact={{ address: p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
         hours={p.hours}
         referral={{ wait: p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`, requirements: p.requirements }}

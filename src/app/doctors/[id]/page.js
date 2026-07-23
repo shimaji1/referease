@@ -118,14 +118,14 @@ export default function DoctorPage() {
               </div>
             )
           }
-          contact={{ languages: doc.languages || ['English'] }}
           hours={docHours}
+          languages={doc.languages || ['English']}
           referral={{
             wait: doc.wait_weeks == null ? 'Varies' : doc.wait_weeks === 0 ? 'No wait' : `~${doc.wait_weeks} week${doc.wait_weeks === 1 ? '' : 's'}`,
             criteria: doc.criteria, types: doc.referral_types, cpso_number: doc.cpso_number, cpso_url: doc.cpso_url,
           }}
           howToRefer={primaryClinic ? <>Send the referral to <span className="font-semibold text-gray-900">{primaryClinic.name}</span>{primaryClinic.fax ? <> by fax at <span className="font-semibold text-gray-900">{primaryClinic.fax}</span></> : primaryClinic.phone ? <> — call <span className="font-semibold text-gray-900">{primaryClinic.phone}</span></> : null}. Include the patient's OHIP number and reason for consult.</> : null}
-          locations={locs.map(l => ({ id: l.providers.id, name: l.providers.name, address: l.providers.address, phone: l.providers.phone, fax: l.providers.fax, website: l.providers.website }))}
+          locations={locs.map(l => ({ id: l.providers.id, name: l.providers.name, address: l.providers.address, phone: l.providers.phone, fax: l.providers.fax, website: l.providers.website, languages: doc.languages || ['English'] }))}
           forms={forms.map(f => ({ id: f.id, name: f.name, url: f.file_url }))}
         />
         <p className="text-[11px] text-gray-400 text-center mt-8 leading-relaxed">

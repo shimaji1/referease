@@ -44,6 +44,7 @@ function HoursRows({ hours }) {
 export default function ProfileView({
   name, subtitle, verified, action, tiles = [], headerFooter = null,
   banner = null,                    // e.g. claim banner — renders under the header
+  languages = null,                 // top-level languages fallback (used for the Location card)
   contact = null,                   // { address, phone, fax, email, website, languages }
   hours = null,                     // { mon..sun }
   referral = null,                  // { wait, requirements, criteria, types[], cpso_number, cpso_url }
@@ -119,6 +120,7 @@ export default function ProfileView({
                 {loc.phone && <Row l="Phone" v={loc.phone} href={`tel:${loc.phone}`} />}
                 {loc.fax && <Row l="Fax" v={loc.fax} />}
                 {loc.website && <Row l="Website" v={String(loc.website).replace(/^https?:\/\//, '')} href={String(loc.website).startsWith('http') ? loc.website : `https://${loc.website}`} />}
+                {(loc.languages || (i === 0 && languages)) && <Row l="Languages" v={(loc.languages || languages).join(', ')} />}
               </div>
             ))}
           </Card>
