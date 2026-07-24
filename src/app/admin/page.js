@@ -106,6 +106,17 @@ export default function AdminPage() {
   useEffect(() => { if (authed) { load(); loadStats() } }, [authed, load, loadStats])
 
   const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
+  // Handle extractor doctors that are either strings (legacy) or objects {name, specialty, gender}
+  const mapExtractedDocs = (arr, fallbackType) => (arr || []).map(x => {
+    const name = typeof x === 'string' ? x : (x.name || '')
+    const sp   = typeof x === 'object' && x.specialty ? x.specialty : (fallbackType || '')
+    const gRaw = typeof x === 'object' ? (x.gender || '') : ''
+    const g    = /^female$/i.test(gRaw) ? 'female' : /^male$/i.test(gRaw) ? 'male' : /^other$/i.test(gRaw) ? 'other' : ''
+    // Match specialty to an existing snomed row so the dropdown pre-selects
+    const spRow = sp ? specialties.find(x => (x.name || '').toLowerCase() === sp.toLowerCase()) : null
+    return { name, specialty: spRow?.name || sp, specialty_code: spRow?.snomed_code || '', gender: g, accepting_referrals: null }
+  })
+
   const addDoctor = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: '', specialty_code: '', gender: '', accepting_referrals: null }])
   const updateDoctor = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const removeDoctor = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
@@ -122,6 +133,36 @@ export default function AdminPage() {
   const addClinicLoc = (c) => { setDocLocations(l => [...l, { provider_id: c.id, name: c.name || '', address: c.address || '', phone: c.phone || '', fax: c.fax || '', hours: c.hours || null }]); setClinicQuery(''); setClinicResults([]) }
   const updDocLoc = (i, patch) => setDocLocations(l => l.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDocLoc = (i) => setDocLocations(l => l.filter((_, idx) => idx !== i))
+  const [extraCats, setExtraCats] = useState([])
+  useEffect(() => {
+    if (!supabase || !authed) return
+    supabase.from('site_settings').select('value').eq('key','extra_categories').single().then(({ data }) => { if (data?.value?.list) setExtraCats(data.value.list) })
+  }, [authed])
+  const ALL_CATS = [...CATS, ...extraCats.filter(c => !CATS.includes(c))]
+  const addCategoryPrompt = async () => {
+    if (typeof window === 'undefined') return null
+    const name = window.prompt('New category name (e.g. Urgent Care, Walk-in). This will be added to the category list for future listings.')
+    if (!name || !name.trim()) return null
+    const label = name.trim()
+    if (ALL_CATS.includes(label)) { setMsg('Category already exists.'); return label }
+    const next = [...extraCats, label]
+    setExtraCats(next)
+    await supabase.from('site_settings').upsert({ key: 'extra_categories', value: { list: next }, updated_at: new Date().toISOString() })
+    setMsg(`Added category: ${label}`)
+    return label
+  }
+
+  const addSpecialtyPrompt = async (currentCategory) => {
+    if (typeof window === 'undefined') return null
+    const name = window.prompt('New specialty name (e.g. Sleep Medicine, Sports Medicine).')
+    if (!name || !name.trim()) return null
+    const label = name.trim()
+    const cat = window.prompt('Which category does it belong to? (Leave blank for "Other")', currentCategory || '') || 'Other'
+    const created = await ensureSpecialty(label, cat)
+    setMsg(`Added specialty: ${label}`)
+    return created || { snomed_code: 'custom-' + label.toLowerCase().replace(/[^a-z0-9]+/g,'-'), name: label }
+  }
+
 
   // ── Convert a provider record that is actually a person into a real doctor ──
   const convertToDoctor = async (pr) => {
@@ -342,6 +383,7 @@ export default function AdminPage() {
     const code = 'custom-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
     const { data } = await supabase.from('specialties').upsert({ snomed_code: code, name, category: category || 'Other', category_order: 99 }, { onConflict: 'snomed_code' }).select().single()
     if (data) setSpecialties(list => [...list.filter(x => x.snomed_code !== code), data])
+    return data
   }
 
   const save = async () => {
@@ -506,7 +548,7 @@ export default function AdminPage() {
               </select>
               <select value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(0) }} style={{ ...s, marginTop:0, width:"140px", flex:"0 0 auto" }}>
                 <option value="">All categories</option>
-                {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                {ALL_CATS.map(c => <option key={c} value={c}>{c}</option>)}<option value="__add__">+ Add new category…</option>
               </select>
             </div>
 
@@ -610,8 +652,8 @@ export default function AdminPage() {
                           const d = result.data
                           setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: normalizeHours(d.hours) || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
                           setServicesText((d.services || []).join(', '))
-                          setDoctorsText((d.doctors || []).join(', '))
-                        setDoctorRows((d.doctors || []).map(n => ({ name: n, specialty: d.type || '', specialty_code: '', gender: '' })))
+                          setDoctorsText((d.doctors || []).map(x => typeof x === 'string' ? x : x.name).join(', '))
+                        setDoctorRows(mapExtractedDocs(d.doctors, d.type))
                           setLanguagesText((d.languages || []).join(', '))
                           setMsg(`Found ${result.count} locations. Showing first one. Save and extract again for others.`)
                         }
@@ -620,8 +662,8 @@ export default function AdminPage() {
                         const d = result.data
                         setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: normalizeHours(d.hours) || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
                         setServicesText((d.services || []).join(', '))
-                        setDoctorsText((d.doctors || []).join(', '))
-                        setDoctorRows((d.doctors || []).map(n => ({ name: n, specialty: d.type || '', specialty_code: '', gender: '' })))
+                        setDoctorsText((d.doctors || []).map(x => typeof x === 'string' ? x : x.name).join(', '))
+                        setDoctorRows(mapExtractedDocs(d.doctors, d.type))
                         setLanguagesText((d.languages || []).join(', '))
                         setMsg('✅ Extracted! Review the data below and save.')
                       }
@@ -637,9 +679,9 @@ export default function AdminPage() {
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
               <div><label style={lbl}>Name *</label><input style={s} value={form.name} onChange={e => setForm({...form, name:e.target.value})} /></div>
-              <div><label style={lbl}>Specialty *</label><select style={s} value={form.specialty_code || ''} onChange={e => { const spec = specialties.find(s => s.snomed_code === e.target.value); if (spec) setForm({...form, specialty_code: e.target.value, type: spec.name}); else setForm({...form, specialty_code: '', type: form.type}) }}><option value="">Select specialty...</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
+              <div><label style={lbl}>Specialty *</label><select style={s} value={form.specialty_code || ''} onChange={async e => { if (e.target.value === '__add__') { const sp = await addSpecialtyPrompt(form.category); if (sp) setForm(f => ({...f, specialty_code: sp.snomed_code, type: sp.name})); return } const spec = specialties.find(s => s.snomed_code === e.target.value); if (spec) setForm({...form, specialty_code: e.target.value, type: spec.name}); else setForm({...form, specialty_code: '', type: form.type}) }}><option value="">Select specialty...</option><option value="__add__">+ Add new specialty…</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
               <div><label style={lbl}>Custom Type Label</label><input style={s} value={form.type} onChange={e => setForm({...form, type:e.target.value})} placeholder="Or type a new specialty — it gets added to the list" /></div>
-              <div><label style={lbl}>Category</label><select style={s} value={form.category} onChange={e => setForm({...form, category:e.target.value})}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+              <div><label style={lbl}>Category</label><select style={s} value={form.category} onChange={async e => { if (e.target.value === '__add__') { const c = await addCategoryPrompt(); if (c) setForm(f => ({...f, category: c})); return } setForm({...form, category:e.target.value}) }}>{ALL_CATS.map(c => <option key={c} value={c}>{c}</option>)}<option value="__add__">+ Add new category…</option></select></div>
               <div><label style={lbl}>Data Status</label><select style={s} value={form.data_status || 'complete'} onChange={e => setForm({...form, data_status:e.target.value})}>{STATUSES.map(st => <option key={st} value={st}>{st}</option>)}</select></div>
               <div><label style={lbl}>Address</label><input style={s} value={form.address || ""} onChange={e => setForm({...form, address:e.target.value})} /></div>
               <div><label style={lbl}>Phone</label><input style={s} value={form.phone || ""} onChange={e => setForm({...form, phone:e.target.value || null})} /></div>
@@ -658,7 +700,7 @@ export default function AdminPage() {
             {doctorRows.map((r, i) => (
               <div key={i} style={{ display:"grid", gridTemplateColumns:"1.2fr 1.2fr 0.7fr 0.9fr auto", gap:"6px", marginBottom:"6px", alignItems:"center" }}>
                 <input style={{ ...s, marginTop:0 }} placeholder="Dr. Full Name" value={r.name} onChange={e => updateDoctor(i, { name: e.target.value })} />
-                <select style={{ ...s, marginTop:0 }} value={r.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); updateDoctor(i, sp ? { specialty_code: sp.snomed_code, specialty: sp.name } : { specialty_code: '', specialty: '' }) }}>
+                <select style={{ ...s, marginTop:0 }} value={r.specialty_code || ''} onChange={async e => { if (e.target.value === '__add__') { const sp = await addSpecialtyPrompt(form.category); if (sp) updateDoctor(i, { specialty_code: sp.snomed_code, specialty: sp.name }); return } const sp = specialties.find(x => x.snomed_code === e.target.value); updateDoctor(i, sp ? { specialty_code: sp.snomed_code, specialty: sp.name } : { specialty_code: '', specialty: '' }) }}>
                   <option value="">Specialty…</option>
                   {(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}
                 </select>
@@ -705,9 +747,9 @@ export default function AdminPage() {
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
               <div><label style={lbl}>Full Name *</label><input style={s} value={docForm.name} onChange={e => setDoc('name', e.target.value)} placeholder="Dr. Jane Smith" /></div>
-              <div><label style={lbl}>Specialty *</label><select style={s} value={docForm.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); if (sp) setDocForm(f => ({ ...f, specialty_code: sp.snomed_code, specialty: sp.name })); else setDocForm(f => ({ ...f, specialty_code:'', specialty:'' })) }}><option value="">Select specialty...</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
+              <div><label style={lbl}>Specialty *</label><select style={s} value={docForm.specialty_code || ''} onChange={async e => { if (e.target.value === '__add__') { const sp = await addSpecialtyPrompt(docForm.category); if (sp) setDocForm(f => ({...f, specialty_code: sp.snomed_code, specialty: sp.name})); return } const sp = specialties.find(x => x.snomed_code === e.target.value); if (sp) setDocForm(f => ({ ...f, specialty_code: sp.snomed_code, specialty: sp.name })); else setDocForm(f => ({ ...f, specialty_code:'', specialty:'' })) }}><option value="">Select specialty...</option><option value="__add__">+ Add new specialty…</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
               <div><label style={lbl}>Gender</label><select style={s} value={docForm.gender || ''} onChange={e => setDoc('gender', e.target.value)}><option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
-              <div><label style={lbl}>Category (search tab they appear under)</label><select style={s} value={docForm.category || 'Specialist'} onChange={e => setDoc('category', e.target.value)}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+              <div><label style={lbl}>Category (search tab they appear under)</label><select style={s} value={docForm.category || 'Specialist'} onChange={async e => { if (e.target.value === '__add__') { const c = await addCategoryPrompt(); if (c) setDoc('category', c); return } setDoc('category', e.target.value) }}>{ALL_CATS.map(c => <option key={c} value={c}>{c}</option>)}<option value="__add__">+ Add new category…</option></select></div>
               <div><label style={lbl}>CPSO Number</label><input style={s} value={docForm.cpso_number || ''} onChange={e => setDoc('cpso_number', e.target.value)} placeholder="e.g. 87654" /></div>
               <div><label style={lbl}>CPSO Profile Link</label><input style={s} value={docForm.cpso_url || ''} onChange={e => setDoc('cpso_url', e.target.value)} placeholder="https://doctors.cpso.on.ca/DoctorDetails/..." /></div>
               <div><label style={lbl}>Wait (weeks)</label><input style={s} type="number" min="0" value={docForm.wait_weeks} onChange={e => setDoc('wait_weeks', e.target.value)} placeholder="Leave blank if varies" /></div>
