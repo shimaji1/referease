@@ -245,6 +245,16 @@ export default function AdminPage() {
   }
 
   // ── Outreach ──
+  const toggleFeatured = async (kind, row) => {
+    if (!supabase) return
+    const table = kind === 'doctor' ? 'physicians' : 'providers'
+    const next = !row.featured
+    const { error } = await supabase.from(table).update({ featured: next }).eq('id', row.id)
+    if (error) { setMsg('Toggle failed: ' + error.message); return }
+    setMsg(next ? `Marked "${row.name}" as Featured` : `Removed Featured from "${row.name}"`)
+    load()
+  }
+
   const invite = async (pr) => {
     setInviting(pr.id)
     const res = await fetch('/api/outreach', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ provider_id: pr.id, email: pr.email, name: pr.name }] }) })
@@ -577,6 +587,7 @@ export default function AdminPage() {
                   <div style={{ display:"flex", gap:"4px", alignItems:"center", flexShrink:0 }}>
                     <a href={`/doctors/${d.id}`} target="_blank" rel="noopener noreferrer" style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#e2e8f0", color:"#475569", border:"1px solid #cbd5e1" }}>View</a>
                     <button onClick={() => editDoctor(d)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>Edit</button>
+                    <button onClick={() => toggleFeatured("doctor", d)} title={d.featured ? "Remove featured" : "Mark as featured"} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:d.featured?"#f59e0b30":"#f59e0b15", color:"#b45309", border:"1px solid #f59e0b60" }}>{d.featured ? "★ Featured" : "☆ Feature"}</button>
                     <button onClick={() => deleteDoctor(d)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Del</button>
                   </div>
                 </div>
@@ -597,6 +608,7 @@ export default function AdminPage() {
                       {STATUSES.map(st => <option key={st} value={st}>{st}</option>)}
                     </select>
                     <button onClick={() => edit(p)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>Edit</button>
+                    <button onClick={() => toggleFeatured("provider", p)} title={p.featured ? "Remove featured" : "Mark as featured"} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:p.featured?"#f59e0b30":"#f59e0b15", color:"#b45309", border:"1px solid #f59e0b60" }}>{p.featured ? "★ Featured" : "☆ Feature"}</button>
                     <button onClick={() => del(p.id)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Del</button>
                     {p.email && <button onClick={() => invite(p)} disabled={inviting === p.id} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:p.invited_at?"#05966920":"#0891b220", color:p.invited_at?"#059669":"#0891b2", border:"1px solid " + (p.invited_at?"#05966940":"#0891b240") }}>{inviting === p.id ? "…" : p.invited_at ? "✓ Invited" : "✉ Invite"}</button>}
                     <button onClick={() => convertToDoctor(p)} title="Convert this listing into a doctor profile" style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#7c3aed20", color:"#7c3aed", border:"1px solid #7c3aed40" }}>→ Doctor</button>

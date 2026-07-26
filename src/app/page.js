@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import FeaturedStrip from '@/components/FeaturedStrip'
 
 const IMG = {
   hero: '/img/hero.jpg',
@@ -179,7 +180,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured */}
+      {/* Featured strip — paid subscribers */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FeaturedStrip title="Featured providers" />
+      </section>
+
+      {/* Top-rated (organic) */}
       {featured.length > 0 && (
         <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="flex items-end justify-between mb-8">

@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
 import ProfileView from '@/components/ProfileView'
+import FeaturedStrip from '@/components/FeaturedStrip'
 import { useAuth } from '@/context/AuthContext'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
@@ -396,10 +397,19 @@ export default function SearchPage() {
               </div>
             )}
 
+            {!showFavs && !sel && <FeaturedStrip category={cat === 'all' ? null : cat} title={cat === 'all' ? 'Featured providers' : `Featured ${cat}`} />}
+
             {showFavs && favs.length === 0 && favDocs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
             
             <div className="flex flex-col gap-2.5">
-              {!showFavs && filtered.length === 0 && filteredDoctors.length === 0 && <div className="text-center py-16 text-gray-400 text-sm">No doctors or clinics match your filters.</div>}
+              {!showFavs && filtered.length === 0 && filteredDoctors.length === 0 && (
+                <div className="text-center py-16 bg-white border border-gray-200 rounded-2xl">
+                  <div className="text-4xl mb-3">🔍</div>
+                  <p className="font-semibold text-gray-700 mb-1">No matches for your filters</p>
+                  <p className="text-sm text-gray-400 mb-4">Try removing a filter or searching a nearby area.</p>
+                  <button onClick={() => { setSearch(''); setSpec(''); setSvc(''); setLang(''); setAcc(false); setOn(false); setWe(false); setEv(false); setCat('all') }} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">Clear all filters</button>
+                </div>
+              )}
               {filteredDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />)}
               {filtered.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
             </div>
