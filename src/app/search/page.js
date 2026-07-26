@@ -270,6 +270,7 @@ export default function SearchPage() {
   const [favDocs, setFavDocs] = useState([])
   const [showFavs, setShowFavs] = useState(false)
   const [showF, setShowF] = useState(false)
+  const [sponsorPool, setSponsorPool] = useState([])
 
   useEffect(() => {
     async function fetchAll(builder, pageSize = 1000, cap = 20000) {
