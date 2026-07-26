@@ -223,9 +223,9 @@ function SponsoredCard({ item, onSelect }) {
     onSelect(item)
   }
   return (
-    <div onClick={handleClick} className="bg-amber-50/40 border border-amber-200 rounded-xl p-4 cursor-pointer hover:border-amber-400 hover:bg-amber-50/60 transition relative">
-      <span className="absolute top-3 right-3 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full uppercase tracking-wider">Sponsored</span>
-      <div className="pr-20">
+    <div onClick={handleClick} data-sponsored="true" style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '12px', padding: '16px', cursor: 'pointer', position: 'relative' }}>
+      <span style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '9px', fontWeight: 700, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', padding: '2px 8px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sponsored</span>
+      <div style={{ paddingRight: '80px' }}>
         <h3 className="font-semibold text-gray-900 text-base leading-snug">{item.name}</h3>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{item.type || item.category || 'Provider'}</p>
         <div className="flex flex-wrap gap-1.5 mt-2 items-center">
@@ -657,6 +657,7 @@ export default function SearchPage() {
                       }
                       return rows
                     } catch (err) {
+                      if (typeof window !== 'undefined') { window.__renderErr = err?.message || String(err) }
                       console.error('[re-render]', err)
                       return [
                         ...pagedDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />),
