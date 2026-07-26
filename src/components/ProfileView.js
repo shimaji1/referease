@@ -50,6 +50,7 @@ export default function ProfileView({
   referral = null,                  // { wait, requirements, criteria, types[], cpso_number, cpso_url }
   howToRefer = null,                // string/node
   people = null,                    // [{ id, name, detail, href }]
+  notes = null,                     // free-text notes from the provider
   locations = null,                 // [{ id, name, address, phone, fax, website, hours }]
   forms = null,                     // [{ id, name, url }]
   services = null,                  // [string]
@@ -96,6 +97,8 @@ export default function ProfileView({
         )}
 
         {howToRefer && <Card title="How to Refer"><p className="text-sm text-gray-700 leading-relaxed">{howToRefer}</p></Card>}
+
+        {notes && <Card title="Notes from this provider"><p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{notes}</p></Card>}
 
         {people && people.length > 0 && (
           <Card title="Physicians">

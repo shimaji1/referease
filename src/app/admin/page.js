@@ -7,7 +7,7 @@ const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospita
 const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
-const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:null, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null })
+const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:null, accepting_new_patients:null, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null, sub_specialty:null, gender:null, cpso_url:null, criteria:"", referral_types:[], notes:"" })
 const CAT_HEX = { 'Family Medicine':'#2563eb','Specialist':'#7c3aed','Multi-Specialty':'#4f46e5','Clinic':'#475569','Hospital':'#0891b2','Imaging':'#d97706','Lab':'#0d9488','Physiotherapy':'#ea580c','Rehab':'#db2777' }
 const catHex = (c) => CAT_HEX[c] || '#64748b'
 const normalizeHours = (h) => {
@@ -702,11 +702,22 @@ export default function AdminPage() {
               <div><label style={lbl}>Website</label><input style={s} value={form.website || ""} onChange={e => setForm({...form, website:e.target.value || null})} /></div>
               <div><label style={lbl}>Wait (weeks)</label><input style={s} type="number" min="0" value={form.wait_weeks ?? ""} onChange={e => setForm({...form, wait_weeks:e.target.value})} /></div>
               <div><label style={lbl}>SNOMED Code</label><input style={s} value={form.specialty_code || ""} onChange={e => setForm({...form, specialty_code:e.target.value || null})} /></div>
+              <div><label style={lbl}>Sub-specialty</label><input style={s} value={form.sub_specialty || ""} onChange={e => setForm({...form, sub_specialty:e.target.value || null})} placeholder="e.g. Interventional Cardiology" /></div>
+              <div><label style={lbl}>Gender</label><select style={s} value={form.gender || ''} onChange={e => setForm({...form, gender:e.target.value || null})}><option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
+              <div><label style={lbl}>CPSO Profile Link</label><input style={s} value={form.cpso_url || ""} onChange={e => setForm({...form, cpso_url:e.target.value || null})} placeholder="https://doctors.cpso.on.ca/DoctorDetails/..." /></div>
+              <div><label style={lbl}>Accepting Referrals</label><select style={s} value={form.accepting_referrals == null ? 'unknown' : form.accepting_referrals ? 'true' : 'false'} onChange={e => setForm({...form, accepting_referrals: e.target.value === 'unknown' ? null : e.target.value === 'true'})}><option value="unknown">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></div>
+              <div><label style={lbl}>Accepting New Patients</label><select style={s} value={form.accepting_new_patients == null ? 'unknown' : form.accepting_new_patients ? 'true' : 'false'} onChange={e => setForm({...form, accepting_new_patients: e.target.value === 'unknown' ? null : e.target.value === 'true'})}><option value="unknown">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></div>
             </div>
+            <label style={lbl}>Referral Criteria</label>
+            <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={form.criteria || ""} onChange={e => setForm({...form, criteria:e.target.value || null})} placeholder="What patients / conditions you accept referrals for" />
             <label style={lbl}>Requirements</label>
-            <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={form.requirements || ""} onChange={e => setForm({...form, requirements:e.target.value})} />
+            <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={form.requirements || ""} onChange={e => setForm({...form, requirements:e.target.value})} placeholder="Requisition, imaging, etc." />
+            <label style={lbl}>Referral Types (comma-separated)</label>
+            <input style={s} value={(form.referral_types || []).join(', ')} onChange={e => setForm({...form, referral_types: e.target.value.split(',').map(x=>x.trim()).filter(Boolean)})} placeholder="Consultation, Procedure, Follow-up" />
             <label style={lbl}>Services (comma-separated)</label>
             <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={servicesText} onChange={e => setServicesText(e.target.value)} placeholder="ECG, Stress Test, Holter Monitor" />
+            <label style={lbl}>Notes</label>
+            <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={form.notes || ""} onChange={e => setForm({...form, notes:e.target.value || null})} placeholder="Anything else the provider wants referring doctors to know" />
             <label style={lbl}>Doctors at this clinic</label>
             <div style={{ fontSize:"11px", color:"#64748b", margin:"2px 0 8px" }}>Each doctor gets their own profile page, linked to this clinic.</div>
             {doctorRows.map((r, i) => (

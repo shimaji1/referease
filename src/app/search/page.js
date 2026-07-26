@@ -162,7 +162,8 @@ function Detail({ p, onBack, isFav, onFav }) {
         }
         contact={{ address: p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
         hours={p.hours}
-        referral={{ wait: p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`, requirements: p.requirements }}
+        referral={{ wait: p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`, requirements: p.requirements, criteria: p.criteria, types: p.referral_types, cpso_url: p.cpso_url }}
+        notes={p.notes}
         people={docs.length > 0 ? docs.map(d => ({ id: d.id, name: d.name, detail: d.specialty, href: `/doctors/${d.id}` })) : null}
         forms={pforms.map(f => ({ id: f.id, name: f.name, url: f.file_url }))}
         services={p.services}
@@ -268,7 +269,7 @@ export default function SearchPage() {
     if (spec) r = r.filter(p => provSpecialty(p) === spec || p.type === spec)
     if (svc) r = r.filter(p => (p.services||[]).includes(svc))
     if (lang) r = r.filter(p => (p.languages||[]).includes(lang))
-    if (acc) r = r.filter(p => p.accepting_referrals)
+    if (acc) r = r.filter(p => p.accepting_referrals || p.accepting_new_patients)
     if (on) r = r.filter(p => isOpenNow(p.hours))
     if (we) r = r.filter(p => isOpenWeekends(p.hours))
     if (ev) r = r.filter(p => isOpenEvenings(p.hours))
@@ -311,7 +312,7 @@ export default function SearchPage() {
     if (spec) r = r.filter(d => (d.specialty || "") === spec)
     if (svc) r = r.filter(d => (d.services || []).includes(svc))
     if (lang) r = r.filter(d => (d.languages || []).includes(lang))
-    if (acc) r = r.filter(d => d.accepting_referrals)
+    if (acc) r = r.filter(d => d.category === 'Family Medicine' ? d.accepting_new_patients : d.accepting_referrals)
     if (on) r = r.filter(d => isOpenNow(d.hours))
     if (we) r = r.filter(d => isOpenWeekends(d.hours))
     if (ev) r = r.filter(d => isOpenEvenings(d.hours))
@@ -379,7 +380,7 @@ export default function SearchPage() {
                   <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
                 <div className="relative md:w-64">
-                  <input type="text" value={loc?.label || postalInput} onChange={e => setPostalInput(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === 'Enter') { if (setPostal(postalInput)) setPage(1) } }} placeholder="Postal code (e.g. L4J)" disabled={!!loc?.label} className="w-full pl-10 pr-4 h-12 text-sm bg-white rounded-xl text-gray-900 outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400 disabled:opacity-90" />
+                  <input type="text" value={loc?.label || postalInput} onChange={e => setPostalInput(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === 'Enter') { if (setPostal(postalInput)) setPage(1) } }} placeholder={loc?.label ? "" : "Postal code"} disabled={!!loc?.label} className={`w-full pl-10 h-12 text-sm bg-white rounded-xl text-gray-900 outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400 disabled:opacity-90 ${loc?.label ? "pr-20" : "pr-32"}`} />
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">📍</span>
                   {loc?.label
                     ? <button onClick={() => { clearLoc(); setPostalInput('') }} className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-gray-400 hover:text-red-500 px-2 py-1">Change</button>
