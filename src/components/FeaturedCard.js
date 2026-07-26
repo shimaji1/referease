@@ -10,10 +10,10 @@ export default function FeaturedCard({ item, size = 'md' }) {
 
   const dims = size === 'lg'
     ? { w: 'w-full', banner: 'py-4 px-5', title: 'text-lg', body: 'p-5', min: 'min-h-[220px]' }
-    : { w: 'w-[320px]', banner: 'py-3 px-4', title: 'text-base', body: 'p-4', min: 'min-h-[200px]' }
+    : { w: 'w-full', banner: 'py-3 px-4', title: 'text-base', body: 'p-4', min: 'min-h-[200px]' }
 
   return (
-    <Link href={href} className={`${dims.w} shrink-0 snap-start bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 hover:border-brand/40 transition group ${dims.min} flex flex-col`}>
+    <Link href={href} className={`${dims.w} bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 hover:border-brand/40 transition group ${dims.min} flex flex-col`}>
       <div className={`bg-gradient-to-r from-brand to-[#2c4f7c] ${dims.banner} flex items-center justify-between gap-2`}>
         <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/95 truncate">{specialty}</span>
         <span className="text-[9px] font-bold text-amber-300 bg-white/10 border border-white/25 px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">Featured</span>

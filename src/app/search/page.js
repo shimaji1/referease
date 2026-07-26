@@ -465,7 +465,7 @@ export default function SearchPage() {
                 {/* Featured top row (3 big cards) */}
                 {!showFavs && (
                   <div className="mb-6">
-                    <FeaturedStrip category={cat === 'all' ? null : cat} title={cat === 'all' ? 'Featured providers near you' : `Featured ${CATEGORIES.find(c => c.key === cat)?.label || cat}`} subtitle="Sponsored — geographic rotation." loc={loc} fallbackToNearest />
+                    <FeaturedStrip layout="stack-3" category={cat === 'all' ? null : cat} title={cat === 'all' ? 'Featured providers near you' : `Featured ${CATEGORIES.find(c => c.key === cat)?.label || cat}`} subtitle="Sponsored — geographic rotation." loc={loc} fallbackToNearest sectionKey={10} />
                   </div>
                 )}
 
