@@ -215,6 +215,33 @@ function SponsoredSlot({ category, slotIndex, loc }) {
   )
 }
 
+
+function SponsoredCard({ item, onSelect }) {
+  const isDoctor = item._kind === 'doctor'
+  const handleClick = () => {
+    if (isDoctor) { window.location.href = `/doctors/${item.id}`; return }
+    onSelect(item)
+  }
+  return (
+    <div onClick={handleClick} className="bg-amber-50/40 border border-amber-200 rounded-xl p-4 cursor-pointer hover:border-amber-400 hover:bg-amber-50/60 transition relative">
+      <span className="absolute top-3 right-3 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full uppercase tracking-wider">Sponsored</span>
+      <div className="pr-20">
+        <h3 className="font-semibold text-gray-900 text-base leading-snug">{item.name}</h3>
+        <p className="text-sm text-brand/80 font-medium mt-0.5">{item.type || item.category || 'Provider'}</p>
+        <div className="flex flex-wrap gap-1.5 mt-2 items-center">
+          {item.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+          {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
+          {item.accepting_referrals === false && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
+          {item.accepting_referrals == null && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Unknown</span>}
+          {item.wait_weeks != null && <span className="text-[10px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">~{item.wait_weeks} wk</span>}
+          {item.rating && <span className="text-[10px] font-semibold text-amber-500">★ {Number(item.rating).toFixed(1)}</span>}
+          {item.address && <span className="text-xs text-gray-500">📍 {item.address}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function SearchPage() {
   const [providers, setProviders] = useState([])
   const [doctors, setDoctors] = useState([])
@@ -277,6 +304,41 @@ export default function SearchPage() {
   useEffect(() => { try { const s = localStorage.getItem("re-favs"); if (s) setFavs(JSON.parse(s)) } catch {} }, [])
   useEffect(() => { if (!loc && typeof window !== 'undefined' && !localStorage.getItem('re-loc-asked')) { try { localStorage.setItem('re-loc-asked', '1') } catch {}; requestGeo() } }, [loc, requestGeo])
   useEffect(() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); if (nav[nav.length - 1]?.url !== '/search') { nav.push({ url: '/search', label: 'Search' }); sessionStorage.setItem('re-nav', JSON.stringify(nav.slice(-20))) } } catch {} }, [])
+
+  // Load the sponsor pool — prefer category-matching featured, fall back to any featured
+  useEffect(() => {
+    if (!supabase) return
+    let alive = true
+    const load = async () => {
+      const results = []
+      const DOC_CATS = new Set(['Family Medicine', 'Specialist'])
+      const wantsDoctor = cat !== 'all' && DOC_CATS.has(cat)
+      const wantsFacility = cat !== 'all' && !DOC_CATS.has(cat)
+      // Try category-preferred first
+      if (cat !== 'all') {
+        if (!wantsDoctor) {
+          const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services').eq('data_status', 'complete').eq('featured', true).eq('category', cat).limit(20)
+          if (data) results.push(...data.map(x => ({ ...x, _kind: 'provider' })))
+        }
+        if (!wantsFacility && results.length < 4) {
+          const { data } = await supabase.from('physicians').select('id, name, specialty, category, accepting_referrals, verified, wait_weeks').eq('status', 'active').eq('featured', true).eq('category', cat).limit(20)
+          if (data) results.push(...data.map(x => ({ ...x, _kind: 'doctor', type: x.specialty })))
+        }
+      }
+      // Fallback: any featured, if we didn't fill 4 yet
+      if (results.length < 4) {
+        const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services').eq('data_status', 'complete').eq('featured', true).limit(20)
+        if (data) data.forEach(x => { if (!results.some(r => r._kind === 'provider' && r.id === x.id)) results.push({ ...x, _kind: 'provider' }) })
+      }
+      if (results.length < 4) {
+        const { data } = await supabase.from('physicians').select('id, name, specialty, category, accepting_referrals, verified, wait_weeks').eq('status', 'active').eq('featured', true).limit(20)
+        if (data) data.forEach(x => { if (!results.some(r => r._kind === 'doctor' && r.id === x.id)) results.push({ ...x, _kind: 'doctor', type: x.specialty }) })
+      }
+      if (alive) setSponsorPool(results.slice(0, 4))
+    }
+    load()
+    return () => { alive = false }
+  }, [cat])
 
   // If URL has ?id=NNN (e.g. arriving from a featured card), open that provider directly
   useEffect(() => {
@@ -554,23 +616,37 @@ export default function SearchPage() {
                     </div>
                   )}
                   {(() => {
-                    // Interleave sponsored featured card every 8th position
-                    const rows = []
+                    // Build organic result rows
                     const merged = [
                       ...pagedDoctors.map(d => ({ kind: 'doc', data: d })),
                       ...pagedProviders.map(p => ({ kind: 'prov', data: p })),
                     ]
-                    merged.forEach((row, idx) => {
-                      rows.push(row.kind === 'doc'
+                    const organicRows = merged.map((row, idx) =>
+                      row.kind === 'doc'
                         ? <DoctorCard key={'doc-' + row.data.id} d={row.data} isFav={favDocs.includes(row.data.id)} onFav={toggleFavDoc} />
-                        : <Card key={row.data.id} p={row.data} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(row.data.id)} onFav={toggleFav} />)
-                      // Every 8 organic results, insert a sponsored slot (skip if there are too few results total)
-                      if (!showFavs && merged.length >= 8 && (idx + 1) % 8 === 0 && idx < merged.length - 1) {
-                        rows.push(
-                          <SponsoredSlot key={`spon-${idx}`} category={cat === 'all' ? null : cat} slotIndex={idx} loc={loc} />
-                        )
+                        : <Card key={row.data.id} p={row.data} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(row.data.id)} onFav={toggleFav} />
+                    )
+                    if (showFavs) return organicRows
+                    // Fixed sponsor positions (1-indexed) — 1, 3, 8, 12 in the paginated list
+                    const SPONSOR_POSITIONS = [1, 3, 8, 12]
+                    const pool = sponsorPool  // pre-loaded, category-preferred pool
+                    const rows = []
+                    let organicIdx = 0
+                    let sponsorIdx = 0
+                    let displayPos = 1
+                    while (organicIdx < organicRows.length || sponsorIdx < pool.length) {
+                      if (SPONSOR_POSITIONS.includes(displayPos) && sponsorIdx < pool.length) {
+                        const sp = pool[sponsorIdx]
+                        rows.push(<SponsoredCard key={`spon-${sp.id}-${displayPos}`} item={sp} onSelect={pr => { setSel(pr); setView("detail") }} />)
+                        sponsorIdx++
+                      } else if (organicIdx < organicRows.length) {
+                        rows.push(organicRows[organicIdx])
+                        organicIdx++
+                      } else {
+                        break
                       }
-                    })
+                      displayPos++
+                    }
                     return rows
                   })()}
                 </div>
