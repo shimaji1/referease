@@ -616,38 +616,47 @@ export default function SearchPage() {
                     </div>
                   )}
                   {(() => {
-                    // Build organic result rows
-                    const merged = [
-                      ...pagedDoctors.map(d => ({ kind: 'doc', data: d })),
-                      ...pagedProviders.map(p => ({ kind: 'prov', data: p })),
-                    ]
-                    const organicRows = merged.map((row, idx) =>
-                      row.kind === 'doc'
-                        ? <DoctorCard key={'doc-' + row.data.id} d={row.data} isFav={favDocs.includes(row.data.id)} onFav={toggleFavDoc} />
-                        : <Card key={row.data.id} p={row.data} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(row.data.id)} onFav={toggleFav} />
-                    )
-                    if (showFavs) return organicRows
-                    // Fixed sponsor positions (1-indexed) — 1, 3, 8, 12 in the paginated list
-                    const SPONSOR_POSITIONS = [1, 3, 8, 12]
-                    const pool = sponsorPool  // pre-loaded, category-preferred pool
-                    const rows = []
-                    let organicIdx = 0
-                    let sponsorIdx = 0
-                    let displayPos = 1
-                    while (organicIdx < organicRows.length || sponsorIdx < pool.length) {
-                      if (SPONSOR_POSITIONS.includes(displayPos) && sponsorIdx < pool.length) {
-                        const sp = pool[sponsorIdx]
-                        rows.push(<SponsoredCard key={`spon-${sp.id}-${displayPos}`} item={sp} onSelect={pr => { setSel(pr); setView("detail") }} />)
-                        sponsorIdx++
-                      } else if (organicIdx < organicRows.length) {
-                        rows.push(organicRows[organicIdx])
-                        organicIdx++
-                      } else {
-                        break
+                    try {
+                      // Build organic result rows
+                      const merged = [
+                        ...pagedDoctors.map(d => ({ kind: 'doc', data: d })),
+                        ...pagedProviders.map(p => ({ kind: 'prov', data: p })),
+                      ]
+                      const organicRows = merged.map((row, idx) =>
+                        row.kind === 'doc'
+                          ? <DoctorCard key={'doc-' + row.data.id} d={row.data} isFav={favDocs.includes(row.data.id)} onFav={toggleFavDoc} />
+                          : <Card key={row.data.id} p={row.data} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(row.data.id)} onFav={toggleFav} />
+                      )
+                      if (showFavs) return organicRows
+                      const pool = Array.isArray(sponsorPool) ? sponsorPool : []
+                      if (pool.length === 0) return organicRows
+                      const SPONSOR_POSITIONS = [1, 3, 8, 12]
+                      const rows = []
+                      let organicIdx = 0
+                      let sponsorIdx = 0
+                      let displayPos = 1
+                      const MAX_POS = organicRows.length + pool.length + 5
+                      while (displayPos <= MAX_POS && (organicIdx < organicRows.length || sponsorIdx < pool.length)) {
+                        if (SPONSOR_POSITIONS.includes(displayPos) && sponsorIdx < pool.length) {
+                          const sp = pool[sponsorIdx]
+                          rows.push(<SponsoredCard key={`spon-${sp._kind}-${sp.id}-${displayPos}`} item={sp} onSelect={pr => { setSel(pr); setView("detail") }} />)
+                          sponsorIdx++
+                        } else if (organicIdx < organicRows.length) {
+                          rows.push(organicRows[organicIdx])
+                          organicIdx++
+                        } else {
+                          break
+                        }
+                        displayPos++
                       }
-                      displayPos++
+                      return rows
+                    } catch (err) {
+                      console.error('[re-render]', err)
+                      return [
+                        ...pagedDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />),
+                        ...pagedProviders.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />),
+                      ]
                     }
-                    return rows
                   })()}
                 </div>
 
