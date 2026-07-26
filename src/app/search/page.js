@@ -207,7 +207,7 @@ export default function SearchPage() {
       if (!supabase) { setLoading(false); return }
       try {
         const [prov, docs, specs] = await Promise.all([
-          supabase.from("providers").select("*").or("data_status.eq.complete,featured.eq.true").order("name"),
+          supabase.from("providers").select("*").eq("data_status", "complete").order("name"),
           supabase.from("physicians").select("id, name, specialty, specialty_code, gender, category, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active"),
           supabase.from("specialties").select("snomed_code, category, name"),
         ])
@@ -222,6 +222,7 @@ export default function SearchPage() {
 
   useEffect(() => { try { const s = localStorage.getItem("re-favs"); if (s) setFavs(JSON.parse(s)) } catch {} }, [])
   useEffect(() => { if (!loc && typeof window !== 'undefined' && !localStorage.getItem('re-loc-asked')) { try { localStorage.setItem('re-loc-asked', '1') } catch {}; requestGeo() } }, [loc, requestGeo])
+  useEffect(() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); if (nav[nav.length - 1]?.url !== '/search') { nav.push({ url: '/search', label: 'Search' }); sessionStorage.setItem('re-nav', JSON.stringify(nav.slice(-20))) } } catch {} }, [])
 
   // If URL has ?id=NNN (e.g. arriving from a featured card), open that provider directly
   useEffect(() => {
@@ -301,7 +302,7 @@ export default function SearchPage() {
     if (mw) r = r.filter(p => p.wait_weeks !== null && p.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(p => p.rating && Number(p.rating) >= parseFloat(mr))
     if (md) r = r.filter(p => distKm(CENTER.lat,CENTER.lng,p.lat,p.lng) <= parseFloat(md))
-    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(p => p.name.toLowerCase().includes(q) || p.type.toLowerCase().includes(q) || (p.address||"").toLowerCase().includes(q) || (p.services||[]).some(s => s.toLowerCase().includes(q)) || (p.doctors||[]).some(d => d.toLowerCase().includes(q))) }
+    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(p => (p.name||"").toLowerCase().includes(q) || (p.type||"").toLowerCase().includes(q) || (p.sub_specialty||"").toLowerCase().includes(q) || (p.address||"").toLowerCase().includes(q) || (p.services||[]).some(s => (s||"").toLowerCase().includes(q)) || (p.doctors||[]).some(d => (d||"").toLowerCase().includes(q))) }
     if (sort==="name") r=[...r].sort((a,b)=>a.name.localeCompare(b.name))
     if (sort==="rating") r=[...r].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))
     if (sort==="wait") r=[...r].sort((a,b)=>(a.wait_weeks??999)-(b.wait_weeks??999))
@@ -393,7 +394,7 @@ export default function SearchPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        {view === "detail" && sel ? <Detail p={sel} onBack={() => { const cameFromElsewhere = document.referrer && !document.referrer.includes('/search'); const u = new URL(window.location.href); if (u.searchParams.has('id')) { u.searchParams.delete('id'); window.history.replaceState({}, '', u.toString()) } if (cameFromElsewhere && window.history.length > 1) { window.history.back() } else { setView('search'); window.scrollTo({ top: 0, behavior: 'smooth' }) } }} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
+        {view === "detail" && sel ? <Detail p={sel} onBack={() => { const u = new URL(window.location.href); if (u.searchParams.has('id')) { u.searchParams.delete('id'); window.history.replaceState({}, '', u.toString()) } try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); const prev = nav[nav.length - 1]; if (prev && prev.url !== '/search') { window.location.href = prev.url; return } } catch {} setView('search'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
           <>
             {/* Hero search block */}
             <div className="bg-gradient-to-br from-brand to-[#2c4f7c] rounded-3xl p-6 sm:p-8 mb-6 text-white">

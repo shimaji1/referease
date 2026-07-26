@@ -71,7 +71,7 @@ export default function DoctorPage() {
   if (missing || !doc) return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 text-gray-500 text-sm">
       <p>This doctor’s profile isn’t available.</p>
-      <button onClick={() => router.back()} className="text-brand font-medium hover:underline">← Back</button>
+      <button onClick={() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); const prev = nav[nav.length - 1]; if (prev) { window.location.href = prev.url; return } } catch {} router.back() }} className="text-brand font-medium hover:underline">← Back</button>
     </div>
   )
 
@@ -84,7 +84,7 @@ export default function DoctorPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        <button onClick={() => router.back()} className="text-sm text-brand font-semibold mb-4 hover:underline inline-block">← Back</button>
+        <button onClick={() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); const prev = nav[nav.length - 1]; if (prev) { window.location.href = prev.url; return } } catch {} router.back() }} className="text-sm text-brand font-semibold mb-4 hover:underline inline-block">← Back</button>
         <div className="mt-4" />
         <ProfileView
           name={doc.name}

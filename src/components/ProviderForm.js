@@ -166,9 +166,18 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className={lbl}>Accepting Referrals</label>
-            <select className={inp} value={form.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'true')}>
+            <select className={inp} value={form.accepting_referrals == null ? 'unknown' : form.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
+              <option value="unknown">Unknown</option>
               <option value="true">Yes — Accepting</option>
               <option value="false">No — Not Accepting</option>
+            </select>
+          </div>
+          <div>
+            <label className={lbl}>Accepting New Patients</label>
+            <select className={inp} value={form.accepting_new_patients == null ? 'unknown' : form.accepting_new_patients ? 'true' : 'false'} onChange={e => set('accepting_new_patients', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
+              <option value="unknown">Unknown</option>
+              <option value="true">Yes — Accepting new patients</option>
+              <option value="false">No — Roster full</option>
             </select>
           </div>
           <div>
@@ -176,17 +185,46 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <input className={inp} type="number" min="0" value={form.wait_weeks ?? ''} onChange={e => set('wait_weeks', e.target.value)} placeholder="Leave blank if varies" />
           </div>
           <div>
-            <label className={lbl}>Data Status</label>
-            <select className={inp} value={form.data_status || 'complete'} onChange={e => set('data_status', e.target.value)}>
-              <option value="complete">Complete</option>
-              <option value="partial">Partial</option>
-              <option value="incomplete">Incomplete</option>
+            <label className={lbl}>Gender (for individual doctors)</label>
+            <select className={inp} value={form.gender || ''} onChange={e => set('gender', e.target.value)}>
+              <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
             </select>
           </div>
+          <div>
+            <label className={lbl}>Sub-specialty (optional)</label>
+            <input className={inp} value={form.sub_specialty || ''} onChange={e => set('sub_specialty', e.target.value)} placeholder="e.g. Interventional Cardiology" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={lbl}>CPSO Profile Link (for doctors)</label>
+            <input className={inp} value={form.cpso_url || ''} onChange={e => set('cpso_url', e.target.value)} placeholder="https://doctors.cpso.on.ca/DoctorDetails/..." />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={lbl}>Data Status</label>
+            <select className={inp} value={form.data_status || 'complete'} onChange={e => set('data_status', e.target.value)}>
+              <option value="complete">Complete — visible in public search</option>
+              <option value="partial">Partial — hidden until completed</option>
+              <option value="incomplete">Incomplete — hidden until completed</option>
+            </select>
+            <p className="text-[11px] text-gray-500 mt-1">Only "Complete" listings appear in the public search.</p>
+          </div>
         </div>
-        <div className="mt-4">
-          <label className={lbl}>Referral Requirements</label>
-          <textarea className={inp + " min-h-[80px] resize-y"} value={form.requirements || ''} onChange={e => set('requirements', e.target.value)} placeholder="e.g. GP referral required, recent MRI results, OHIP card" />
+        <div className="mt-4 grid grid-cols-1 gap-4">
+          <div>
+            <label className={lbl}>Referral Requirements</label>
+            <textarea className={inp + " min-h-[80px] resize-y"} value={form.requirements || ''} onChange={e => set('requirements', e.target.value)} placeholder="e.g. GP referral required, recent MRI results, OHIP card" />
+          </div>
+          <div>
+            <label className={lbl}>Referral Criteria (what you accept)</label>
+            <textarea className={inp + " min-h-[80px] resize-y"} value={form.criteria || ''} onChange={e => set('criteria', e.target.value)} placeholder="Patient population, conditions, age range, etc." />
+          </div>
+          <div>
+            <label className={lbl}>Referral Types (comma-separated)</label>
+            <input className={inp} value={(form.referral_types || []).join(', ')} onChange={e => set('referral_types', e.target.value.split(',').map(x => x.trim()).filter(Boolean))} placeholder="Consultation, Procedure, Follow-up" />
+          </div>
+          <div>
+            <label className={lbl}>Notes to referring physicians</label>
+            <textarea className={inp + " min-h-[80px] resize-y"} value={form.notes || ''} onChange={e => set('notes', e.target.value)} placeholder="Anything else referring doctors should know" />
+          </div>
         </div>
       </section>
 

@@ -29,6 +29,7 @@ function Icon({ name, className = 'w-5 h-5' }) {
 const fmt = (n) => n == null ? '—' : n >= 1000 ? `${(Math.floor(n / 100) / 10).toLocaleString()}k+` : n >= 100 ? `${Math.floor(n / 100) * 100}+` : `${n}`
 
 export default function HomePage() {
+  useEffect(() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); nav.push({ url: '/', label: 'Home' }); sessionStorage.setItem('re-nav', JSON.stringify(nav.slice(-20))) } catch {} }, [])
   const { loc, status, requestGeo, setPostal } = useLocation()
   const [postalInput, setPostalInput] = useState('')
   const [featuredShown, setFeaturedShown] = useState(() => new Set())
