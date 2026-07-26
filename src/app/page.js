@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import FeaturedStrip from '@/components/FeaturedStrip'
+import useLocation from '@/hooks/useLocation'
 
 const IMG = {
   hero: '/img/hero.jpg',
@@ -28,6 +29,8 @@ function Icon({ name, className = 'w-5 h-5' }) {
 const fmt = (n) => n == null ? '—' : n >= 1000 ? `${(Math.floor(n / 100) / 10).toLocaleString()}k+` : n >= 100 ? `${Math.floor(n / 100) * 100}+` : `${n}`
 
 export default function HomePage() {
+  const { loc, status, requestGeo, setPostal } = useLocation()
+  const [postalInput, setPostalInput] = useState('')
   const [counts, setCounts] = useState({ prov: null, docs: null, specs: null })
   const [featured, setFeatured] = useState([])
 
@@ -145,6 +148,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <FeaturedStrip title="Featured specialists near you" subtitle="Sponsored providers, ranked by proximity." loc={loc} fallbackToNearest tint />
+
       {/* How it works */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-3">Three steps to a clean referral</h2>
@@ -164,6 +169,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <FeaturedStrip title="Featured clinics & imaging" subtitle="Facilities investing in visibility to referring physicians." loc={loc} category={null} fallbackToNearest />
+
       {/* Features */}
       <section className="bg-gray-50 border-y border-gray-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
@@ -180,10 +187,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured strip — paid subscribers */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <FeaturedStrip title="Featured providers" />
-      </section>
+      <FeaturedStrip title="Recently verified providers" subtitle="Fresh listings verified in the last 30 days." loc={loc} tint />
 
       {/* Top-rated (organic) */}
       {featured.length > 0 && (
@@ -209,6 +213,8 @@ export default function HomePage() {
           </div>
         </section>
       )}
+
+      <FeaturedStrip title="More providers you may consider" subtitle="Sponsored placement — geographic rotation." loc={loc} fallbackToNearest />
 
       {/* FAQ */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">

@@ -5,6 +5,7 @@ import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
 import ProfileView from '@/components/ProfileView'
 import FeaturedStrip from '@/components/FeaturedStrip'
+import useLocation from '@/hooks/useLocation'
 import { useAuth } from '@/context/AuthContext'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
@@ -189,6 +190,10 @@ export default function SearchPage() {
   const [mr, setMr] = useState("")
   const [md, setMd] = useState("")
   const [sort, setSort] = useState("name")
+  const { loc, requestGeo, setPostal, clear: clearLoc } = useLocation()
+  const [postalInput, setPostalInput] = useState('')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 20
   const [sel, setSel] = useState(null)
   const [view, setView] = useState("search")
   const [favs, setFavs] = useState([])
@@ -215,6 +220,7 @@ export default function SearchPage() {
   }, [])
 
   useEffect(() => { try { const s = localStorage.getItem("re-favs"); if (s) setFavs(JSON.parse(s)) } catch {} }, [])
+  useEffect(() => { if (!loc && typeof window !== 'undefined' && !localStorage.getItem('re-loc-asked')) { try { localStorage.setItem('re-loc-asked', '1') } catch {}; requestGeo() } }, [loc, requestGeo])
   const saveFavs = useCallback(ids => { setFavs(ids); try { localStorage.setItem("re-favs", JSON.stringify(ids)) } catch {} }, [])
   const toggleFav = useCallback(id => saveFavs(favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id]), [favs, saveFavs])
 
@@ -324,6 +330,15 @@ export default function SearchPage() {
   const sel_s = "px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-lg text-gray-700 outline-none cursor-pointer flex-1 min-w-0 max-w-[180px] focus:border-brand focus:ring-1 focus:ring-brand/20"
   const chk_s = "flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer whitespace-nowrap"
 
+  const totalCount = filtered.length + filteredDoctors.length
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const start = (page - 1) * PAGE_SIZE
+  const endIdx = start + PAGE_SIZE
+  const combined = [...filteredDoctors.map(d => ({ ...d, _t: 'doc' })), ...filtered.map(p => ({ ...p, _t: 'prov' }))]
+  const pageItems = combined.slice(start, endIdx)
+  const pagedDoctors = pageItems.filter(x => x._t === 'doc')
+  const pagedProviders = pageItems.filter(x => x._t === 'prov')
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center text-gray-400">
       <div className="text-center">
@@ -354,64 +369,143 @@ export default function SearchPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
         {view === "detail" && sel ? <Detail p={sel} onBack={() => setView("search")} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
           <>
-            <div className="relative mb-3">
-              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, specialty, doctor, service, or address…" className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400" />
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            </div>
-
-            <div className="flex gap-1.5 flex-wrap mb-3">
-              {CATEGORIES.map(c => (
-                <button key={c.key} onClick={() => { setCat(c.key); setSpec(""); setShowFavs(false) }} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition ${cat===c.key&&!showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-200 hover:border-brand/40'}`}>{c.icon} {c.label}</button>
-              ))}
-            </div>
-
-            <div className="flex gap-2 items-center mb-3">
-              <button onClick={() => setShowF(!showF)} className="text-xs font-semibold text-brand flex items-center gap-1">{showF ? '▾' : '▸'} Filters {activeF > 0 && <span className="bg-brand text-white text-[10px] px-1.5 py-0.5 rounded-full">{activeF}</span>}</button>
-              {activeF > 0 && <button onClick={clearF} className="text-[11px] text-red-500 font-medium">Clear all</button>}
-              <div className="ml-auto flex gap-2 items-center">
-                <select value={sort} onChange={e => setSort(e.target.value)} className={sel_s + " max-w-[150px]"}>
-                  <option value="name">Sort: Name</option><option value="rating">Sort: Rating</option><option value="wait">Sort: Wait time</option><option value="reviews">Sort: Reviews</option><option value="distance">Sort: Distance</option>
-                </select>
-                <span className="text-[11px] text-gray-400 whitespace-nowrap">{filtered.length + filteredDoctors.length} result{(filtered.length + filteredDoctors.length)!==1?'s':''}</span>
+            {/* Hero search block */}
+            <div className="bg-gradient-to-br from-brand to-[#2c4f7c] rounded-3xl p-6 sm:p-8 mb-6 text-white">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1">Find care that's right for your patient</h1>
+              <p className="text-sm text-white/70 mb-5">Search verified providers accepting referrals across Ontario.</p>
+              <div className="flex flex-col md:flex-row gap-2 bg-white/10 backdrop-blur border border-white/15 rounded-2xl p-2">
+                <div className="relative flex-1">
+                  <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Specialty, doctor, service, or clinic…" className="w-full pl-11 pr-4 h-12 text-sm bg-white rounded-xl text-gray-900 outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400" />
+                  <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
+                <div className="relative md:w-64">
+                  <input type="text" value={loc?.label || postalInput} onChange={e => setPostalInput(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === 'Enter') { if (setPostal(postalInput)) setPage(1) } }} placeholder="Postal code (e.g. L4J)" disabled={!!loc?.label} className="w-full pl-10 pr-4 h-12 text-sm bg-white rounded-xl text-gray-900 outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400 disabled:opacity-90" />
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">📍</span>
+                  {loc?.label
+                    ? <button onClick={() => { clearLoc(); setPostalInput('') }} className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-gray-400 hover:text-red-500 px-2 py-1">Change</button>
+                    : <button onClick={requestGeo} className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-bold text-brand bg-brand/10 hover:bg-brand/20 px-2.5 py-1 rounded-md">Use my location</button>}
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap mt-4">
+                {CATEGORIES.map(c => (
+                  <button key={c.key} onClick={() => { setCat(c.key); setSpec(""); setShowFavs(false); setPage(1) }} className={`px-4 py-2 text-xs font-bold rounded-full border transition ${cat===c.key&&!showFavs ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/25 hover:bg-white/20'}`}>{c.icon} {c.label}</button>
+                ))}
               </div>
             </div>
 
-            {showF && (
-              <div className="bg-white border border-gray-200 rounded-xl p-4 mb-3 animate-fade-in">
-                <div className="flex flex-wrap gap-2 mb-2.5">
-                  <select value={spec} onChange={e => setSpec(e.target.value)} className={sel_s}><option value="">All specialties</option>{allSpecialties.map(s => <option key={s} value={s}>{s}</option>)}</select>
-                  <select value={svc} onChange={e => setSvc(e.target.value)} className={sel_s}><option value="">All services</option>{allServices.map(s => <option key={s} value={s}>{s}</option>)}</select>
-                  <select value={lang} onChange={e => setLang(e.target.value)} className={sel_s}><option value="">Any language</option>{allLanguages.map(l => <option key={l} value={l}>{l}</option>)}</select>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-2.5">
-                  <select value={mw} onChange={e => setMw(e.target.value)} className={sel_s}><option value="">Any wait</option><option value="0">No wait</option><option value="1">≤ 1 wk</option><option value="2">≤ 2 wks</option><option value="4">≤ 4 wks</option><option value="8">≤ 8 wks</option><option value="12">≤ 12 wks</option></select>
-                  <select value={mr} onChange={e => setMr(e.target.value)} className={sel_s}><option value="">Any rating</option><option value="4.5">4.5+</option><option value="4">4+</option><option value="3.5">3.5+</option><option value="3">3+</option></select>
-                  <select value={md} onChange={e => setMd(e.target.value)} className={sel_s}><option value="">Any distance</option><option value="2">2 km</option><option value="5">5 km</option><option value="10">10 km</option><option value="15">15 km</option><option value="25">25 km</option></select>
-                </div>
-                <div className="flex flex-wrap gap-4">
-                  <label className={chk_s}><input type="checkbox" checked={acc} onChange={e => setAcc(e.target.checked)} className="accent-brand w-3.5 h-3.5" /> Accepting referrals</label>
-                  <label className={chk_s}><input type="checkbox" checked={on} onChange={e => setOn(e.target.checked)} className="accent-brand w-3.5 h-3.5" /> Open now</label>
-                  <label className={chk_s}><input type="checkbox" checked={we} onChange={e => setWe(e.target.checked)} className="accent-brand w-3.5 h-3.5" /> Weekends</label>
-                  <label className={chk_s}><input type="checkbox" checked={ev} onChange={e => setEv(e.target.checked)} className="accent-brand w-3.5 h-3.5" /> Evenings</label>
-                </div>
-              </div>
-            )}
+            {/* Two-column layout: sidebar filters + results */}
+            <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
 
-            {!showFavs && !sel && <FeaturedStrip category={cat === 'all' ? null : cat} title={cat === 'all' ? 'Featured providers' : `Featured ${cat}`} />}
-
-            {showFavs && favs.length === 0 && favDocs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
-            
-            <div className="flex flex-col gap-2.5">
-              {!showFavs && filtered.length === 0 && filteredDoctors.length === 0 && (
-                <div className="text-center py-16 bg-white border border-gray-200 rounded-2xl">
-                  <div className="text-4xl mb-3">🔍</div>
-                  <p className="font-semibold text-gray-700 mb-1">No matches for your filters</p>
-                  <p className="text-sm text-gray-400 mb-4">Try removing a filter or searching a nearby area.</p>
-                  <button onClick={() => { setSearch(''); setSpec(''); setSvc(''); setLang(''); setAcc(false); setOn(false); setWe(false); setEv(false); setCat('all') }} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">Clear all filters</button>
+              {/* Sidebar filters (desktop) / drawer trigger (mobile) */}
+              <aside className="lg:sticky lg:top-20 lg:self-start">
+                <div className="lg:hidden mb-3">
+                  <button onClick={() => setShowF(!showF)} className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-700">
+                    <span>{showF ? '▾' : '▸'} Filters {activeF > 0 && <span className="ml-1 bg-brand text-white text-[10px] px-1.5 py-0.5 rounded-full">{activeF}</span>}</span>
+                    {activeF > 0 && <span onClick={e => { e.stopPropagation(); clearF() }} className="text-[11px] text-red-500 font-medium">Clear</span>}
+                  </button>
                 </div>
-              )}
-              {filteredDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />)}
-              {filtered.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
+                <div className={`bg-white border border-gray-200 rounded-2xl p-5 ${showF ? 'block' : 'hidden lg:block'}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-gray-900">Filters</h3>
+                    {activeF > 0 && <button onClick={clearF} className="text-[11px] text-red-500 font-semibold">Clear all</button>}
+                  </div>
+                  <div className="space-y-5 text-sm">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Availability</label>
+                      <div className="space-y-1.5">
+                        <label className={chk_s}><input type="checkbox" checked={acc} onChange={e => { setAcc(e.target.checked); setPage(1) }} className="accent-brand w-3.5 h-3.5" /> Accepting referrals</label>
+                        <label className={chk_s}><input type="checkbox" checked={on} onChange={e => { setOn(e.target.checked); setPage(1) }} className="accent-brand w-3.5 h-3.5" /> Open now</label>
+                        <label className={chk_s}><input type="checkbox" checked={we} onChange={e => { setWe(e.target.checked); setPage(1) }} className="accent-brand w-3.5 h-3.5" /> Weekends</label>
+                        <label className={chk_s}><input type="checkbox" checked={ev} onChange={e => { setEv(e.target.checked); setPage(1) }} className="accent-brand w-3.5 h-3.5" /> Evenings</label>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Wait time</label>
+                      <select value={mw} onChange={e => { setMw(e.target.value); setPage(1) }} className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 outline-none focus:border-brand"><option value="">Any wait</option><option value="0">No wait</option><option value="1">≤ 1 wk</option><option value="2">≤ 2 wks</option><option value="4">≤ 4 wks</option><option value="8">≤ 8 wks</option><option value="12">≤ 12 wks</option></select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Distance</label>
+                      <select value={md} onChange={e => { setMd(e.target.value); setPage(1) }} className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 outline-none focus:border-brand"><option value="">Any distance</option><option value="2">Within 2 km</option><option value="5">Within 5 km</option><option value="10">Within 10 km</option><option value="15">Within 15 km</option><option value="25">Within 25 km</option></select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Specialty</label>
+                      <select value={spec} onChange={e => { setSpec(e.target.value); setPage(1) }} className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 outline-none focus:border-brand"><option value="">All specialties</option>{allSpecialties.map(s => <option key={s} value={s}>{s}</option>)}</select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Language</label>
+                      <select value={lang} onChange={e => { setLang(e.target.value); setPage(1) }} className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 outline-none focus:border-brand"><option value="">Any language</option>{allLanguages.map(l => <option key={l} value={l}>{l}</option>)}</select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Service</label>
+                      <select value={svc} onChange={e => { setSvc(e.target.value); setPage(1) }} className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 outline-none focus:border-brand"><option value="">All services</option>{allServices.map(s => <option key={s} value={s}>{s}</option>)}</select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Min rating</label>
+                      <select value={mr} onChange={e => { setMr(e.target.value); setPage(1) }} className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 outline-none focus:border-brand"><option value="">Any rating</option><option value="4.5">4.5+</option><option value="4">4+</option><option value="3.5">3.5+</option><option value="3">3+</option></select>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+
+              {/* Main results column */}
+              <main className="min-w-0">
+                {/* Results summary bar */}
+                <div className="flex items-center justify-between gap-3 mb-4 bg-white border border-gray-200 rounded-xl px-4 py-2.5">
+                  <div className="text-sm text-gray-600">
+                    <span className="font-bold text-gray-900">{totalCount}</span> result{totalCount !== 1 ? 's' : ''}
+                    {loc?.label && <> · near <span className="font-semibold text-gray-800">{loc.label}</span></>}
+                    {cat !== 'all' && <> · <span className="font-semibold text-brand">{CATEGORIES.find(c => c.key === cat)?.label}</span></>}
+                  </div>
+                  <select value={sort} onChange={e => setSort(e.target.value)} className="text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1.5 outline-none focus:border-brand">
+                    <option value="distance">Sort: Distance</option><option value="rating">Rating</option><option value="wait">Wait time</option><option value="name">Name</option><option value="reviews">Reviews</option>
+                  </select>
+                </div>
+
+                {/* Featured top row (3 big cards) */}
+                {!showFavs && (
+                  <div className="mb-6">
+                    <FeaturedStrip category={cat === 'all' ? null : cat} title={cat === 'all' ? 'Featured providers near you' : `Featured ${CATEGORIES.find(c => c.key === cat)?.label || cat}`} subtitle="Sponsored — geographic rotation." loc={loc} fallbackToNearest />
+                  </div>
+                )}
+
+                {showFavs && favs.length === 0 && favDocs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
+
+                <div className="flex flex-col gap-2.5">
+                  {!showFavs && totalCount === 0 && (
+                    <div className="text-center py-16 bg-white border border-gray-200 rounded-2xl">
+                      <div className="text-4xl mb-3">🔍</div>
+                      <p className="font-semibold text-gray-700 mb-1">No matches for your filters</p>
+                      <p className="text-sm text-gray-400 mb-4">Try removing a filter or searching a nearby area.</p>
+                      <button onClick={() => { setSearch(''); setSpec(''); setSvc(''); setLang(''); setAcc(false); setOn(false); setWe(false); setEv(false); setCat('all'); setPage(1) }} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">Clear all filters</button>
+                    </div>
+                  )}
+                  {pagedDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />)}
+                  {pagedProviders.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-1 mt-8">
+                    <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1} className="px-3 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:border-brand hover:text-brand transition disabled:opacity-40 disabled:cursor-not-allowed">← Prev</button>
+                    {(() => {
+                      const nums = []
+                      const push = n => nums.push(n)
+                      if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) push(i) }
+                      else {
+                        push(1)
+                        if (page > 3) push('…')
+                        for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) push(i)
+                        if (page < totalPages - 2) push('…')
+                        push(totalPages)
+                      }
+                      return nums.map((n, i) => n === '…'
+                        ? <span key={'e' + i} className="px-2 text-gray-400">…</span>
+                        : <button key={n} onClick={() => setPage(n)} className={`w-9 h-9 text-sm font-semibold rounded-lg border transition ${n === page ? 'bg-brand text-white border-brand' : 'bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand'}`}>{n}</button>)
+                    })()}
+                    <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages} className="px-3 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:border-brand hover:text-brand transition disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
+                  </div>
+                )}
+              </main>
             </div>
           </>
         )}
