@@ -135,7 +135,7 @@ function Detail({ p, onBack, isFav, onFav }) {
   }, [p?.id])
   return (
     <div className="animate-fade-in">
-      <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back to results</button>
+      <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back</button>
       <ProfileView
         name={p.name}
         subtitle={`${p.type}${p.category ? ` · ${p.category}` : ''}`}
@@ -207,7 +207,7 @@ export default function SearchPage() {
       if (!supabase) { setLoading(false); return }
       try {
         const [prov, docs, specs] = await Promise.all([
-          supabase.from("providers").select("*").eq("data_status", "complete").order("name"),
+          supabase.from("providers").select("*").or("data_status.eq.complete,featured.eq.true").order("name"),
           supabase.from("physicians").select("id, name, specialty, specialty_code, gender, category, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active"),
           supabase.from("specialties").select("snomed_code, category, name"),
         ])
@@ -224,6 +224,18 @@ export default function SearchPage() {
   useEffect(() => { if (!loc && typeof window !== 'undefined' && !localStorage.getItem('re-loc-asked')) { try { localStorage.setItem('re-loc-asked', '1') } catch {}; requestGeo() } }, [loc, requestGeo])
 
   // If URL has ?id=NNN (e.g. arriving from a featured card), open that provider directly
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const openById = async (id) => {
+      if (!supabase) return
+      const { data } = await supabase.from('providers').select('*').eq('id', id).single()
+      if (data) { setSel(data); setView('detail'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+    }
+    const handler = (e) => openById(e.detail?.id)
+    window.addEventListener('re-open-listing', handler)
+    return () => window.removeEventListener('re-open-listing', handler)
+  }, [])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
     const urlId = new URL(window.location.href).searchParams.get('id')
@@ -381,7 +393,7 @@ export default function SearchPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        {view === "detail" && sel ? <Detail p={sel} onBack={() => { const u = new URL(window.location.href); if (u.searchParams.has('id')) { u.searchParams.delete('id'); window.history.replaceState({}, '', u.toString()) } if (window.history.length > 1 && document.referrer && !document.referrer.includes('/search')) { window.history.back() } else { setView('search') } }} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
+        {view === "detail" && sel ? <Detail p={sel} onBack={() => { const cameFromElsewhere = document.referrer && !document.referrer.includes('/search'); const u = new URL(window.location.href); if (u.searchParams.has('id')) { u.searchParams.delete('id'); window.history.replaceState({}, '', u.toString()) } if (cameFromElsewhere && window.history.length > 1) { window.history.back() } else { setView('search'); window.scrollTo({ top: 0, behavior: 'smooth' }) } }} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
           <>
             {/* Hero search block */}
             <div className="bg-gradient-to-br from-brand to-[#2c4f7c] rounded-3xl p-6 sm:p-8 mb-6 text-white">

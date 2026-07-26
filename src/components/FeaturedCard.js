@@ -1,10 +1,21 @@
 'use client'
 import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 
 // One card design for every featured slot — navy banner top, white body
 export default function FeaturedCard({ item, size = 'md' }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const isDoctor = item._kind === 'doctor'
   const href = isDoctor ? `/doctors/${item.id}` : `/search?id=${item.id}`
+  const alreadyOnSearch = pathname === '/search'
+  const openIt = (e) => {
+    if (isDoctor) return  // let the Link do its thing
+    e.preventDefault()
+    // Update URL + fire a custom event so the Find Care page can react without a full remount
+    const u = new URL(window.location.href); u.searchParams.set('id', String(item.id)); window.history.pushState({}, '', u.toString())
+    window.dispatchEvent(new CustomEvent('re-open-listing', { detail: { id: item.id } }))
+  }
   const specialty = (isDoctor ? item.specialty : item.type) || item.category || 'Provider'
   const category = item.category || (isDoctor ? 'Specialist' : 'Clinic')
 
@@ -13,7 +24,7 @@ export default function FeaturedCard({ item, size = 'md' }) {
     : { w: 'w-full', banner: 'py-3 px-4', title: 'text-base', body: 'p-4', min: 'min-h-[200px]' }
 
   return (
-    <Link href={href} className={`${dims.w} bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 hover:border-brand/40 transition group ${dims.min} flex flex-col`}>
+    <Link href={href} onClick={alreadyOnSearch ? openIt : undefined} className={`${dims.w} bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 hover:border-brand/40 transition group ${dims.min} flex flex-col`}>
       <div className={`bg-gradient-to-r from-brand to-[#2c4f7c] ${dims.banner} flex items-center justify-between gap-2`}>
         <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/95 truncate">{specialty}</span>
         <span className="text-[9px] font-bold text-amber-300 bg-white/10 border border-white/25 px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">Featured</span>
