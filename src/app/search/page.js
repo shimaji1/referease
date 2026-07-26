@@ -222,6 +222,19 @@ export default function SearchPage() {
 
   useEffect(() => { try { const s = localStorage.getItem("re-favs"); if (s) setFavs(JSON.parse(s)) } catch {} }, [])
   useEffect(() => { if (!loc && typeof window !== 'undefined' && !localStorage.getItem('re-loc-asked')) { try { localStorage.setItem('re-loc-asked', '1') } catch {}; requestGeo() } }, [loc, requestGeo])
+
+  // If URL has ?id=NNN (e.g. arriving from a featured card), open that provider directly
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const urlId = new URL(window.location.href).searchParams.get('id')
+    if (!urlId || !supabase) return
+    let alive = true
+    supabase.from('providers').select('*').eq('id', urlId).single().then(({ data }) => {
+      if (alive && data) { setSel(data); setView('detail') }
+    })
+    return () => { alive = false }
+  }, [])
+
   const saveFavs = useCallback(ids => { setFavs(ids); try { localStorage.setItem("re-favs", JSON.stringify(ids)) } catch {} }, [])
   const toggleFav = useCallback(id => saveFavs(favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id]), [favs, saveFavs])
 
@@ -368,7 +381,7 @@ export default function SearchPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        {view === "detail" && sel ? <Detail p={sel} onBack={() => setView("search")} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
+        {view === "detail" && sel ? <Detail p={sel} onBack={() => { const u = new URL(window.location.href); if (u.searchParams.has('id')) { u.searchParams.delete('id'); window.history.replaceState({}, '', u.toString()) } if (window.history.length > 1 && document.referrer && !document.referrer.includes('/search')) { window.history.back() } else { setView('search') } }} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
           <>
             {/* Hero search block */}
             <div className="bg-gradient-to-br from-brand to-[#2c4f7c] rounded-3xl p-6 sm:p-8 mb-6 text-white">

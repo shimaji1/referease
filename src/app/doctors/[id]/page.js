@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import ProfileView from '@/components/ProfileView'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
@@ -70,7 +71,7 @@ export default function DoctorPage() {
   if (missing || !doc) return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 text-gray-500 text-sm">
       <p>This doctor’s profile isn’t available.</p>
-      <Link href="/search" className="text-brand font-medium hover:underline">← Back to search</Link>
+      <button onClick={() => router.back()} className="text-brand font-medium hover:underline">← Back</button>
     </div>
   )
 
@@ -83,7 +84,7 @@ export default function DoctorPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        <Link href="/search" className="text-sm text-brand font-semibold mb-4 hover:underline inline-block">← Back to search</Link>
+        <button onClick={() => router.back()} className="text-sm text-brand font-semibold mb-4 hover:underline inline-block">← Back</button>
         <div className="mt-4" />
         <ProfileView
           name={doc.name}

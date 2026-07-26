@@ -524,7 +524,7 @@ export default function AdminPage() {
           <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#ffffff", color:tab==="claims"?"#fff":"#64748b", border:"1px solid " + (tab==="claims"?"#d97706":"#e2e8f0"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
           <button onClick={() => { setTab("dupes"); if (dupGroups.length === 0) scanDupes() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="dupes"?"#dc2626":"#ffffff", color:tab==="dupes"?"#fff":"#64748b", border:"1px solid " + (tab==="dupes"?"#dc2626":"#e2e8f0") }}>Duplicates</button>
           <button onClick={() => { setTab("site"); if (!siteP) loadSite() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="site"?"#0891b2":"#ffffff", color:tab==="site"?"#fff":"#64748b", border:"1px solid " + (tab==="site"?"#0891b2":"#e2e8f0") }}>Site</button>
-          <button onClick={() => { setTab("newprov"); setEditing(null); setEditingDoc(null) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="newprov"?"#059669":"#ffffff", color:tab==="newprov"?"#fff":"#64748b", border:"1px solid " + (tab==="newprov"?"#059669":"#e2e8f0") }}>+ Add Provider</button>
+          <button onClick={() => { setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]); setTab("edit") }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit" && !editing?"#059669":"#ffffff", color:tab==="edit" && !editing?"#fff":"#64748b", border:"1px solid " + (tab==="edit" && !editing?"#059669":"#e2e8f0") }}>+ Add Provider</button>
           <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#ffffff", color:"#64748b", border:"1px solid #e2e8f0", textDecoration:"none" }}>← Site</a>
           <button onClick={logout} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Log out</button>
         </div>
@@ -848,26 +848,6 @@ export default function AdminPage() {
             <div style={{ display:"flex", gap:"10px", marginTop:"20px" }}>
               <button onClick={saveDoctor} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#7c3aed", color:"#fff" }}>{editingDoc ? 'Save Changes' : 'Add Doctor'}</button>
               <button onClick={() => { setTab("list"); setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]) }} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#e2e8f0", color:"#64748b" }}>Cancel</button>
-            </div>
-          </div>
-        )}
-        {tab === "newprov" && (
-          <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"12px", padding:"24px" }}>
-            <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>Add Provider</h3>
-            <p style={{ margin:"0 0 18px", fontSize:"12px", color:"#64748b" }}>Pick what they are — the category becomes their badge and opens the right form. Everything is editable after.</p>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(160px, 1fr))", gap:"10px" }}>
-              {CATS.map(c => {
-                const isDoc = ['Family Medicine','Specialist'].includes(c)
-                return (
-                  <button key={c} onClick={() => {
-                    if (isDoc) { setEditingDoc(null); setDocForm({ ...emptyDoc(), category: c }); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]); setClinicQuery(''); setClinicResults([]); setTab("doctor") }
-                    else { setEditing(null); setForm({ ...empty(), category: c }); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]); setTab("edit") }
-                  }} style={{ all:"unset", cursor:"pointer", textAlign:"center", padding:"18px 10px", borderRadius:"10px", border:"1px solid #e2e8f0", background:"#f8fafc", fontSize:"13px", fontWeight:600, color:"#111827" }}>
-                    {c}
-                    <div style={{ fontSize:"10px", fontWeight:400, color:"#64748b", marginTop:"4px" }}>{isDoc ? 'Individual profile' : 'Facility listing'}</div>
-                  </button>
-                )
-              })}
             </div>
           </div>
         )}
