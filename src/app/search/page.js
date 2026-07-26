@@ -173,6 +173,48 @@ function Detail({ p, onBack, isFav, onFav }) {
 }
 
 
+
+function SponsoredSlot({ category, slotIndex, loc }) {
+  const [item, setItem] = useState(null)
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      if (!supabase) return
+      let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng').eq('data_status', 'complete').eq('featured', true)
+      if (category) q = q.eq('category', category)
+      const { data } = await q.range(0, 40)
+      if (!alive || !data || data.length === 0) return
+      let sorted = data
+      if (loc?.lat && loc?.lng) {
+        sorted = data.map(x => ({ ...x, _d: (x.lat && x.lng) ? distKm(loc.lat, loc.lng, x.lat, x.lng) : 9999 })).sort((a, b) => a._d - b._d)
+      }
+      // Rotate by slot index so different sponsored spots on the page pick different providers
+      const pick = sorted[slotIndex % sorted.length]
+      setItem(pick)
+    }
+    load()
+    return () => { alive = false }
+  }, [category, slotIndex, loc?.lat, loc?.lng])
+  if (!item) return null
+  return (
+    <div className="bg-amber-50/40 border border-amber-200 rounded-xl p-4 cursor-pointer hover:border-amber-400 transition relative" onClick={() => { window.location.href = `/search?id=${item.id}` }}>
+      <span className="absolute top-3 right-3 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full uppercase tracking-wider">Sponsored</span>
+      <div className="pr-20">
+        <h3 className="font-semibold text-gray-900 text-base leading-snug">{item.name}</h3>
+        <p className="text-sm text-brand/80 font-medium mt-0.5">{item.type || item.category}</p>
+        <div className="flex flex-wrap gap-1.5 mt-2 items-center">
+          {item.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+          {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
+          {item.accepting_referrals === false && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
+          {item.accepting_referrals == null && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Unknown</span>}
+          {item.rating && <span className="text-[10px] font-semibold text-amber-500">★ {Number(item.rating).toFixed(1)}</span>}
+          {item.address && <span className="text-xs text-gray-500">📍 {item.address}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function SearchPage() {
   const [providers, setProviders] = useState([])
   const [doctors, setDoctors] = useState([])
@@ -207,8 +249,8 @@ export default function SearchPage() {
       if (!supabase) { setLoading(false); return }
       try {
         const [prov, docs, specs] = await Promise.all([
-          supabase.from("providers").select("*").eq("data_status", "complete").order("name"),
-          supabase.from("physicians").select("id, name, specialty, specialty_code, gender, category, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active"),
+          supabase.from("providers").select("*").eq("data_status", "complete").order("name").range(0, 9999),
+          supabase.from("physicians").select("id, name, specialty, specialty_code, gender, category, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active").range(0, 9999),
           supabase.from("specialties").select("snomed_code, category, name"),
         ])
         if (prov.data) setProviders(prov.data)
@@ -302,15 +344,7 @@ export default function SearchPage() {
     if (mw) r = r.filter(p => p.wait_weeks !== null && p.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(p => p.rating && Number(p.rating) >= parseFloat(mr))
     if (md) r = r.filter(p => distKm(CENTER.lat,CENTER.lng,p.lat,p.lng) <= parseFloat(md))
-    if (search.trim()) { 
-      const q = search.toLowerCase()
-      const before = r.length
-      r = r.filter(p => (p.name||"").toLowerCase().includes(q) || (p.type||"").toLowerCase().includes(q) || (p.sub_specialty||"").toLowerCase().includes(q) || (p.address||"").toLowerCase().includes(q) || (p.services||[]).some(s => (s||"").toLowerCase().includes(q)) || (p.doctors||[]).some(d => (d||"").toLowerCase().includes(q)))
-      if (typeof window !== 'undefined') {
-        window.__searchDebug = { q, before, after: r.length, providers_total: providers.length, sample_names: providers.slice(0, 3).map(p => p.name), matches_in_full: providers.filter(p => (p.name||"").toLowerCase().includes(q)).map(p => ({ id: p.id, name: p.name, category: p.category, data_status: p.data_status })) }
-        console.log('[re-search]', window.__searchDebug)
-      }
-    }
+    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(p => (p.name||"").toLowerCase().includes(q) || (p.type||"").toLowerCase().includes(q) || (p.sub_specialty||"").toLowerCase().includes(q) || (p.address||"").toLowerCase().includes(q) || (p.services||[]).some(s => (s||"").toLowerCase().includes(q)) || (p.doctors||[]).some(d => (d||"").toLowerCase().includes(q))) }
     if (sort==="name") r=[...r].sort((a,b)=>a.name.localeCompare(b.name))
     if (sort==="rating") r=[...r].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))
     if (sort==="wait") r=[...r].sort((a,b)=>(a.wait_weeks??999)-(b.wait_weeks??999))
@@ -496,13 +530,6 @@ export default function SearchPage() {
                   </select>
                 </div>
 
-                {/* Featured top row (3 big cards) */}
-                {!showFavs && (
-                  <div className="mb-6">
-                    <FeaturedStrip layout="stack-3" category={cat === 'all' ? null : cat} title={cat === 'all' ? 'Featured providers near you' : `Featured ${CATEGORIES.find(c => c.key === cat)?.label || cat}`} subtitle="Sponsored — geographic rotation." loc={loc} fallbackToNearest sectionKey={10} />
-                  </div>
-                )}
-
                 {showFavs && favs.length === 0 && favDocs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
 
                 <div className="flex flex-col gap-2.5">
@@ -514,8 +541,26 @@ export default function SearchPage() {
                       <button onClick={() => { setSearch(''); setSpec(''); setSvc(''); setLang(''); setAcc(false); setOn(false); setWe(false); setEv(false); setCat('all'); setPage(1) }} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">Clear all filters</button>
                     </div>
                   )}
-                  {pagedDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />)}
-                  {pagedProviders.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
+                  {(() => {
+                    // Interleave sponsored featured card every 8th position
+                    const rows = []
+                    const merged = [
+                      ...pagedDoctors.map(d => ({ kind: 'doc', data: d })),
+                      ...pagedProviders.map(p => ({ kind: 'prov', data: p })),
+                    ]
+                    merged.forEach((row, idx) => {
+                      rows.push(row.kind === 'doc'
+                        ? <DoctorCard key={'doc-' + row.data.id} d={row.data} isFav={favDocs.includes(row.data.id)} onFav={toggleFavDoc} />
+                        : <Card key={row.data.id} p={row.data} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(row.data.id)} onFav={toggleFav} />)
+                      // Every 8 organic results, insert a sponsored slot (skip if there are too few results total)
+                      if (!showFavs && merged.length >= 8 && (idx + 1) % 8 === 0 && idx < merged.length - 1) {
+                        rows.push(
+                          <SponsoredSlot key={`spon-${idx}`} category={cat === 'all' ? null : cat} slotIndex={idx} loc={loc} />
+                        )
+                      }
+                    })
+                    return rows
+                  })()}
                 </div>
 
                 {/* Pagination */}
