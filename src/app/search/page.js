@@ -334,7 +334,13 @@ export default function SearchPage() {
         const { data } = await supabase.from('physicians').select('id, name, specialty, category, accepting_referrals, verified, wait_weeks').eq('status', 'active').eq('featured', true).limit(20)
         if (data) data.forEach(x => { if (!results.some(r => r._kind === 'doctor' && r.id === x.id)) results.push({ ...x, _kind: 'doctor', type: x.specialty }) })
       }
-      if (alive) setSponsorPool(results.slice(0, 4))
+      if (alive) {
+        if (typeof window !== 'undefined') {
+          window.__sponsorDebug = { cat, results, resultsCount: results.length }
+          console.log('[re-sponsor]', { cat, count: results.length, results })
+        }
+        setSponsorPool(results.slice(0, 4))
+      }
     }
     load()
     return () => { alive = false }
