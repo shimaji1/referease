@@ -245,17 +245,29 @@ export default function SearchPage() {
   const [showF, setShowF] = useState(false)
 
   useEffect(() => {
+    async function fetchAll(builder, pageSize = 1000, cap = 20000) {
+      const out = []
+      let from = 0
+      while (from < cap) {
+        const { data, error } = await builder().range(from, from + pageSize - 1)
+        if (error || !data || data.length === 0) break
+        out.push(...data)
+        if (data.length < pageSize) break
+        from += pageSize
+      }
+      return out
+    }
     async function load() {
       if (!supabase) { setLoading(false); return }
       try {
-        const [prov, docs, specs] = await Promise.all([
-          supabase.from("providers").select("*").eq("data_status", "complete").order("name").range(0, 9999),
-          supabase.from("physicians").select("id, name, specialty, specialty_code, gender, category, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active").range(0, 9999),
+        const [provAll, docsAll, specsRes] = await Promise.all([
+          fetchAll(() => supabase.from("providers").select("*").eq("data_status", "complete").order("name")),
+          fetchAll(() => supabase.from("physicians").select("id, name, specialty, specialty_code, gender, category, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active")),
           supabase.from("specialties").select("snomed_code, category, name"),
         ])
-        if (prov.data) setProviders(prov.data)
-        if (docs.data) setDoctors(docs.data)
-        if (specs.data) setSpecialties(specs.data)
+        setProviders(provAll)
+        setDoctors(docsAll)
+        if (specsRes.data) setSpecialties(specsRes.data)
       } catch {}
       setLoading(false)
     }
