@@ -302,7 +302,15 @@ export default function SearchPage() {
     if (mw) r = r.filter(p => p.wait_weeks !== null && p.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(p => p.rating && Number(p.rating) >= parseFloat(mr))
     if (md) r = r.filter(p => distKm(CENTER.lat,CENTER.lng,p.lat,p.lng) <= parseFloat(md))
-    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(p => (p.name||"").toLowerCase().includes(q) || (p.type||"").toLowerCase().includes(q) || (p.sub_specialty||"").toLowerCase().includes(q) || (p.address||"").toLowerCase().includes(q) || (p.services||[]).some(s => (s||"").toLowerCase().includes(q)) || (p.doctors||[]).some(d => (d||"").toLowerCase().includes(q))) }
+    if (search.trim()) { 
+      const q = search.toLowerCase()
+      const before = r.length
+      r = r.filter(p => (p.name||"").toLowerCase().includes(q) || (p.type||"").toLowerCase().includes(q) || (p.sub_specialty||"").toLowerCase().includes(q) || (p.address||"").toLowerCase().includes(q) || (p.services||[]).some(s => (s||"").toLowerCase().includes(q)) || (p.doctors||[]).some(d => (d||"").toLowerCase().includes(q)))
+      if (typeof window !== 'undefined') {
+        window.__searchDebug = { q, before, after: r.length, providers_total: providers.length, sample_names: providers.slice(0, 3).map(p => p.name), matches_in_full: providers.filter(p => (p.name||"").toLowerCase().includes(q)).map(p => ({ id: p.id, name: p.name, category: p.category, data_status: p.data_status })) }
+        console.log('[re-search]', window.__searchDebug)
+      }
+    }
     if (sort==="name") r=[...r].sort((a,b)=>a.name.localeCompare(b.name))
     if (sort==="rating") r=[...r].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))
     if (sort==="wait") r=[...r].sort((a,b)=>(a.wait_weeks??999)-(b.wait_weeks??999))
