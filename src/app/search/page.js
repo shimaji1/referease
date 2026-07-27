@@ -435,7 +435,25 @@ export default function SearchPage() {
     if (mw) r = r.filter(p => p.wait_weeks !== null && p.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(p => p.rating && Number(p.rating) >= parseFloat(mr))
     if (md) r = r.filter(p => distKm(CENTER.lat,CENTER.lng,p.lat,p.lng) <= parseFloat(md))
-    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(p => (p.name||"").toLowerCase().includes(q) || (p.type||"").toLowerCase().includes(q) || (p.sub_specialty||"").toLowerCase().includes(q) || (p.address||"").toLowerCase().includes(q) || (p.services||[]).some(s => (s||"").toLowerCase().includes(q)) || (p.doctors||[]).some(d => (d||"").toLowerCase().includes(q))) }
+    if (search.trim()) {
+      const STOPWORDS = new Set(['the','and','a','an','of','in','at','on','for','to','with','by','or'])
+      const tokens = search.toLowerCase().split(/\s+/).filter(t => t.length >= 2 && !STOPWORDS.has(t))
+      if (tokens.length > 0) {
+        r = r.filter(p => {
+          // Build a giant haystack from every text-bearing field on the listing
+          const hay = [
+            p.name, p.type, p.sub_specialty, p.category, p.address, p.city, p.province,
+            p.email, p.gender, p.criteria, p.requirements, p.notes,
+            ...(p.services || []), ...(p.doctors || []), ...(p.languages || []),
+            ...(p.referral_types || []),
+          ].filter(Boolean).join(' ').toLowerCase()
+          // Every token must be present (AND). Try full phrase first as a shortcut.
+          const phrase = search.toLowerCase().trim()
+          if (hay.includes(phrase)) return true
+          return tokens.every(t => hay.includes(t))
+        })
+      }
+    }
     if (sort==="name") r=[...r].sort((a,b)=>a.name.localeCompare(b.name))
     if (sort==="rating") r=[...r].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))
     if (sort==="wait") r=[...r].sort((a,b)=>(a.wait_weeks??999)-(b.wait_weeks??999))
@@ -478,7 +496,22 @@ export default function SearchPage() {
     if (mw) r = r.filter(d => d.wait_weeks !== null && d.wait_weeks !== undefined && d.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(d => d.rating && Number(d.rating) >= parseFloat(mr))
     if (md) r = r.filter(d => d.lat && d.lng && distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) <= parseFloat(md))
-    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(d => (d.name || "").toLowerCase().includes(q) || (d.specialty || "").toLowerCase().includes(q) || (d.clinicName || "").toLowerCase().includes(q)) }
+    if (search.trim()) {
+      const STOPWORDS = new Set(['the','and','a','an','of','in','at','on','for','to','with','by','or'])
+      const tokens = search.toLowerCase().split(/\s+/).filter(t => t.length >= 2 && !STOPWORDS.has(t))
+      if (tokens.length > 0) {
+        r = r.filter(d => {
+          const hay = [
+            d.name, d.specialty, d.sub_specialty, d.category, d.clinicName, d.clinicAddress,
+            d.gender, d.criteria, d.requirements, d.notes,
+            ...(d.languages || []), ...(d.referral_types || []), ...(d.services || []),
+          ].filter(Boolean).join(' ').toLowerCase()
+          const phrase = search.toLowerCase().trim()
+          if (hay.includes(phrase)) return true
+          return tokens.every(t => hay.includes(t))
+        })
+      }
+    }
     const far = (d) => (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) : 99999
     if (sort === "name") r = [...r].sort((a,b) => a.name.localeCompare(b.name))
     else if (sort === "wait") r = [...r].sort((a,b) => (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999))
@@ -521,7 +554,7 @@ export default function SearchPage() {
               <p className="text-sm text-white/70 mb-5">Search verified providers accepting referrals across Ontario.</p>
               <div className="flex flex-col md:flex-row gap-2 bg-white/10 backdrop-blur border border-white/15 rounded-2xl p-2">
                 <div className="relative flex-1">
-                  <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Specialty, doctor, service, or clinic…" className="w-full pl-11 pr-4 h-12 text-sm bg-white rounded-xl text-gray-900 outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400" />
+                  <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Try: general surgeon markham female" className="w-full pl-11 pr-4 h-12 text-sm bg-white rounded-xl text-gray-900 outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400" />
                   <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
                 <div className="relative md:w-64">
