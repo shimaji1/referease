@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import FormsManager from "@/components/FormsManager"
+import AdminSidebar from '@/components/AdminSidebar'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -197,11 +198,12 @@ export default function AdminPage() {
     const norm = x => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '')
     const normPhone = x => String(x || '').replace(/\D/g, '').slice(-10)
     const byKey = {}
+    // Group by normalized name ONLY — same phone/address is fine (clinics with multiple doctors)
     all.forEach(pr => {
-      const keys = []
-      const np = normPhone(pr.phone); if (np.length === 10) keys.push('p:' + np)
-      const nn = norm(pr.name); if (nn.length > 3) keys.push('n:' + nn)
-      keys.forEach(k => { if (!byKey[k]) byKey[k] = []; byKey[k].push(pr) })
+      const nn = norm(pr.name)
+      if (nn.length < 4) return
+      if (!byKey[nn]) byKey[nn] = []
+      byKey[nn].push(pr)
     })
     const seen = new Set(); const out = []
     Object.values(byKey).forEach(arr => {
@@ -516,22 +518,27 @@ export default function AdminPage() {
   const statusColor = { complete: "#059669", partial: "#d97706", incomplete: "#dc2626" }
 
   return (
-    <div style={{ fontFamily:"Inter, sans-serif", background:"#f8fafc", color:"#111827", minHeight:"100vh" }}>
-      <div style={{ padding:"14px 20px", borderBottom:"1px solid #e2e8f0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <h1 style={{ margin:0, fontSize:"18px", fontWeight:700 }}>🔗 Refer<span style={{ color:"#2563eb" }}>Easy</span> <span style={{ color:"#64748b", fontWeight:400 }}>Admin</span></h1>
-        <div style={{ display:"flex", gap:"8px" }}>
-          <button onClick={() => { setTab("list"); setEditing(null); setForm(empty()) }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="list"?"#3b82f6":"#ffffff", color:tab==="list"?"#fff":"#64748b", border:"1px solid " + (tab==="list"?"#3b82f6":"#e2e8f0") }}>Providers</button>
-          <button onClick={() => setTab("claims")} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="claims"?"#d97706":"#ffffff", color:tab==="claims"?"#fff":"#64748b", border:"1px solid " + (tab==="claims"?"#d97706":"#e2e8f0"), display:"flex", alignItems:"center", gap:"4px" }}>Claims {pendingCount > 0 && <span style={{ background:"#dc2626", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{pendingCount}</span>}</button>
-          <button onClick={() => { setTab("dupes"); if (dupGroups.length === 0) scanDupes() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="dupes"?"#dc2626":"#ffffff", color:tab==="dupes"?"#fff":"#64748b", border:"1px solid " + (tab==="dupes"?"#dc2626":"#e2e8f0") }}>Duplicates</button>
-          <button onClick={() => { setTab("site"); if (!siteP) loadSite() }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="site"?"#0891b2":"#ffffff", color:tab==="site"?"#fff":"#64748b", border:"1px solid " + (tab==="site"?"#0891b2":"#e2e8f0") }}>Site</button>
-          <button onClick={() => { setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]); setTab("edit") }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:tab==="edit" && !editing?"#059669":"#ffffff", color:tab==="edit" && !editing?"#fff":"#64748b", border:"1px solid " + (tab==="edit" && !editing?"#059669":"#e2e8f0") }}>+ Add Provider</button>
-          <a href="/" style={{ padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#ffffff", color:"#64748b", border:"1px solid #e2e8f0", textDecoration:"none" }}>← Site</a>
-          <button onClick={logout} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Log out</button>
+    <div style={{ fontFamily:"Inter, sans-serif", background:"#f8fafc", color:"#111827", minHeight:"100vh", display:"flex" }}>
+      <AdminSidebar tab={tab} setTab={(t) => {
+        if (t === 'list') { setTab('list'); setEditing(null); setForm(empty()) }
+        else if (t === 'edit') { setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]); setTab('edit') }
+        else if (t === 'dupes') { setTab('dupes'); if (dupGroups.length === 0) scanDupes() }
+        else if (t === 'site') { setTab('site'); if (!siteP) loadSite() }
+        else if (t === 'invites') { setTab('invites') }
+        else if (t === 'templates') { setTab('templates') }
+        else { setTab(t) }
+      }} counts={{ providers: providers.length, dupes: dupGroups.length, claims: pendingCount }} />
+      <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column" }}>
+      <div style={{ padding:"14px 24px", borderBottom:"1px solid #e2e8f0", display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff" }}>
+        <h1 style={{ margin:0, fontSize:"16px", fontWeight:600, color:"#334155" }}>Admin</h1>
+        <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
+          <a href="/" style={{ padding:"6px 14px", borderRadius:"8px", fontSize:"12px", fontWeight:600, background:"#ffffff", color:"#64748b", border:"1px solid #e2e8f0", textDecoration:"none" }}>← View site</a>
+          <button onClick={logout} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"8px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Log out</button>
         </div>
       </div>
-      {msg && <div style={{ padding:"8px 20px", background:"#05966920", color:"#059669", fontSize:"12px", fontWeight:600 }}>{msg}</div>}
+      {msg && <div style={{ padding:"10px 24px", background:"#05966915", color:"#059669", fontSize:"12px", fontWeight:600, borderBottom:"1px solid #d1fae5" }}>{msg}</div>}
 
-      <div style={{ maxWidth:"1100px", margin:"0 auto", padding:"16px 20px" }}>
+      <div style={{ maxWidth:"1180px", margin:"0 auto", padding:"20px 24px", width:"100%", boxSizing:"border-box" }}>
         {/* Stats */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"10px", marginBottom:"16px" }}>
           {[
@@ -909,6 +916,8 @@ export default function AdminPage() {
             )}
           </div>
         )}
+        {tab === "invites" && <InvitesTab providers={providers} setMsg={setMsg} />}
+        {tab === "templates" && <TemplatesTab setMsg={setMsg} />}
         {tab === "claims" && (
           <>
             <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"12px" }}>Listing Claims</h2>
@@ -955,6 +964,175 @@ export default function AdminPage() {
           </>
         )}
       </div>
+      </div>
     </div>
   )
 }
+
+
+// ─── Invite Campaigns tab ───
+function InvitesTab({ providers, setMsg }) {
+  const [selectedTemplate, setSelectedTemplate] = useState('claim')
+  const [customMessage, setCustomMessage] = useState('')
+  const [filter, setFilter] = useState('unclaimed')  // all | unclaimed | uninvited | invited
+  const [selected, setSelected] = useState(new Set())
+  const [sending, setSending] = useState(false)
+
+  const filtered = providers.filter(p => {
+    if (!p.email) return false
+    if (filter === 'unclaimed') return !p.claimed_at
+    if (filter === 'uninvited') return !p.invited_at
+    if (filter === 'invited') return !!p.invited_at
+    return true
+  })
+  const stats = {
+    total: providers.filter(p => p.email).length,
+    invited: providers.filter(p => p.email && p.invited_at).length,
+    claimed: providers.filter(p => p.email && p.claimed_at).length,
+  }
+  const rate = stats.invited > 0 ? Math.round((stats.claimed / stats.invited) * 100) : 0
+
+  const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)))
+  const toggleOne = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const sendCampaign = async () => {
+    if (selected.size === 0) { setMsg('Select at least one recipient.'); return }
+    setSending(true)
+    const items = filtered.filter(p => selected.has(p.id)).map(p => ({ provider_id: p.id, email: p.email, name: p.name }))
+    const r = await fetch('/api/outreach', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ items, template: selectedTemplate, message: customMessage })
+    }).then(r => r.json()).catch(e => ({ error: e.message }))
+    setSending(false)
+    setMsg(r.error ? ('Send failed: ' + r.error) : ('Sent ' + (r.sent || 0) + ' / ' + items.length + ' invites' + (r.errors && r.errors.length ? ' (' + r.errors.length + ' failed)' : '')))
+    setSelected(new Set())
+  }
+
+  const card = { background:'#ffffff', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'20px' }
+  const stat = { background:'#ffffff', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'16px', flex:1 }
+
+  return (
+    <>
+      <h2 style={{ fontSize:"18px", fontWeight:700, marginBottom:"6px" }}>Invite campaigns</h2>
+      <p style={{ fontSize:"13px", color:"#64748b", marginBottom:"20px" }}>Reach unclaimed providers to invite them to claim their listing. Tracked automatically.</p>
+
+      <div style={{ display:"flex", gap:"12px", marginBottom:"20px" }}>
+        <div style={stat}><div style={{ fontSize:"11px", color:"#64748b", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.05em" }}>Reachable</div><div style={{ fontSize:"24px", fontWeight:700, marginTop:"4px" }}>{stats.total}</div><div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"2px" }}>have email on file</div></div>
+        <div style={stat}><div style={{ fontSize:"11px", color:"#64748b", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.05em" }}>Invited</div><div style={{ fontSize:"24px", fontWeight:700, marginTop:"4px" }}>{stats.invited}</div><div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"2px" }}>{stats.total > 0 ? Math.round(stats.invited / stats.total * 100) : 0}% of reachable</div></div>
+        <div style={stat}><div style={{ fontSize:"11px", color:"#64748b", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.05em" }}>Claimed</div><div style={{ fontSize:"24px", fontWeight:700, marginTop:"4px", color:"#059669" }}>{stats.claimed}</div><div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"2px" }}>{rate}% conversion</div></div>
+      </div>
+
+      <div style={card}>
+        <h3 style={{ fontSize:"14px", fontWeight:700, marginBottom:"14px" }}>Compose campaign</h3>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px", marginBottom:"14px" }}>
+          <div>
+            <label style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em", display:"block", marginBottom:"6px" }}>Template</label>
+            <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} style={{ width:"100%", padding:"9px 12px", border:"1px solid #cbd5e1", borderRadius:"8px", fontSize:"13px" }}>
+              <option value="claim">Claim your listing (default)</option>
+              <option value="verified">Get Verified (existing claimers)</option>
+              <option value="featured">Upgrade to Featured</option>
+              <option value="cold">Cold outreach (not yet listed)</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em", display:"block", marginBottom:"6px" }}>Filter recipients</label>
+            <select value={filter} onChange={e => { setFilter(e.target.value); setSelected(new Set()) }} style={{ width:"100%", padding:"9px 12px", border:"1px solid #cbd5e1", borderRadius:"8px", fontSize:"13px" }}>
+              <option value="unclaimed">Unclaimed only</option>
+              <option value="uninvited">Never invited</option>
+              <option value="invited">Previously invited</option>
+              <option value="all">All with email</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em", display:"block", marginBottom:"6px" }}>Optional custom message (added to template)</label>
+          <textarea value={customMessage} onChange={e => setCustomMessage(e.target.value)} rows={3} style={{ width:"100%", padding:"9px 12px", border:"1px solid #cbd5e1", borderRadius:"8px", fontSize:"13px", resize:"vertical" }} placeholder="Anything specific about this campaign, e.g. a season, event, or focus area." />
+        </div>
+        <div style={{ marginTop:"14px", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px", background:"#f8fafc", borderRadius:"8px" }}>
+          <span style={{ fontSize:"13px", color:"#475569" }}><strong>{selected.size}</strong> of {filtered.length} recipients selected</span>
+          <button onClick={sendCampaign} disabled={sending || selected.size === 0} style={{ all:"unset", cursor: sending || selected.size === 0 ? "not-allowed" : "pointer", padding:"9px 20px", background: sending || selected.size === 0 ? "#94a3b8" : "#1e3a5f", color:"#fff", borderRadius:"8px", fontSize:"13px", fontWeight:700 }}>{sending ? 'Sending…' : `Send to ${selected.size || 'none'}`}</button>
+        </div>
+      </div>
+
+      <div style={{ ...card, marginTop:"14px" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"12px" }}>
+          <h3 style={{ fontSize:"14px", fontWeight:700, margin:0 }}>Recipients ({filtered.length})</h3>
+          <button onClick={toggleAll} style={{ all:"unset", cursor:"pointer", fontSize:"12px", fontWeight:600, color:"#1e3a5f" }}>{selected.size === filtered.length && filtered.length > 0 ? "Deselect all" : "Select all"}</button>
+        </div>
+        {filtered.length === 0 ? (
+          <div style={{ padding:"30px", textAlign:"center", color:"#94a3b8", fontSize:"13px" }}>No providers match this filter.</div>
+        ) : (
+          <div style={{ maxHeight:"420px", overflowY:"auto", border:"1px solid #f1f5f9", borderRadius:"8px" }}>
+            {filtered.slice(0, 500).map(p => (
+              <label key={p.id} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 14px", borderBottom:"1px solid #f1f5f9", cursor:"pointer", background: selected.has(p.id) ? "#eff6ff" : "transparent" }}>
+                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:"13px", fontWeight:600, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</div>
+                  <div style={{ fontSize:"11px", color:"#64748b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.email} · {p.category}</div>
+                </div>
+                {p.invited_at && <span style={{ fontSize:"10px", background:"#e0e7ff", color:"#4338ca", padding:"2px 8px", borderRadius:"999px", fontWeight:600 }}>Invited</span>}
+                {p.claimed_at && <span style={{ fontSize:"10px", background:"#d1fae5", color:"#065f46", padding:"2px 8px", borderRadius:"999px", fontWeight:600 }}>✓ Claimed</span>}
+              </label>
+            ))}
+            {filtered.length > 500 && <div style={{ padding:"12px", textAlign:"center", fontSize:"11px", color:"#94a3b8", fontStyle:"italic" }}>Showing first 500 of {filtered.length}. Refine filter to reach the rest.</div>}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+// ─── Email Templates preview tab ───
+function TemplatesTab({ setMsg }) {
+  const [active, setActive] = useState('claim')
+  const TEMPLATES = {
+    claim: {
+      name: 'Claim your listing',
+      subject: 'Your practice is on ReferEasy — claim your free listing',
+      description: 'For providers already in the directory but unclaimed. This is the workhorse invite.',
+    },
+    verified: {
+      name: 'Upgrade to Verified',
+      subject: "You're one step from Verified on ReferEasy",
+      description: 'For claimed providers who haven\'t upgraded. Emphasizes the trust badge.',
+    },
+    featured: {
+      name: 'Upgrade to Featured',
+      subject: 'Get top placement on Ontario\'s referral platform',
+      description: 'For Verified subscribers. Sells premium placement.',
+    },
+    cold: {
+      name: 'Cold outreach',
+      subject: 'Ontario physicians are using ReferEasy — join us',
+      description: 'For providers not yet in the directory at all. Bigger ask, more explanation.',
+    },
+  }
+
+  const card = { background:'#ffffff', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'20px' }
+
+  return (
+    <>
+      <h2 style={{ fontSize:"18px", fontWeight:700, marginBottom:"6px" }}>Email templates</h2>
+      <p style={{ fontSize:"13px", color:"#64748b", marginBottom:"20px" }}>Preview what recipients will see. Editing templates in-browser is planned for Session 3.</p>
+
+      <div style={{ display:"grid", gridTemplateColumns:"260px 1fr", gap:"16px" }}>
+        <div>
+          {Object.entries(TEMPLATES).map(([k, t]) => (
+            <button key={k} onClick={() => setActive(k)} style={{ all:"unset", cursor:"pointer", display:"block", width:"calc(100% - 16px)", padding:"12px 14px", marginBottom:"6px", borderRadius:"8px", background: active === k ? "#eff6ff" : "#ffffff", border:"1px solid " + (active === k ? "#1e3a5f" : "#e2e8f0"), borderLeft: active === k ? "3px solid #1e3a5f" : "1px solid #e2e8f0" }}>
+              <div style={{ fontSize:"13px", fontWeight:600, color: active === k ? "#1e3a5f" : "#334155" }}>{t.name}</div>
+              <div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"3px", lineHeight:1.4 }}>{t.description}</div>
+            </button>
+          ))}
+        </div>
+        <div style={card}>
+          <div style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em" }}>Subject line</div>
+          <div style={{ fontSize:"14px", fontWeight:600, color:"#0f172a", marginTop:"6px", marginBottom:"18px", padding:"10px 14px", background:"#f8fafc", borderRadius:"8px", border:"1px solid #e2e8f0" }}>{TEMPLATES[active].subject}</div>
+          <div style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"6px" }}>Preview</div>
+          <iframe src={`/api/outreach/preview?template=${active}`} style={{ width:"100%", height:"600px", border:"1px solid #e2e8f0", borderRadius:"8px", background:"#f8fafc" }} title="Preview" />
+        </div>
+      </div>
+    </>
+  )
+}
+
+
