@@ -44,6 +44,7 @@ export default function DoctorPage() {
   const [missing, setMissing] = useState(false)
   const [forms, setForms] = useState([])
   const [isFav, setIsFav] = useState(false)
+  useEffect(() => { if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' }) }, [id])
   useEffect(() => { try { const s = JSON.parse(localStorage.getItem('re-favs-docs') || '[]'); setIsFav(s.includes(id)) } catch {} }, [id])
   const toggleFav = () => { try { const s = JSON.parse(localStorage.getItem('re-favs-docs') || '[]'); const next = s.includes(id) ? s.filter(x => x !== id) : [...s, id]; localStorage.setItem('re-favs-docs', JSON.stringify(next)); setIsFav(next.includes(id)) } catch {} }
 

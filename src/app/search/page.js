@@ -376,7 +376,7 @@ export default function SearchPage() {
     if (!urlId || !supabase) return
     let alive = true
     supabase.from('providers').select('*').eq('id', urlId).single().then(({ data }) => {
-      if (alive && data) { setSel(data); setView('detail') }
+      if (alive && data) { setSel(data); setView('detail'); window.scrollTo({ top: 0, behavior: 'auto' }) }
     })
     return () => { alive = false }
   }, [])
@@ -664,7 +664,7 @@ export default function SearchPage() {
                       const organicRows = merged.map((row, idx) =>
                         row.kind === 'doc'
                           ? <DoctorCard key={'doc-' + row.data.id} d={row.data} isFav={favDocs.includes(row.data.id)} onFav={toggleFavDoc} />
-                          : <Card key={row.data.id} p={row.data} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(row.data.id)} onFav={toggleFav} />
+                          : <Card key={row.data.id} p={row.data} onSelect={pr => { setSel(pr); setView("detail"); window.scrollTo({ top: 0, behavior: "auto" }) }} isFav={favs.includes(row.data.id)} onFav={toggleFav} />
                       )
                       if (showFavs) return organicRows
                       const pool = Array.isArray(sponsorPool) ? sponsorPool : []
@@ -678,7 +678,7 @@ export default function SearchPage() {
                       while (displayPos <= MAX_POS && (organicIdx < organicRows.length || sponsorIdx < pool.length)) {
                         if (SPONSOR_POSITIONS.includes(displayPos) && sponsorIdx < pool.length) {
                           const sp = pool[sponsorIdx]
-                          rows.push(<SponsoredCard key={`spon-${sp._kind}-${sp.id}-${displayPos}`} item={sp} onSelect={pr => { setSel(pr); setView("detail") }} />)
+                          rows.push(<SponsoredCard key={`spon-${sp._kind}-${sp.id}-${displayPos}`} item={sp} onSelect={pr => { setSel(pr); setView("detail"); window.scrollTo({ top: 0, behavior: "auto" }) }} />)
                           sponsorIdx++
                         } else if (organicIdx < organicRows.length) {
                           rows.push(organicRows[organicIdx])
@@ -694,7 +694,7 @@ export default function SearchPage() {
                       console.error('[re-render]', err)
                       return [
                         ...pagedDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />),
-                        ...pagedProviders.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />),
+                        ...pagedProviders.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail"); window.scrollTo({ top: 0, behavior: "auto" }) }} isFav={favs.includes(p.id)} onFav={toggleFav} />),
                       ]
                     }
                   })()}
