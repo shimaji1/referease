@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import TopNav from '@/components/TopNav'
 
 export const metadata = {
   title: 'About ReferEasy — Ontario\'s referral platform',
@@ -9,21 +10,8 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
-      <nav className="border-b border-gray-200 bg-white sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white font-bold text-sm">R</div>
-            <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
-          </Link>
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/search" className="text-gray-500 hover:text-brand transition">Find Care</Link>
-            <Link href="/pricing" className="text-gray-500 hover:text-brand transition">Pricing</Link>
-            <Link href="/login" className="text-brand font-semibold">Sign in</Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero */}
+      <TopNav />
+{/* Hero */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand mb-4">About us</p>
         <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6 leading-tight">

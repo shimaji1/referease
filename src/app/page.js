@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import FeaturedStrip from '@/components/FeaturedStrip'
 import useLocation from '@/hooks/useLocation'
+import TopNav from '@/components/TopNav'
 
 const IMG = {
   hero: '/img/hero.jpg',
@@ -70,23 +71,8 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
-      <nav className="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">R</span></div>
-            <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
-          </Link>
-          <div className="hidden sm:flex items-center gap-6">
-            <Link href="/search" className="text-sm font-medium text-gray-600 hover:text-brand transition">Find care</Link>
-            <Link href="/pricing" className="text-sm font-medium text-gray-600 hover:text-brand transition">Pricing</Link>
-            <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-brand transition">Sign in</Link>
-            <Link href="/signup" className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:bg-brand-dark transition">List your practice</Link>
-          </div>
-          <Link href="/search" className="sm:hidden px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg">Search</Link>
-        </div>
-      </nav>
-
-      {/* Hero — text + image */}
+      <TopNav />
+{/* Hero — text + image */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-16 sm:pt-20 sm:pb-24">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>

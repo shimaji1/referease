@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import TopNav from '@/components/TopNav'
 
 export default function BlogPostPage({ params }) {
   const [post, setPost] = useState(null)
@@ -27,17 +28,8 @@ export default function BlogPostPage({ params }) {
 
   return (
     <div className="min-h-screen bg-white">
-      <nav className="border-b border-gray-200 bg-white sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white font-bold text-sm">R</div>
-            <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
-          </Link>
-          <Link href="/blog" className="text-sm text-brand font-semibold hover:underline">← All posts</Link>
-        </div>
-      </nav>
-
-      <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <TopNav />
+<article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {post.cover_image && <img src={post.cover_image} alt={post.title} className="w-full rounded-2xl mb-8 aspect-video object-cover" />}
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand mb-4">Blog</p>
         <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight">{post.title}</h1>

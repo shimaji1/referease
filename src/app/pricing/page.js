@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import TopNav from '@/components/TopNav'
 
 const DEFAULTS = {
   tiers: [
@@ -23,21 +24,8 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <nav className="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">R</span></div>
-            <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
-          </Link>
-          <div className="flex items-center gap-6">
-            <Link href="/search" className="hidden sm:block text-sm font-medium text-gray-600 hover:text-brand transition">Find care</Link>
-            <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-brand transition">Sign in</Link>
-            <Link href="/signup" className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:bg-brand-dark transition">Get started</Link>
-          </div>
-        </div>
-      </nav>
-
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+      <TopNav />
+<section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
         <div className="text-center mb-14">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand mb-3">Pricing</p>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Simple plans for providers</h1>
@@ -73,13 +61,6 @@ export default function PricingPage() {
           <Link href="/search" className="inline-flex px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl hover:border-brand hover:text-brand transition text-sm">Start searching</Link>
         </div>
       </section>
-
-      <footer className="border-t border-gray-200 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="text-sm font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
-          <p className="text-xs text-gray-400">© 2026 ReferEasy · Ontario, Canada</p>
-        </div>
-      </footer>
-    </div>
+</div>
   )
 }
