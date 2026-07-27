@@ -135,6 +135,21 @@ function Detail({ p, onBack, isFav, onFav }) {
   }, [p?.id])
   return (
     <div className="animate-fade-in">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'MedicalOrganization',
+        name: p.name,
+        url: `https://www.refereasy.ca/search?id=${p.id}`,
+        description: p.type ? `${p.type}${p.category ? ' · ' + p.category : ''}` : (p.category || 'Healthcare provider'),
+        telephone: p.phone || undefined,
+        faxNumber: p.fax || undefined,
+        email: p.email || undefined,
+        address: p.address ? { '@type': 'PostalAddress', streetAddress: p.address, addressRegion: 'ON', addressCountry: 'CA' } : undefined,
+        geo: (p.lat && p.lng) ? { '@type': 'GeoCoordinates', latitude: p.lat, longitude: p.lng } : undefined,
+        medicalSpecialty: p.type || p.category || undefined,
+        availableService: (p.services || []).map(s => ({ '@type': 'MedicalProcedure', name: s })),
+        aggregateRating: p.rating ? { '@type': 'AggregateRating', ratingValue: p.rating, reviewCount: p.reviews || 0 } : undefined,
+      }) }} />
       <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back</button>
       <ProfileView
         name={p.name}

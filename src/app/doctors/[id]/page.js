@@ -83,6 +83,17 @@ export default function DoctorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'Physician',
+        name: doc.name,
+        url: `https://www.refereasy.ca/doctors/${doc.id}`,
+        medicalSpecialty: doc.specialty || undefined,
+        gender: doc.gender || undefined,
+        knowsLanguage: (doc.languages || undefined),
+        availableService: (doc.referral_types || []).map(t => ({ '@type': 'MedicalProcedure', name: t })),
+        aggregateRating: doc.rating ? { '@type': 'AggregateRating', ratingValue: doc.rating, reviewCount: 0 } : undefined,
+      }) }} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <button onClick={() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); const prev = nav[nav.length - 1]; if (prev) { window.location.href = prev.url; return } } catch {} router.back() }} className="text-sm text-brand font-semibold mb-4 hover:underline inline-block">← Back</button>
         <div className="mt-4" />
