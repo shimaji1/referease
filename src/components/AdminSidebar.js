@@ -47,13 +47,13 @@ export default function AdminSidebar({ tab, setTab, counts = {} }) {
   ]
 
   const statusChip = (s) => {
-    if (s === 'soon')    return <span style={{ fontSize:'9px', fontWeight:600, color:'#a16207', background:'#fef3c7', border:'1px solid #fde68a', padding:'1px 6px', borderRadius:'999px', letterSpacing:'0.02em' }}>SOON</span>
-    if (s === 'planned') return <span style={{ fontSize:'9px', fontWeight:600, color:'#64748b', background:'#f1f5f9', border:'1px solid #e2e8f0', padding:'1px 6px', borderRadius:'999px', letterSpacing:'0.02em' }}>PLANNED</span>
+    if (s === 'soon')    return <span style={{ fontSize:'9px', fontWeight:600, color:'#a16207', background:'#fef3c7', border:'1px solid #fde68a', padding:'1px 6px', borderRadius:'999px', letterSpacing:'0.02em', flexShrink:0 }}>SOON</span>
+    if (s === 'planned') return <span style={{ fontSize:'9px', fontWeight:600, color:'#64748b', background:'#f1f5f9', border:'1px solid #e2e8f0', padding:'1px 6px', borderRadius:'999px', letterSpacing:'0.02em', flexShrink:0 }}>PLANNED</span>
     return null
   }
 
   return (
-    <aside style={{ width:'240px', background:'#ffffff', borderRight:'1px solid #e2e8f0', minHeight:'100vh', padding:'20px 0', flexShrink:0 }}>
+    <aside style={{ width:'260px', background:'#ffffff', borderRight:'1px solid #e2e8f0', minHeight:'100vh', padding:'20px 0', flexShrink:0, boxSizing:'border-box' }}>
       <div style={{ padding:'0 20px 16px', borderBottom:'1px solid #f1f5f9', marginBottom:'12px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
           <div style={{ width:'32px', height:'32px', background:'#1e3a5f', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -77,19 +77,20 @@ export default function AdminSidebar({ tab, setTab, counts = {} }) {
                 onClick={() => { if (!disabled) setTab(item.key) }}
                 disabled={disabled}
                 style={{
-                  all:'unset', width:'calc(100% - 12px)', margin:'0 6px', padding:'8px 14px', display:'flex', alignItems:'center', justifyContent:'space-between',
+                  all:'unset', width:'calc(100% - 12px)', boxSizing:'border-box', margin:'0 6px', padding:'8px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px',
                   cursor: disabled ? 'not-allowed' : 'pointer',
                   fontSize:'13px', fontWeight: active ? 600 : 500,
                   color: active ? '#1e3a5f' : disabled ? '#cbd5e1' : '#475569',
                   background: active ? '#eff6ff' : 'transparent',
                   borderRadius:'8px',
                   borderLeft: active ? '3px solid #1e3a5f' : '3px solid transparent',
-                  paddingLeft: active ? '11px' : '14px',
+                  paddingLeft: active ? '9px' : '12px',
+                  overflow:'hidden',
                 }}
               >
-                <span>{item.label}</span>
+                <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1, minWidth:0 }}>{item.label}</span>
                 {typeof item.badge === 'number' && item.badge > 0 && (
-                  <span style={{ fontSize:'10px', fontWeight:700, background: active ? '#1e3a5f' : '#e2e8f0', color: active ? '#fff' : '#475569', padding:'1px 7px', borderRadius:'999px' }}>{item.badge}</span>
+                  <span style={{ fontSize:'10px', fontWeight:700, background: active ? '#1e3a5f' : '#e2e8f0', color: active ? '#fff' : '#475569', padding:'1px 7px', borderRadius:'999px', flexShrink:0 }}>{item.badge}</span>
                 )}
                 {statusChip(item.status)}
               </button>
