@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
 import ProfileView from '@/components/ProfileView'
+import TopNav from '@/components/TopNav'
 import FeaturedStrip from '@/components/FeaturedStrip'
 import useLocation from '@/hooks/useLocation'
 import { useAuth } from '@/context/AuthContext'
@@ -238,8 +239,8 @@ function SponsoredCard({ item, onSelect }) {
     onSelect(item)
   }
   return (
-    <div onClick={handleClick} data-sponsored="true" style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '12px', padding: '16px', cursor: 'pointer', position: 'relative' }}>
-      <span style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '9px', fontWeight: 700, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', padding: '2px 8px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sponsored</span>
+    <div onClick={handleClick} data-sponsored="true" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', cursor: 'pointer', position: 'relative' }}>
+      <span style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '11px', fontWeight: 700, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', padding: '4px 12px', borderRadius: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Sponsored</span>
       <div style={{ paddingRight: '80px' }}>
         <h3 className="font-semibold text-gray-900 text-base leading-snug">{item.name}</h3>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{item.type || item.category || 'Provider'}</p>
@@ -350,13 +351,7 @@ export default function SearchPage() {
         const { data } = await supabase.from('physicians').select('id, name, specialty, category, accepting_referrals, verified, wait_weeks').eq('status', 'active').eq('featured', true).limit(20)
         if (data) data.forEach(x => { if (!results.some(r => r._kind === 'doctor' && r.id === x.id)) results.push({ ...x, _kind: 'doctor', type: x.specialty }) })
       }
-      if (alive) {
-        if (typeof window !== 'undefined') {
-          window.__sponsorDebug = { cat, results, resultsCount: results.length }
-          console.log('[re-sponsor]', { cat, count: results.length, results })
-        }
-        setSponsorPool(results.slice(0, 4))
-      }
+      if (alive) setSponsorPool(results.slice(0, 6))
     }
     load()
     return () => { alive = false }
@@ -516,22 +511,8 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Nav */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
-            <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>
-              ★ Favourites {(favs.length + favDocs.length) > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length + favDocs.length}</span>}
-            </button>
-            <Link href="/login" className="text-xs font-medium text-gray-500 hover:text-brand px-3 py-1.5">Sign In</Link>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      <TopNav />
+<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
         {view === "detail" && sel ? <Detail p={sel} onBack={() => { const u = new URL(window.location.href); if (u.searchParams.has('id')) { u.searchParams.delete('id'); window.history.replaceState({}, '', u.toString()) } try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); const prev = nav[nav.length - 1]; if (prev && prev.url !== '/search') { window.location.href = prev.url; return } } catch {} setView('search'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
           <>
             {/* Hero search block */}
@@ -621,6 +602,9 @@ export default function SearchPage() {
                     {loc?.label && <> · near <span className="font-semibold text-gray-800">{loc.label}</span></>}
                     {cat !== 'all' && <> · <span className="font-semibold text-brand">{CATEGORIES.find(c => c.key === cat)?.label}</span></>}
                   </div>
+                  <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>
+                    ★ Favourites {(favs.length + favDocs.length) > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length + favDocs.length}</span>}
+                  </button>
                   <select value={sort} onChange={e => setSort(e.target.value)} className="text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1.5 outline-none focus:border-brand">
                     <option value="distance">Sort: Distance</option><option value="rating">Rating</option><option value="wait">Wait time</option><option value="name">Name</option><option value="reviews">Reviews</option>
                   </select>
@@ -652,7 +636,7 @@ export default function SearchPage() {
                       if (showFavs) return organicRows
                       const pool = Array.isArray(sponsorPool) ? sponsorPool : []
                       if (pool.length === 0) return organicRows
-                      const SPONSOR_POSITIONS = [1, 3, 8, 12]
+                      const SPONSOR_POSITIONS = [1, 3, 8, 13, 18, 24]
                       const rows = []
                       let organicIdx = 0
                       let sponsorIdx = 0
