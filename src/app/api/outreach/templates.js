@@ -18,6 +18,10 @@ const wrap = (bodyHtml) => `
 </div>`
 
 export const SUBJECTS = {
+  trial_15d: "Your ReferEasy trial ends in 15 days",
+  trial_7d:  "One week left on your ReferEasy trial",
+  trial_5d:  "5 days until your Verified badge disappears",
+  trial_1d:  "Tomorrow: your ReferEasy trial ends",
   claim:    "Your practice is on ReferEasy — claim your free listing",
   verified: "You're one step from Verified on ReferEasy",
   featured: "Get top placement on Ontario's referral platform",
@@ -95,6 +99,58 @@ const TEMPLATES = {
     ${custom(customMessage)}
     ${btn('List your practice — free →', `${BASE}/signup`)}
     ${p(`<span style="color:#64748b;font-size:13px">Or explore first: <a href="${BASE}/search" style="color:#1e3a5f">refereasy.ca/search</a></span>`)}
+  `),
+
+  trial_15d: ({ name, tier, endDate, customMessage }) => wrap(`
+    ${h1('Your trial ends in 15 days')}
+    ${p(`Hi${name ? ' ' + name : ''} — your ${tier === 'featured' ? 'Featured' : 'Verified'} trial on ReferEasy runs through <strong>${endDate}</strong>. That's just over two weeks away.`)}
+    ${p("Here's what you'll lose if the trial expires without keeping your plan:")}
+    ${bullet(tier === 'featured' ? [
+      "Your <strong>Featured placement</strong> at the top of every relevant search",
+      "Homepage and category featured slots",
+      "Full <strong>analytics dashboard</strong>",
+      "Priority near-me placement",
+      "Editorial blog spotlight eligibility",
+    ] : [
+      "Your <strong>✓ Verified badge</strong> — the trust signal referring physicians filter by",
+      "<strong>Mid-priority ranking</strong> in search",
+      "Your custom referral forms (they'll be hidden, not deleted)",
+      "Custom How-to-Refer instructions",
+      "Multi-location support",
+    ])}
+    ${custom(customMessage)}
+    ${p("Want to keep going? Reply to this email and we'll set up your paid plan directly.")}
+    ${btn('Keep my plan →', `${BASE}/pricing`)}
+    ${p(`<span style="color:#64748b;font-size:13px">Your listing stays live either way — only the paid features disappear on downgrade.</span>`)}
+  `),
+
+  trial_7d: ({ name, tier, endDate, customMessage }) => wrap(`
+    ${h1('One week left on your trial')}
+    ${p(`Hi${name ? ' ' + name : ''} — your ${tier === 'featured' ? 'Featured' : 'Verified'} trial ends <strong>${endDate}</strong>. Seven days from now.`)}
+    ${p("You've been on the plan for over 50 days. Referring physicians in your area have been seeing your enhanced listing that entire time. Losing those features means dropping back to the standard Listed appearance.")}
+    ${custom(customMessage)}
+    ${p("Ready to keep your plan? A quick reply to this email is all it takes — we'll handle the rest.")}
+    ${btn('Keep my plan →', `${BASE}/pricing`)}
+  `),
+
+  trial_5d: ({ name, tier, endDate, customMessage }) => wrap(`
+    ${h1('5 days until downgrade')}
+    ${p(`Hi${name ? ' ' + name : ''} — your ${tier === 'featured' ? 'Featured' : 'Verified'} trial ends on <strong>${endDate}</strong>. Five days.`)}
+    ${p(tier === 'featured'
+      ? "Once the trial ends, you'll drop out of the featured slots on the homepage, category pages, and near-me results. Your listing stays live, but at standard placement."
+      : "Once the trial ends, your ✓ Verified badge, custom referral forms, and How-to-Refer instructions will be hidden. Your listing stays live at standard placement.")}
+    ${custom(customMessage)}
+    ${p("If you'd like to keep your current plan, reply to this email today — takes 2 minutes to sort out.")}
+    ${btn('Keep my plan →', `${BASE}/pricing`)}
+  `),
+
+  trial_1d: ({ name, tier, endDate, customMessage }) => wrap(`
+    ${h1('Tomorrow: your trial ends')}
+    ${p(`Hi${name ? ' ' + name : ''} — this is the last reminder. Your ${tier === 'featured' ? 'Featured' : 'Verified'} plan expires <strong>tonight at midnight ET</strong> and downgrades to Listed (free) tomorrow morning.`)}
+    ${p("Your listing stays live. Your data is preserved. But your paid features will be hidden until you keep your plan.")}
+    ${custom(customMessage)}
+    ${btn('Keep my plan — reply today →', `${BASE}/pricing`)}
+    ${p(`<span style="color:#64748b;font-size:13px">Just hit reply. We'll sort it out today.</span>`)}
   `),
 
 }

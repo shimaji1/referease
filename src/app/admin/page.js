@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import FormsManager from "@/components/FormsManager"
 import AdminSidebar from '@/components/AdminSidebar'
+import { getPlanStatus } from '@/lib/plan'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -23,6 +24,48 @@ const normalizeHours = (h) => {
   return out
 }
 const emptyDoc = () => ({ name:"Dr. ", specialty:"", specialty_code:"", gender:"", category:"Specialist", cpso_number:"", cpso_url:"", accepting_referrals:null, accepting_new_patients:null, wait_weeks:"", criteria:"", referral_types:"", languages:"English", hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
+
+
+function PlanDropdown({ provider, onChange }) {
+  const [busy, setBusy] = useState(false)
+  const status = getPlanStatus(provider)
+  const change = async (nextPlan) => {
+    if (!supabase) return
+    if (nextPlan === provider.plan) return
+    setBusy(true)
+    const payload = { plan: nextPlan }
+    if (nextPlan === 'listed') {
+      payload.trial_ends_at = null
+      payload.plan_granted_by_admin = false
+      payload.plan_notes = null
+    } else {
+      // Admin promotion = granted, no expiry
+      payload.plan_granted_by_admin = true
+      payload.plan_started_at = new Date().toISOString()
+      payload.trial_ends_at = null
+      payload.last_reminder_sent = null
+    }
+    await supabase.from('providers').update(payload).eq('id', provider.id)
+    setBusy(false)
+    if (onChange) onChange()
+  }
+  const cls = status.tier === 'featured' ? { bg: '#7c3aed20', color: '#7c3aed', border: '#7c3aed40' }
+            : status.tier === 'verified' ? { bg: '#3b82f620', color: '#3b82f6', border: '#3b82f640' }
+            : { bg: '#f1f5f9', color: '#64748b', border: '#cbd5e1' }
+  return (
+    <select
+      value={provider.plan || 'listed'}
+      disabled={busy}
+      onChange={e => change(e.target.value)}
+      title={`Plan: ${status.label}`}
+      style={{ padding:'3px 6px', fontSize:'10px', fontWeight:600, borderRadius:'6px', background:cls.bg, color:cls.color, border:`1px solid ${cls.border}`, outline:'none', cursor:'pointer' }}
+    >
+      <option value="listed">Listed</option>
+      <option value="verified">Verified</option>
+      <option value="featured">Featured</option>
+    </select>
+  )
+}
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -615,6 +658,7 @@ export default function AdminPage() {
                       {STATUSES.map(st => <option key={st} value={st}>{st}</option>)}
                     </select>
                     <button onClick={() => edit(p)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#3b82f6", border:"1px solid #3b82f640" }}>Edit</button>
+                    <PlanDropdown provider={p} onChange={load} />
                     <button onClick={() => toggleFeatured("provider", p)} title={p.featured ? "Remove featured" : "Mark as featured"} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:p.featured?"#f59e0b30":"#f59e0b15", color:"#b45309", border:"1px solid #f59e0b60" }}>{p.featured ? "★ Featured" : "☆ Feature"}</button>
                     <button onClick={() => del(p.id)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Del</button>
                     {p.email && <button onClick={() => invite(p)} disabled={inviting === p.id} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:p.invited_at?"#05966920":"#0891b220", color:p.invited_at?"#059669":"#0891b2", border:"1px solid " + (p.invited_at?"#05966940":"#0891b240") }}>{inviting === p.id ? "…" : p.invited_at ? "✓ Invited" : "✉ Invite"}</button>}

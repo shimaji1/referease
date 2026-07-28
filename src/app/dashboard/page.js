@@ -169,7 +169,14 @@ function SpecialistDashboard({ profile, user }) {
                   <p className="text-xs text-gray-500 mt-1">📍 {p.address}</p>
                   {p.phone && <p className="text-xs text-gray-500">📞 {p.phone} {p.fax ? `· 📠 ${p.fax}` : ''}</p>}
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+                  {(() => {
+                    const s = getPlanStatus(p)
+                    const cls = s.tier === 'featured' ? 'text-purple-700 bg-purple-50 border-purple-200'
+                              : s.tier === 'verified' ? 'text-blue-700 bg-blue-50 border-blue-200'
+                              : 'text-gray-500 bg-gray-50 border-gray-200'
+                    return <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg border ${cls}`}>{s.label}</span>
+                  })()}
                   {p.verified
                     ? <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">✓ Verified</span>
                     : <Link href={`/dashboard/verify?provider_id=${p.id}`} className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition">Verify</Link>
