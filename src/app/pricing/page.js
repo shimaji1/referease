@@ -171,47 +171,35 @@ export default function PricingPage() {
             <p className="text-base text-gray-600 max-w-2xl mx-auto">Family physicians across Ontario search ReferEasy every day looking for someone accepting referrals. Paid plans put you where they're looking.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="m20 20-3.5-3.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M8.5 11h5m-5 2.5h3.5" /></svg>
-              </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6 text-center">
+              <img src="/img/features/be-seen-first.png" alt="" className="w-full h-40 object-contain mb-4" />
               <h3 className="font-bold text-gray-900 mb-2">Be seen first</h3>
               <p className="text-sm text-gray-600 leading-relaxed">Verified and Featured providers appear above unverified listings in every search. Referring physicians see you before your competition.</p>
             </div>
-            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
-                <img src="/img/verified-seal.png" alt="Verified" className="w-12 h-12" />
-              </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6 text-center">
+              <img src="/img/features/build-trust.png" alt="" className="w-full h-40 object-contain mb-4" />
               <h3 className="font-bold text-gray-900 mb-2">Build instant trust</h3>
               <p className="text-sm text-gray-600 leading-relaxed">The Verified badge, earned through fax, email, and ID verification, signals to referring doctors that your listing is real, current, and physician managed.</p>
             </div>
-            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2" /><path strokeLinecap="round" d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" fill="currentColor" /><path strokeLinecap="round" strokeLinejoin="round" d="m9 12 1.5 1.5L13 11m-4 5 1.5 1.5L13 15" /></svg>
-              </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6 text-center">
+              <img src="/img/features/right-referrals.png" alt="" className="w-full h-40 object-contain mb-4" />
               <h3 className="font-bold text-gray-900 mb-2">Get the right referrals</h3>
               <p className="text-sm text-gray-600 leading-relaxed">Upload your intake forms, spell out your referral criteria, and specify what you accept. Fewer rejected referrals. Better matched patients.</p>
             </div>
           </div>
           <div className="grid md:grid-cols-3 gap-6 mt-6">
-            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="1.5" /><path strokeLinecap="round" d="M9 21h6M12 17v4" /><path strokeLinecap="round" strokeLinejoin="round" d="m7 13 3-4 3 3 4-5" /></svg>
-              </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6 text-center">
+              <img src="/img/features/analytics.png" alt="" className="w-full h-40 object-contain mb-4" />
               <h3 className="font-bold text-gray-900 mb-2">See who's finding you</h3>
               <p className="text-sm text-gray-600 leading-relaxed">Featured providers get a full analytics dashboard with profile views, search impressions, and contact clicks, plus a monthly performance summary.</p>
             </div>
-            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21s-7-6.5-7-12a7 7 0 1 1 14 0c0 5.5-7 12-7 12Z" /><circle cx="12" cy="9" r="2.5" /></svg>
-              </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6 text-center">
+              <img src="/img/features/near-you.png" alt="" className="w-full h-40 object-contain mb-4" />
               <h3 className="font-bold text-gray-900 mb-2">Reach patients near you</h3>
               <p className="text-sm text-gray-600 leading-relaxed">Priority placement in "near me" searches means referring doctors in your catchment area find you first, before providers hours away.</p>
             </div>
-            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5" /><path strokeLinecap="round" d="M7 9h10M7 12h6M7 15h4" /><rect x="14" y="12" width="4" height="4" rx="0.5" fill="currentColor" opacity="0.15" /></svg>
-              </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6 text-center">
+              <img src="/img/features/spotlight.png" alt="" className="w-full h-40 object-contain mb-4" />
               <h3 className="font-bold text-gray-900 mb-2">Editorial spotlight</h3>
               <p className="text-sm text-gray-600 leading-relaxed">Featured members get an annual editorial spotlight on the ReferEasy blog. A proper article about your practice, your specialty, and how you help physicians and patients.</p>
             </div>

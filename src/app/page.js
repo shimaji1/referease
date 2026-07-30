@@ -99,7 +99,7 @@ export default function HomePage() {
             <div className="rounded-3xl overflow-hidden shadow-2xl shadow-brand/10">
               <img src={IMG.hero} alt="Physician reviewing patient information" className="w-full h-[480px] object-cover" />
             </div>
-            <div className="absolute -left-8 top-10 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 flex items-center gap-3">
+            <div className="absolute -left-10 -top-4 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center"><Icon name="check" className="w-4 h-4" /></div>
               <div><div className="text-xs font-bold text-gray-900">Accepting referrals</div><div className="text-[10px] text-gray-400">Dr. M. Chen · Cardiology</div></div>
             </div>
