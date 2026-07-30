@@ -15,7 +15,7 @@ export default async function sitemap() {
 
   if (!supabase) return staticRoutes
 
-  // Fetch all complete provider records — batched to beat PostgREST cap
+  // Fetch all complete provider records, batched to beat PostgREST cap
   const fetchAll = async (table, select, filter) => {
     const out = []
     let from = 0

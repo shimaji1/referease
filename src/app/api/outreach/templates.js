@@ -25,10 +25,10 @@ export const SUBJECTS = {
   trial_7d:  "One week left on your ReferEasy trial",
   trial_5d:  "5 days until your Verified badge disappears",
   trial_1d:  "Tomorrow: your ReferEasy trial ends",
-  claim:    "Your practice is on ReferEasy — claim your free listing",
+  claim:    "Your practice is on ReferEasy, claim your free listing",
   verified: "You're one step from Verified on ReferEasy",
   featured: "Get top placement on Ontario's referral platform",
-  cold:     "Ontario physicians are using ReferEasy — join us",
+  cold:     "Ontario physicians are using ReferEasy, join us",
 }
 
 const btn = (label, url, color = '#1e3a5f') => `
@@ -45,13 +45,13 @@ const TEMPLATES = {
 
   claim: ({ name, customMessage }) => wrap(`
     ${h1(name ? `${name} is listed on ReferEasy` : 'Your practice is listed on ReferEasy')}
-    ${p("Ontario family physicians are using ReferEasy to find specialists, imaging centres, and clinics accepting referrals — with real-time wait times and referral criteria.")}
+    ${p("Ontario family physicians are using ReferEasy to find specialists, imaging centres, and clinics accepting referrals, with real-time wait times and referral criteria.")}
     ${p(`${name ? `<strong>${name}</strong> is` : 'Your practice is'} currently listed in our directory, but the profile hasn't been claimed yet. Claiming your listing takes 5 minutes and is completely free.`)}
     ${bullet([
-      "<strong>Control your info</strong> — hours, wait times, accepting-referrals status",
-      "<strong>Get verified</strong> — a trust badge referring physicians look for",
-      "<strong>Receive matched referrals</strong> — specify the patients you want",
-      "<strong>Track your listing</strong> — see how many physicians view your profile",
+      "<strong>Control your info</strong>, hours, wait times, accepting-referrals status",
+      "<strong>Get verified</strong>, a trust badge referring physicians look for",
+      "<strong>Receive matched referrals</strong>, specify the patients you want",
+      "<strong>Track your listing</strong>, see how many physicians view your profile",
     ])}
     ${custom(customMessage)}
     ${btn('Claim your free listing →', `${BASE}/signup`)}
@@ -60,16 +60,16 @@ const TEMPLATES = {
 
   verified: ({ name, customMessage }) => wrap(`
     ${h1('You’re one step from Verified')}
-    ${p(`Thanks for claiming ${name ? `<strong>${name}</strong>` : 'your listing'} on ReferEasy. Upgrading to <strong>Verified</strong> puts a trust badge on your profile — the same badge referring physicians filter by when they search.`)}
+    ${p(`Thanks for claiming ${name ? `<strong>${name}</strong>` : 'your listing'} on ReferEasy. Upgrading to <strong>Verified</strong> puts a trust badge on your profile, the same badge referring physicians filter by when they search.`)}
     ${bullet([
-      "<strong>Verified badge</strong> — visible on every search result",
-      "<strong>Mid-priority ranking</strong> — appear above unverified providers",
-      "<strong>Up to 5 referral forms</strong> — attach your requisition, referral form, or intake sheet",
-      "<strong>Custom How-to-Refer</strong> — plain-language instructions on your profile",
-      "<strong>View analytics</strong> — see how many physicians viewed you this month",
+      "<strong>Verified badge</strong>, visible on every search result",
+      "<strong>Mid-priority ranking</strong>, appear above unverified providers",
+      "<strong>Up to 5 referral forms</strong>, attach your requisition, referral form, or intake sheet",
+      "<strong>Custom How-to-Refer</strong>, plain-language instructions on your profile",
+      "<strong>View analytics</strong>, see how many physicians viewed you this month",
     ])}
     ${custom(customMessage)}
-    ${btn('Upgrade to Verified — $29/mo →', `${BASE}/pricing`)}
+    ${btn('Upgrade to Verified, $29/mo →', `${BASE}/pricing`)}
     ${p(`<span style="color:#64748b;font-size:13px">Verification takes 3 minutes: fax code, email code, and a quick ID upload.</span>`)}
   `),
 
@@ -77,21 +77,21 @@ const TEMPLATES = {
     ${h1('Get top placement on ReferEasy')}
     ${p(`As a Verified provider${name ? ` (<strong>${name}</strong>)` : ''}, you already have the badge referring physicians look for. <strong>Featured</strong> puts your listing at the top of every search that matches your specialty and location.`)}
     ${bullet([
-      "<strong>Top-priority search rank</strong> — first result for your specialty",
-      "<strong>Featured slots</strong> — homepage, category pages, and near-me results",
-      "<strong>Full analytics dashboard</strong> — views, contacts, referral sources",
-      "<strong>Monthly performance email</strong> — track your growth",
-      "<strong>Editorial blog spotlight</strong> — one feature article per year",
+      "<strong>Top-priority search rank</strong>, first result for your specialty",
+      "<strong>Featured slots</strong>, homepage, category pages, and near-me results",
+      "<strong>Full analytics dashboard</strong>, views, contacts, referral sources",
+      "<strong>Monthly performance email</strong>, track your growth",
+      "<strong>Editorial blog spotlight</strong>, one feature article per year",
       "<strong>Unlimited</strong> forms, locations, and staff accounts",
     ])}
     ${custom(customMessage)}
-    ${btn('Upgrade to Featured — $79/mo →', `${BASE}/pricing`)}
+    ${btn('Upgrade to Featured, $79/mo →', `${BASE}/pricing`)}
     ${p(`<span style="color:#64748b;font-size:13px">Featured slots are limited per specialty and area to keep placement meaningful.</span>`)}
   `),
 
   cold: ({ name, customMessage }) => wrap(`
-    ${h1(name ? `Hello from ReferEasy${name ? ' — ' + name : ''}` : 'Ontario physicians are using ReferEasy')}
-    ${p("ReferEasy is Ontario's live physician-to-physician referral platform. Family physicians use it to find specialists, imaging, labs, and clinics accepting referrals — with wait times and referral criteria visible up front.")}
+    ${h1(name ? `Hello from ReferEasy${name ? ', ' + name : ''}` : 'Ontario physicians are using ReferEasy')}
+    ${p("ReferEasy is Ontario's live physician-to-physician referral platform. Family physicians use it to find specialists, imaging, labs, and clinics accepting referrals, with wait times and referral criteria visible up front.")}
     ${p("If you accept referrals from other physicians, being listed means being found. Free tier includes:")}
     ${bullet([
       "Public directory listing with your address, hours, and accepting-referrals status",
@@ -100,13 +100,13 @@ const TEMPLATES = {
       "Zero cost, zero commitment",
     ])}
     ${custom(customMessage)}
-    ${btn('List your practice — free →', `${BASE}/signup`)}
+    ${btn('List your practice, free →', `${BASE}/signup`)}
     ${p(`<span style="color:#64748b;font-size:13px">Or explore first: <a href="${BASE}/search" style="color:#1e3a5f">refereasy.ca/search</a></span>`)}
   `),
 
   trial_15d: ({ name, tier, endDate, customMessage }) => wrap(`
     ${h1('Your trial ends in 15 days')}
-    ${p(`Hi${name ? ' ' + name : ''} — your ${tier === 'featured' ? 'Featured' : 'Verified'} trial on ReferEasy runs through <strong>${endDate}</strong>. That's just over two weeks away.`)}
+    ${p(`Hi${name ? ' ' + name : ''}, your ${tier === 'featured' ? 'Featured' : 'Verified'} trial on ReferEasy runs through <strong>${endDate}</strong>. That's just over two weeks away.`)}
     ${p("Here's what you'll lose if the trial expires without keeping your plan:")}
     ${bullet(tier === 'featured' ? [
       "Your <strong>Featured placement</strong> at the top of every relevant search",
@@ -115,7 +115,7 @@ const TEMPLATES = {
       "Priority near-me placement",
       "Editorial blog spotlight eligibility",
     ] : [
-      "Your <strong>✓ Verified badge</strong> — the trust signal referring physicians filter by",
+      "Your <strong>✓ Verified badge</strong>, the trust signal referring physicians filter by",
       "<strong>Mid-priority ranking</strong> in search",
       "Your custom referral forms (they'll be hidden, not deleted)",
       "Custom How-to-Refer instructions",
@@ -124,35 +124,35 @@ const TEMPLATES = {
     ${custom(customMessage)}
     ${p("Want to keep going? Reply to this email and we'll set up your paid plan directly.")}
     ${btn('Keep my plan →', `${BASE}/pricing`)}
-    ${p(`<span style="color:#64748b;font-size:13px">Your listing stays live either way — only the paid features disappear on downgrade.</span>`)}
+    ${p(`<span style="color:#64748b;font-size:13px">Your listing stays live either way, only the paid features disappear on downgrade.</span>`)}
   `),
 
   trial_7d: ({ name, tier, endDate, customMessage }) => wrap(`
     ${h1('One week left on your trial')}
-    ${p(`Hi${name ? ' ' + name : ''} — your ${tier === 'featured' ? 'Featured' : 'Verified'} trial ends <strong>${endDate}</strong>. Seven days from now.`)}
+    ${p(`Hi${name ? ' ' + name : ''}, your ${tier === 'featured' ? 'Featured' : 'Verified'} trial ends <strong>${endDate}</strong>. Seven days from now.`)}
     ${p("You've been on the plan for over 50 days. Referring physicians in your area have been seeing your enhanced listing that entire time. Losing those features means dropping back to the standard Listed appearance.")}
     ${custom(customMessage)}
-    ${p("Ready to keep your plan? A quick reply to this email is all it takes — we'll handle the rest.")}
+    ${p("Ready to keep your plan? A quick reply to this email is all it takes, we'll handle the rest.")}
     ${btn('Keep my plan →', `${BASE}/pricing`)}
   `),
 
   trial_5d: ({ name, tier, endDate, customMessage }) => wrap(`
     ${h1('5 days until downgrade')}
-    ${p(`Hi${name ? ' ' + name : ''} — your ${tier === 'featured' ? 'Featured' : 'Verified'} trial ends on <strong>${endDate}</strong>. Five days.`)}
+    ${p(`Hi${name ? ' ' + name : ''}, your ${tier === 'featured' ? 'Featured' : 'Verified'} trial ends on <strong>${endDate}</strong>. Five days.`)}
     ${p(tier === 'featured'
       ? "Once the trial ends, you'll drop out of the featured slots on the homepage, category pages, and near-me results. Your listing stays live, but at standard placement."
       : "Once the trial ends, your ✓ Verified badge, custom referral forms, and How-to-Refer instructions will be hidden. Your listing stays live at standard placement.")}
     ${custom(customMessage)}
-    ${p("If you'd like to keep your current plan, reply to this email today — takes 2 minutes to sort out.")}
+    ${p("If you'd like to keep your current plan, reply to this email today, takes 2 minutes to sort out.")}
     ${btn('Keep my plan →', `${BASE}/pricing`)}
   `),
 
   trial_1d: ({ name, tier, endDate, customMessage }) => wrap(`
     ${h1('Tomorrow: your trial ends')}
-    ${p(`Hi${name ? ' ' + name : ''} — this is the last reminder. Your ${tier === 'featured' ? 'Featured' : 'Verified'} plan expires <strong>tonight at midnight ET</strong> and downgrades to Listed (free) tomorrow morning.`)}
+    ${p(`Hi${name ? ' ' + name : ''}, this is the last reminder. Your ${tier === 'featured' ? 'Featured' : 'Verified'} plan expires <strong>tonight at midnight ET</strong> and downgrades to Listed (free) tomorrow morning.`)}
     ${p("Your listing stays live. Your data is preserved. But your paid features will be hidden until you keep your plan.")}
     ${custom(customMessage)}
-    ${btn('Keep my plan — reply today →', `${BASE}/pricing`)}
+    ${btn('Keep my plan, reply today →', `${BASE}/pricing`)}
     ${p(`<span style="color:#64748b;font-size:13px">Just hit reply. We'll sort it out today.</span>`)}
   `),
 

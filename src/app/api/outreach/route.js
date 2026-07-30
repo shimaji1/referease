@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase-server'
 import { buildTemplate, SUBJECTS } from './templates'
 
-// POST /api/outreach — send invitation campaign
+// POST /api/outreach, send invitation campaign
 export async function POST(request) {
   const { items, template = 'claim', message } = await request.json()
   if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ error: 'No recipients' }, { status: 400 })

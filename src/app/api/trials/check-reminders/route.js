@@ -75,7 +75,7 @@ async function handleReminders(request) {
     return NextResponse.json({
       downgraded,
       would_send: toSend.length,
-      warning: 'RESEND_API_KEY missing — reminders not sent',
+      warning: 'RESEND_API_KEY missing, reminders not sent',
     })
   }
 

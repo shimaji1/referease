@@ -49,7 +49,7 @@ export default function ClaimForm({ physicianId = null, providerId = null, entit
 
   return (
     <div className="bg-white border border-brand/20 rounded-xl p-5">
-      <h4 className="text-sm font-bold text-gray-900 mb-1">Verify to claim{entityName ? ` — ${entityName}` : ''}</h4>
+      <h4 className="text-sm font-bold text-gray-900 mb-1">Verify to claim{entityName ? `, ${entityName}` : ''}</h4>
       <p className="text-xs text-gray-500 mb-4">We verify each claim to protect providers. Give us these three things and our team will confirm before granting access.</p>
 
       <div className="space-y-4">

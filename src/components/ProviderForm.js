@@ -84,7 +84,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
     const data = {
       ...form,
       services: parseList(servicesText),
-      doctors: validDocs.length > 0 ? validDocs.map(r => r.specialty ? `${r.name} — ${r.specialty}` : r.name) : parseList(doctorsText),
+      doctors: validDocs.length > 0 ? validDocs.map(r => r.specialty ? `${r.name}, ${r.specialty}` : r.name) : parseList(doctorsText),
       languages: parseList(languagesText),
       rating: form.rating ? parseFloat(form.rating) : null,
       reviews: parseInt(form.reviews) || 0,
@@ -168,16 +168,16 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <label className={lbl}>Accepting Referrals</label>
             <select className={inp} value={form.accepting_referrals == null ? 'unknown' : form.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
               <option value="unknown">Unknown</option>
-              <option value="true">Yes — Accepting</option>
-              <option value="false">No — Not Accepting</option>
+              <option value="true">Yes, Accepting</option>
+              <option value="false">No, Not Accepting</option>
             </select>
           </div>
           <div>
             <label className={lbl}>Accepting New Patients</label>
             <select className={inp} value={form.accepting_new_patients == null ? 'unknown' : form.accepting_new_patients ? 'true' : 'false'} onChange={e => set('accepting_new_patients', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
               <option value="unknown">Unknown</option>
-              <option value="true">Yes — Accepting new patients</option>
-              <option value="false">No — Roster full</option>
+              <option value="true">Yes, Accepting new patients</option>
+              <option value="false">No, Roster full</option>
             </select>
           </div>
           <div>
@@ -187,7 +187,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
           <div>
             <label className={lbl}>Gender (for individual doctors)</label>
             <select className={inp} value={form.gender || ''} onChange={e => set('gender', e.target.value)}>
-              <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
+              <option value="">,</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
             </select>
           </div>
           <div>
@@ -201,9 +201,9 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
           <div className="sm:col-span-2">
             <label className={lbl}>Data Status</label>
             <select className={inp} value={form.data_status || 'complete'} onChange={e => set('data_status', e.target.value)}>
-              <option value="complete">Complete — visible in public search</option>
-              <option value="partial">Partial — hidden until completed</option>
-              <option value="incomplete">Incomplete — hidden until completed</option>
+              <option value="complete">Complete, visible in public search</option>
+              <option value="partial">Partial, hidden until completed</option>
+              <option value="incomplete">Incomplete, hidden until completed</option>
             </select>
             <p className="text-[11px] text-gray-500 mt-1">Only "Complete" listings appear in the public search.</p>
           </div>
@@ -235,7 +235,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <label className={lbl}>Offers Paid Referrals</label>
             <select className={inp} value={form.paid_referral ? 'true' : 'false'} onChange={e => set('paid_referral', e.target.value === 'true')}>
               <option value="false">No</option>
-              <option value="true">Yes — Pays for referrals</option>
+              <option value="true">Yes, Pays for referrals</option>
             </select>
           </div>
           {form.paid_referral && (

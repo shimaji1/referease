@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase-server'
 
-// GET /api/providers/:id — single provider with full details
+// GET /api/providers/:id, single provider with full details
 export async function GET(request, { params }) {
   const supabase = getSupabase()
   if (!supabase) return NextResponse.json({ error: 'Database not connected' }, { status: 503 })
@@ -24,7 +24,7 @@ export async function GET(request, { params }) {
   })
 }
 
-// PATCH /api/providers/:id — update provider (authenticated owner only)
+// PATCH /api/providers/:id, update provider (authenticated owner only)
 export async function PATCH(request, { params }) {
   const supabase = getSupabase()
   if (!supabase) return NextResponse.json({ error: 'Database not connected' }, { status: 503 })

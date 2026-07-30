@@ -84,7 +84,7 @@ export default function PricingPage() {
   const startTrial = async (plan) => {
     setMsg('')
     if (!user) {
-      // Bounce to signup with intent parameter — signup can pick this up post-auth
+      // Bounce to signup with intent parameter, signup can pick this up post-auth
       router.push(`/signup?intent=trial-${plan}`)
       return
     }
@@ -116,7 +116,7 @@ export default function PricingPage() {
         <div className="text-center mb-14">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand mb-3">Pricing</p>
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Fair pricing for every practice</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">Get listed for free. Upgrade to be discovered. Try any paid plan for 60 days — no credit card.</p>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">Get listed for free. Upgrade to be discovered. Try any paid plan for 60 days, no credit card.</p>
         </div>
 
         {msg && <div className="max-w-2xl mx-auto mb-6 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{msg}</div>}
@@ -130,11 +130,6 @@ export default function PricingPage() {
               {tier.trial && (
                 <div className={`mb-4 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg text-center ${tier.highlight ? 'bg-white/15 text-amber-200 border border-white/20' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                   60 days free · No credit card
-                </div>
-              )}
-              {tier.key === 'verified' && (
-                <div className="flex justify-center mb-4">
-                  <img src="/img/verified-seal.png" alt="Verified badge" className="w-24 h-24" />
                 </div>
               )}
               <h2 className={`text-2xl font-bold ${tier.highlight ? 'text-white' : 'text-gray-900'}`}>{tier.name}</h2>
@@ -163,13 +158,13 @@ export default function PricingPage() {
                 <Link href={user ? '/dashboard/provider/new' : '/signup'} className="w-full py-3 rounded-xl text-sm font-bold transition bg-white text-brand border border-brand hover:bg-brand/5 text-center block">{tier.cta}</Link>
               )}
               {tier.trial && (
-                <p className={`text-[11px] mt-3 text-center ${tier.highlight ? 'text-white/60' : 'text-gray-400'}`}>Downgrades to free if not kept — data always preserved</p>
+                <p className={`text-[11px] mt-3 text-center ${tier.highlight ? 'text-white/60' : 'text-gray-400'}`}>Downgrades to free if not kept, data always preserved</p>
               )}
             </div>
           ))}
         </div>
 
-        {/* Benefits section — why upgrade */}
+        {/* Benefits section, why upgrade */}
         <div className="mt-20 max-w-5xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-gray-900 mb-3">Get in front of the doctors who send referrals</h2>
@@ -177,43 +172,55 @@ export default function PricingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4 text-2xl">🔍</div>
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="m20 20-3.5-3.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M8.5 11h5m-5 2.5h3.5" /></svg>
+              </div>
               <h3 className="font-bold text-gray-900 mb-2">Be seen first</h3>
               <p className="text-sm text-gray-600 leading-relaxed">Verified and Featured providers appear above unverified listings in every search. Referring physicians see you before your competition.</p>
             </div>
             <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4 text-2xl">🤝</div>
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+                <img src="/img/verified-seal.png" alt="Verified" className="w-12 h-12" />
+              </div>
               <h3 className="font-bold text-gray-900 mb-2">Build instant trust</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">The Verified badge — earned through fax, email, and ID verification — signals to referring doctors that your listing is real, current, and physician-managed.</p>
+              <p className="text-sm text-gray-600 leading-relaxed">The Verified badge, earned through fax, email, and ID verification, signals to referring doctors that your listing is real, current, and physician managed.</p>
             </div>
             <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4 text-2xl">📥</div>
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2" /><path strokeLinecap="round" d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" fill="currentColor" /><path strokeLinecap="round" strokeLinejoin="round" d="m9 12 1.5 1.5L13 11m-4 5 1.5 1.5L13 15" /></svg>
+              </div>
               <h3 className="font-bold text-gray-900 mb-2">Get the right referrals</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">Upload your intake forms, spell out your referral criteria, and specify what you accept. Fewer rejected referrals. Better-matched patients.</p>
+              <p className="text-sm text-gray-600 leading-relaxed">Upload your intake forms, spell out your referral criteria, and specify what you accept. Fewer rejected referrals. Better matched patients.</p>
             </div>
           </div>
           <div className="grid md:grid-cols-3 gap-6 mt-6">
             <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4 text-2xl">📊</div>
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="1.5" /><path strokeLinecap="round" d="M9 21h6M12 17v4" /><path strokeLinecap="round" strokeLinejoin="round" d="m7 13 3-4 3 3 4-5" /></svg>
+              </div>
               <h3 className="font-bold text-gray-900 mb-2">See who's finding you</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">Featured providers get a full analytics dashboard — profile views, search impressions, contact clicks — plus a monthly performance summary.</p>
+              <p className="text-sm text-gray-600 leading-relaxed">Featured providers get a full analytics dashboard with profile views, search impressions, and contact clicks, plus a monthly performance summary.</p>
             </div>
             <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center mb-4 text-2xl">📍</div>
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21s-7-6.5-7-12a7 7 0 1 1 14 0c0 5.5-7 12-7 12Z" /><circle cx="12" cy="9" r="2.5" /></svg>
+              </div>
               <h3 className="font-bold text-gray-900 mb-2">Reach patients near you</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">Priority placement in "near me" searches means referring doctors in your catchment area find you first — before providers hours away.</p>
+              <p className="text-sm text-gray-600 leading-relaxed">Priority placement in "near me" searches means referring doctors in your catchment area find you first, before providers hours away.</p>
             </div>
             <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
-              <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-4 text-2xl">📰</div>
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5" /><path strokeLinecap="round" d="M7 9h10M7 12h6M7 15h4" /><rect x="14" y="12" width="4" height="4" rx="0.5" fill="currentColor" opacity="0.15" /></svg>
+              </div>
               <h3 className="font-bold text-gray-900 mb-2">Editorial spotlight</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">Featured members get an annual editorial spotlight on the ReferEasy blog — a proper article about your practice, your specialty, and how you help physicians and patients.</p>
+              <p className="text-sm text-gray-600 leading-relaxed">Featured members get an annual editorial spotlight on the ReferEasy blog. A proper article about your practice, your specialty, and how you help physicians and patients.</p>
             </div>
           </div>
         </div>
 
         {/* Small trust-note footer */}
         <p className="mt-16 text-center text-xs text-gray-400 max-w-xl mx-auto leading-relaxed">
-          Try Verified or Featured free for 60 days — no credit card required. Downgrades to free automatically if you don't keep your plan. Your data is always preserved.
+          Try Verified or Featured free for 60 days, no credit card required. Downgrades to free automatically if you don't keep your plan. Your data is always preserved.
         </p>
       </section>
     </div>

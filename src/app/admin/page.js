@@ -222,7 +222,7 @@ export default function AdminPage() {
     if (error || !doc) { setMsg('Convert failed: ' + (error?.message || 'unknown')); return }
     await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: pr.id, is_primary: true })
     await supabase.from('providers').update({ data_status: 'partial' }).eq('id', pr.id)
-    setMsg(`Converted — "${doc.name}" is now a doctor profile; the old listing is their office record.`)
+    setMsg(`Converted, "${doc.name}" is now a doctor profile; the old listing is their office record.`)
     editDoctor(doc)
   }
 
@@ -241,7 +241,7 @@ export default function AdminPage() {
     const norm = x => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '')
     const normPhone = x => String(x || '').replace(/\D/g, '').slice(-10)
     const byKey = {}
-    // Group by normalized name ONLY — same phone/address is fine (clinics with multiple doctors)
+    // Group by normalized name ONLY, same phone/address is fine (clinics with multiple doctors)
     all.forEach(pr => {
       const nn = norm(pr.name)
       if (nn.length < 4) return
@@ -327,7 +327,7 @@ export default function AdminPage() {
   }
   const saveSite = async () => {
     const { error } = await supabase.from('site_settings').upsert({ key: 'pricing', value: siteP, updated_at: new Date().toISOString() })
-    setMsg(error ? 'Error saving: ' + error.message : 'Pricing saved — live on /pricing.')
+    setMsg(error ? 'Error saving: ' + error.message : 'Pricing saved, live on /pricing.')
   }
   const updTier = (i, patch) => setSiteP(sp => ({ ...sp, tiers: sp.tiers.map((t, idx) => idx === i ? { ...t, ...patch } : t) }))
 
@@ -403,7 +403,7 @@ export default function AdminPage() {
       docId = doc.id
     }
 
-    // Locations: reconcile — replace the doctor's links with exactly the rows below.
+    // Locations: reconcile, replace the doctor's links with exactly the rows below.
     // First row = Main clinic. Removing a row unlinks it (the clinic itself is kept).
     await supabase.from('physician_locations').delete().eq('physician_id', docId)
     let warn = null
@@ -413,7 +413,7 @@ export default function AdminPage() {
       let provId = l.provider_id
       if (!provId) {
         const prov = {
-          name: (l.name||'').trim() || `${name} — Office`,
+          name: (l.name||'').trim() || `${name}, Office`,
           type: docForm.specialty || 'Physician office', category: 'Clinic',
           services: [], address: l.address || null, phone: l.phone || null, fax: l.fax || null,
           languages: rec.languages || ['English'], hours: { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
@@ -427,7 +427,7 @@ export default function AdminPage() {
       const { error: lErr } = await supabase.from('physician_locations').insert({ physician_id: docId, provider_id: provId, is_primary: i === 0, name: (l.name||'').trim() || null, address: l.address || null, phone: l.phone || null, fax: l.fax || null, hours: l.hours || null })
       if (lErr) warn = "Doctor saved, but linking a location failed: " + lErr.message
     }
-    setMsg(warn || (editingDoc ? "Doctor updated." : "Doctor added — their profile page is live and searchable."))
+    setMsg(warn || (editingDoc ? "Doctor updated." : "Doctor added, their profile page is live and searchable."))
     setEditingDoc(null); setDocForm(emptyDoc()); setDocLocations([{ name:'', address:'', phone:'', fax:'' }]); setTab("list"); load(); loadStats()
   }
 
@@ -443,7 +443,7 @@ export default function AdminPage() {
 
   const save = async () => {
     // keep the legacy providers.doctors[] string array in sync from the structured rows
-    const doctorNames = doctorRows.map(r => { const nm = withDr(r.name); return nm && r.specialty ? `${nm} — ${r.specialty}` : nm }).map(x => (x || '').trim()).filter(Boolean)
+    const doctorNames = doctorRows.map(r => { const nm = withDr(r.name); return nm && r.specialty ? `${nm}, ${r.specialty}` : nm }).map(x => (x || '').trim()).filter(Boolean)
     if (form.type && form.type.trim() && !form.specialty_code) { await ensureSpecialty(form.type, form.category) }
     const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorNames, languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null }
     delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id
@@ -517,7 +517,7 @@ export default function AdminPage() {
       if (claim.provider_id) await supabase.from("providers").update({ owner_id: claim.user_id }).eq("id", claim.provider_id)
       else if (claim.physician_id) await supabase.from("physicians").update({ owner_id: claim.user_id }).eq("id", claim.physician_id)
     }
-    setMsg(action === 'approved' ? 'Claim approved — linked to user' : 'Claim rejected')
+    setMsg(action === 'approved' ? 'Claim approved, linked to user' : 'Claim rejected')
     loadClaims()
   }
 
@@ -536,7 +536,7 @@ export default function AdminPage() {
     } catch {}
     // fallback: if no linked doctors yet but legacy string names exist, seed rows so admin can convert them (saving creates real physician records)
     if (rows.length === 0 && (p.doctors || []).length > 0) {
-      rows = p.doctors.map(n => ({ name: String(n).replace(/\s*—.*/, '').trim(), specialty: p.type || '', specialty_code: '', gender: '' }))
+      rows = p.doctors.map(n => ({ name: String(n).replace(/\s*,.*/, '').trim(), specialty: p.type || '', specialty_code: '', gender: '' }))
     }
     setDoctorRows(rows); setOrigDocIds(rows.filter(r => r.id).map(r => r.id))
     setEditing(p.id); setTab("edit")
@@ -691,7 +691,7 @@ export default function AdminPage() {
                     const result = await res.json()
                     if (result.success) {
                       if (result.count > 1) {
-                        // Multiple locations — offer batch create
+                        // Multiple locations, offer batch create
                         const locs = result.all_locations
                         if (confirm(`Found ${locs.length} locations. Create listings for all ${locs.length}?`)) {
                           let created = 0
@@ -721,7 +721,7 @@ export default function AdminPage() {
                           setMsg(`Found ${result.count} locations. Showing first one. Save and extract again for others.`)
                         }
                       } else {
-                        // Single location — fill the form
+                        // Single location, fill the form
                         const d = result.data
                         setForm(prev => ({ ...prev, name: d.name || prev.name, type: d.type || prev.type, category: d.category || prev.category, address: d.address || prev.address, phone: d.phone || prev.phone, fax: d.fax || prev.fax, email: d.email || prev.email, website: d.website || prev.website, hours: normalizeHours(d.hours) || prev.hours, requirements: d.requirements || prev.requirements, accepting_referrals: d.accepting_referrals ?? prev.accepting_referrals }))
                         setServicesText((d.services || []).join(', '))
@@ -743,7 +743,7 @@ export default function AdminPage() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
               <div><label style={lbl}>Name *</label><input style={s} value={form.name} onChange={e => setForm({...form, name:e.target.value})} /></div>
               <div><label style={lbl}>Specialty *</label><select style={s} value={form.specialty_code || ''} onChange={async e => { if (e.target.value === '__add__') { const sp = await addSpecialtyPrompt(form.category); if (sp) setForm(f => ({...f, specialty_code: sp.snomed_code, type: sp.name})); return } const spec = specialties.find(s => s.snomed_code === e.target.value); if (spec) setForm({...form, specialty_code: e.target.value, type: spec.name}); else setForm({...form, specialty_code: '', type: form.type}) }}><option value="">Select specialty...</option><option value="__add__">+ Add new specialty…</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
-              <div><label style={lbl}>Custom Type Label</label><input style={s} value={form.type} onChange={e => setForm({...form, type:e.target.value})} placeholder="Or type a new specialty — it gets added to the list" /></div>
+              <div><label style={lbl}>Custom Type Label</label><input style={s} value={form.type} onChange={e => setForm({...form, type:e.target.value})} placeholder="Or type a new specialty, it gets added to the list" /></div>
               <div><label style={lbl}>Category</label><select style={s} value={form.category} onChange={async e => { if (e.target.value === '__add__') { const c = await addCategoryPrompt(); if (c) setForm(f => ({...f, category: c})); return } setForm({...form, category:e.target.value}) }}>{ALL_CATS.map(c => <option key={c} value={c}>{c}</option>)}<option value="__add__">+ Add new category…</option></select></div>
               <div><label style={lbl}>Data Status</label><select style={s} value={form.data_status || 'complete'} onChange={e => setForm({...form, data_status:e.target.value})}>{STATUSES.map(st => <option key={st} value={st}>{st}</option>)}</select></div>
               <div><label style={lbl}>Address</label><input style={s} value={form.address || ""} onChange={e => setForm({...form, address:e.target.value})} /></div>
@@ -754,7 +754,7 @@ export default function AdminPage() {
               <div><label style={lbl}>Wait (weeks)</label><input style={s} type="number" min="0" value={form.wait_weeks ?? ""} onChange={e => setForm({...form, wait_weeks:e.target.value})} /></div>
               <div><label style={lbl}>SNOMED Code</label><input style={s} value={form.specialty_code || ""} onChange={e => setForm({...form, specialty_code:e.target.value || null})} /></div>
               <div><label style={lbl}>Sub-specialty</label><input style={s} value={form.sub_specialty || ""} onChange={e => setForm({...form, sub_specialty:e.target.value || null})} placeholder="e.g. Interventional Cardiology" /></div>
-              <div><label style={lbl}>Gender</label><select style={s} value={form.gender || ''} onChange={e => setForm({...form, gender:e.target.value || null})}><option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
+              <div><label style={lbl}>Gender</label><select style={s} value={form.gender || ''} onChange={e => setForm({...form, gender:e.target.value || null})}><option value="">,</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
               <div><label style={lbl}>CPSO Profile Link</label><input style={s} value={form.cpso_url || ""} onChange={e => setForm({...form, cpso_url:e.target.value || null})} placeholder="https://doctors.cpso.on.ca/DoctorDetails/..." /></div>
               <div><label style={lbl}>Accepting Referrals</label><select style={s} value={form.accepting_referrals == null ? 'unknown' : form.accepting_referrals ? 'true' : 'false'} onChange={e => setForm({...form, accepting_referrals: e.target.value === 'unknown' ? null : e.target.value === 'true'})}><option value="unknown">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></div>
               <div><label style={lbl}>Accepting New Patients</label><select style={s} value={form.accepting_new_patients == null ? 'unknown' : form.accepting_new_patients ? 'true' : 'false'} onChange={e => setForm({...form, accepting_new_patients: e.target.value === 'unknown' ? null : e.target.value === 'true'})}><option value="unknown">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></div>
@@ -792,7 +792,7 @@ export default function AdminPage() {
             <label style={lbl}>Languages (comma-separated)</label>
             <input style={s} value={languagesText} onChange={e => setLanguagesText(e.target.value)} placeholder="English, French, Farsi" />
 
-            <label style={lbl}>Hours (start-end, e.g. 9:00-17:00 — blank = closed)</label>
+            <label style={lbl}>Hours (start-end, e.g. 9:00-17:00, blank = closed)</label>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:"6px", marginTop:"4px" }}>
               {DAYS.map((d, i) => (
                 <div key={d}>
@@ -822,7 +822,7 @@ export default function AdminPage() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
               <div><label style={lbl}>Full Name *</label><input style={s} value={docForm.name} onChange={e => setDoc('name', e.target.value)} placeholder="Dr. Jane Smith" /></div>
               <div><label style={lbl}>Specialty *</label><select style={s} value={docForm.specialty_code || ''} onChange={async e => { if (e.target.value === '__add__') { const sp = await addSpecialtyPrompt(docForm.category); if (sp) setDocForm(f => ({...f, specialty_code: sp.snomed_code, specialty: sp.name})); return } const sp = specialties.find(x => x.snomed_code === e.target.value); if (sp) setDocForm(f => ({ ...f, specialty_code: sp.snomed_code, specialty: sp.name })); else setDocForm(f => ({ ...f, specialty_code:'', specialty:'' })) }}><option value="">Select specialty...</option><option value="__add__">+ Add new specialty…</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
-              <div><label style={lbl}>Gender</label><select style={s} value={docForm.gender || ''} onChange={e => setDoc('gender', e.target.value)}><option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
+              <div><label style={lbl}>Gender</label><select style={s} value={docForm.gender || ''} onChange={e => setDoc('gender', e.target.value)}><option value="">,</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
               <div><label style={lbl}>Category (search tab they appear under)</label><select style={s} value={docForm.category || 'Specialist'} onChange={async e => { if (e.target.value === '__add__') { const c = await addCategoryPrompt(); if (c) setDoc('category', c); return } setDoc('category', e.target.value) }}>{ALL_CATS.map(c => <option key={c} value={c}>{c}</option>)}<option value="__add__">+ Add new category…</option></select></div>
               <div><label style={lbl}>CPSO Number</label><input style={s} value={docForm.cpso_number || ''} onChange={e => setDoc('cpso_number', e.target.value)} placeholder="e.g. 87654" /></div>
               <div><label style={lbl}>CPSO Profile Link</label><input style={s} value={docForm.cpso_url || ''} onChange={e => setDoc('cpso_url', e.target.value)} placeholder="https://doctors.cpso.on.ca/DoctorDetails/..." /></div>
@@ -837,7 +837,7 @@ export default function AdminPage() {
             <label style={lbl}>Referral Criteria</label>
             <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={docForm.criteria} onChange={e => setDoc('criteria', e.target.value)} placeholder="e.g. GP referral required, recent imaging, OHIP card" />
 
-            <label style={{ ...lbl, marginTop:"20px" }}>Hours (start-end, e.g. 9:00-17:00 — blank = closed)</label>
+            <label style={{ ...lbl, marginTop:"20px" }}>Hours (start-end, e.g. 9:00-17:00, blank = closed)</label>
             <div style={{ fontSize:"11px", color:"#64748b", margin:"2px 0 8px" }}>For doctors who run their own practice. Leave blank if they only work out of the clinics below.</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:"6px" }}>
               {DAYS.map((d, i) => (
@@ -849,7 +849,7 @@ export default function AdminPage() {
             </div>
 
             <label style={{ ...lbl, marginTop:"20px" }}>Locations (where they practise)</label>
-            <div style={{ fontSize:"11px", color:"#64748b", margin:"2px 0 8px" }}>Link an existing clinic to auto-fill its address, phone, fax and hours — or type a new location below.</div>
+            <div style={{ fontSize:"11px", color:"#64748b", margin:"2px 0 8px" }}>Link an existing clinic to auto-fill its address, phone, fax and hours, or type a new location below.</div>
 
             <div style={{ position:"relative", marginBottom:"10px" }}>
               <input style={{ ...s, marginTop:0 }} value={clinicQuery} onChange={e => searchClinics(e.target.value)} placeholder="🔎 Search existing clinics to link…" />
@@ -873,12 +873,12 @@ export default function AdminPage() {
                     <span style={{ fontSize:"9px", fontWeight:700, color:"#7c3aed", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"3px 8px" }}>LINKED</span>
                     <button onClick={() => rmDocLoc(i)} title="Unlink" style={{ all:"unset", cursor:"pointer", padding:"6px 10px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕ Unlink</button>
                   </div>
-                  <input style={{ ...s, marginTop:0, marginBottom:"6px" }} value={l.address || ''} onChange={e => updDocLoc(i, { address: e.target.value })} placeholder="Address (this doctor's copy — editable)" />
+                  <input style={{ ...s, marginTop:0, marginBottom:"6px" }} value={l.address || ''} onChange={e => updDocLoc(i, { address: e.target.value })} placeholder="Address (this doctor's copy, editable)" />
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
                     <input style={{ ...s, marginTop:0 }} value={l.phone || ''} onChange={e => updDocLoc(i, { phone: e.target.value })} placeholder="Phone" />
                     <input style={{ ...s, marginTop:0 }} value={l.fax || ''} onChange={e => updDocLoc(i, { fax: e.target.value })} placeholder="Fax" />
                   </div>
-                  <div style={{ fontSize:"10px", color:"#64748b", marginTop:"6px" }}>Copied from the linked clinic — edits here change only this doctor's listing, not the clinic.</div>
+                  <div style={{ fontSize:"10px", color:"#64748b", marginTop:"6px" }}>Copied from the linked clinic, edits here change only this doctor's listing, not the clinic.</div>
                 </div>
               ) : (
                 <div key={i} style={{ border:"1px solid #e2e8f0", borderRadius:"8px", padding:"10px", marginBottom:"8px" }}>
@@ -905,7 +905,7 @@ export default function AdminPage() {
         {tab === "dupes" && (
           <>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"14px", gap:"10px", flexWrap:"wrap" }}>
-              <div style={{ fontSize:"13px", color:"#64748b" }}>Groups of listings sharing the same phone number or name. Pick which one to keep, then merge — doctors, links and forms move to the kept listing.</div>
+              <div style={{ fontSize:"13px", color:"#64748b" }}>Groups of listings sharing the same phone number or name. Pick which one to keep, then merge, doctors, links and forms move to the kept listing.</div>
               <button onClick={scanDupes} disabled={dupScanning} style={{ all:"unset", cursor:"pointer", padding:"8px 18px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#dc2626", color:"#fff", opacity:dupScanning?0.6:1 }}>{dupScanning ? "Scanning…" : "Re-scan"}</button>
             </div>
             {dupScanning && <div style={{ textAlign:"center", padding:"40px", color:"#64748b", fontSize:"13px" }}>Scanning all listings…</div>}
@@ -935,7 +935,7 @@ export default function AdminPage() {
         )}
         {tab === "site" && (
           <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"12px", padding:"20px" }}>
-            <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>Site Content — Pricing</h3>
+            <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>Site Content, Pricing</h3>
             <p style={{ margin:"0 0 16px", fontSize:"12px", color:"#64748b" }}>Edits here go live on the public /pricing page when you hit Save.</p>
             {!siteP ? <div style={{ color:"#64748b", fontSize:"13px" }}>Loading…</div> : (
               <>
@@ -955,7 +955,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                 ))}
-                <button onClick={saveSite} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#0891b2", color:"#fff" }}>Save — publish to /pricing</button>
+                <button onClick={saveSite} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#0891b2", color:"#fff" }}>Save, publish to /pricing</button>
               </>
             )}
           </div>
@@ -1132,7 +1132,7 @@ function TemplatesTab({ setMsg }) {
   const TEMPLATES = {
     claim: {
       name: 'Claim your listing',
-      subject: 'Your practice is on ReferEasy — claim your free listing',
+      subject: 'Your practice is on ReferEasy, claim your free listing',
       description: 'For providers already in the directory but unclaimed. This is the workhorse invite.',
     },
     verified: {
@@ -1147,7 +1147,7 @@ function TemplatesTab({ setMsg }) {
     },
     cold: {
       name: 'Cold outreach',
-      subject: 'Ontario physicians are using ReferEasy — join us',
+      subject: 'Ontario physicians are using ReferEasy, join us',
       description: 'For providers not yet in the directory at all. Bigger ask, more explanation.',
     },
   }

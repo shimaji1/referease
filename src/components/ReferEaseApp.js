@@ -83,7 +83,7 @@ function Detail({ p, onBack, isFav, onFav }) {
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))", gap:"10px" }}>
         <B title="Contact & Location">
-          <R l="Address" v={p.address || "—"} />
+          <R l="Address" v={p.address || ","} />
           {p.phone && <R l="Phone" v={p.phone} />}
           {p.fax && <R l="Fax" v={p.fax} />}
           {p.website && <R l="Website" v={p.website} />}
@@ -92,7 +92,7 @@ function Detail({ p, onBack, isFav, onFav }) {
         <B title="Hours">{p.hours && DAYS.map((d,i) => <R key={d} l={DAY_LABELS[i].slice(0,3)} v={p.hours[d] || "Closed"} />)}</B>
         <B title="Referral Info">
           <R l="Wait" v={p.wait_weeks === null ? "Varies" : p.wait_weeks === 0 ? "No wait" : `~${p.wait_weeks} week${p.wait_weeks > 1 ? "s" : ""}`} />
-          <R l="Requirements" v={p.requirements || "—"} />
+          <R l="Requirements" v={p.requirements || ","} />
         </B>
         {p.doctors && p.doctors.length > 0 && <B title="Physicians">{p.doctors.map((d,i) => <div key={i} style={{ padding:"4px 0", fontSize:"12.5px", borderBottom:i<p.doctors.length-1?"1px solid var(--bd)":"none" }}>{d}</div>)}</B>}
         {p.services && p.services.length > 0 && <B title="Services"><div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>{p.services.map(s => <span key={s} style={{ padding:"3px 8px", borderRadius:"6px", fontSize:"11px", background:"var(--ac)15", color:"var(--ac)", border:"1px solid var(--ac)25" }}>{s}</span>)}</div></B>}
@@ -182,7 +182,7 @@ export default function ReferEasyApp() {
         <div style={{ maxWidth:"920px", margin:"0 auto", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:"8px" }}><span style={{ fontSize:"22px" }}>🔗</span><h1 style={{ margin:0, fontSize:"20px", fontWeight:750, letterSpacing:"-0.03em" }}>Refer<span style={{ color:"var(--ac)" }}>Easy</span></h1></div>
-            <p style={{ margin:"2px 0 0", fontSize:"12px", color:"var(--t3)" }}>Find providers. Reduce rejections. — Ontario, Canada</p>
+            <p style={{ margin:"2px 0 0", fontSize:"12px", color:"var(--t3)" }}>Find providers. Reduce rejections., Ontario, Canada</p>
           </div>
           <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"999px", fontSize:"12px", fontWeight:600, background:showFavs?"var(--ac)":"var(--c1)", color:showFavs?"#fff":"var(--t3)", border:`1px solid ${showFavs?"var(--ac)":"var(--bd)"}`, display:"flex", alignItems:"center", gap:"5px" }}>
             ★ Favourites {favs.length > 0 && <span style={{ background:showFavs?"#ffffff30":"var(--ac)", color:"#fff", borderRadius:"999px", padding:"1px 6px", fontSize:"10px", fontWeight:700 }}>{favs.length}</span>}
@@ -235,7 +235,7 @@ export default function ReferEasyApp() {
               {filtered.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
             </div>
             <div style={{ marginTop:"28px", padding:"16px", textAlign:"center", fontSize:"11px", color:"var(--t3)", lineHeight:1.6, borderTop:"1px solid var(--bd)" }}>
-              <strong style={{ color:"var(--t1)" }}>ReferEasy</strong> — {providers.length} providers · Thornhill & GTA, Ontario · Powered by Supabase
+              <strong style={{ color:"var(--t1)" }}>ReferEasy</strong>, {providers.length} providers · Thornhill & GTA, Ontario · Powered by Supabase
             </div>
           </>
         )}

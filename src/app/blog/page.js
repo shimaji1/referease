@@ -23,7 +23,7 @@ export default function BlogPage() {
         <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Referral wisdom, from the frontlines</h1>
         <p className="text-lg text-gray-600 max-w-2xl">
           Practical guides for referring physicians, spotlights on Ontario specialists,
-          and insights on making the referral process work — for you, and your patients.
+          and insights on making the referral process work, for you, and your patients.
         </p>
       </section>
 
@@ -36,7 +36,7 @@ export default function BlogPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-2">Posts coming soon</h2>
             <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
               Our editorial calendar launches with our public rollout. Featured providers get
-              spotlight articles as part of their subscription — reach every referring
+              spotlight articles as part of their subscription, reach every referring
               physician in Ontario.
             </p>
             <Link href="/pricing" className="inline-block px-6 py-3 bg-brand text-white text-sm font-bold rounded-xl hover:bg-brand-dark transition">See Featured plan →</Link>

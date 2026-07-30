@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase-server'
 
-// GET /api/providers — list all providers with optional filters
+// GET /api/providers, list all providers with optional filters
 export async function GET(request) {
   const supabase = getSupabase()
   if (!supabase) return NextResponse.json({ error: 'Database not connected' }, { status: 503 })

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase-server'
 
-// GET /api/health — API status and metadata
+// GET /api/health, API status and metadata
 export async function GET() {
   const supabase = getSupabase()
   let dbStatus = 'disconnected'
@@ -23,11 +23,11 @@ export async function GET() {
     region: 'Ontario, Canada',
     api: {
       endpoints: [
-        'GET /api/providers — List providers (supports filtering, sorting, pagination)',
-        'GET /api/providers/:id — Provider details + active programs',
-        'PATCH /api/providers/:id — Update provider (authenticated)',
-        'GET /api/programs — List active programs & studies',
-        'GET /api/health — This endpoint',
+        'GET /api/providers, List providers (supports filtering, sorting, pagination)',
+        'GET /api/providers/:id, Provider details + active programs',
+        'PATCH /api/providers/:id, Update provider (authenticated)',
+        'GET /api/programs, List active programs & studies',
+        'GET /api/health, This endpoint',
       ],
       fhir_ready: false,
       fhir_planned: true,

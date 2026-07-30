@@ -20,7 +20,7 @@ function isOpenEvenings(h) { if (!h) return false; return Object.values(h).some(
 function distKm(a,b,c,d) { const R=6371,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)) }
 const CENTER = { lat: 43.810, lng: -79.430 }
 
-// Map a SNOMED specialty (category + name) to one of the search category buttons — same rules as the admin form.
+// Map a SNOMED specialty (category + name) to one of the search category buttons, same rules as the admin form.
 function specToCategory(specCategory, specName) {
   if (/famil/i.test(specName || '')) return 'Family Medicine'
   if (specCategory === 'Diagnostics and imaging') return 'Imaging'
@@ -322,7 +322,7 @@ export default function SearchPage() {
   useEffect(() => { if (!loc && typeof window !== 'undefined' && !localStorage.getItem('re-loc-asked')) { try { localStorage.setItem('re-loc-asked', '1') } catch {}; requestGeo() } }, [loc, requestGeo])
   useEffect(() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); if (nav[nav.length - 1]?.url !== '/search') { nav.push({ url: '/search', label: 'Search' }); sessionStorage.setItem('re-nav', JSON.stringify(nav.slice(-20))) } } catch {} }, [])
 
-  // Load the sponsor pool — prefer category-matching featured, fall back to any featured
+  // Load the sponsor pool, prefer category-matching featured, fall back to any featured
   useEffect(() => {
     if (!supabase) return
     let alive = true

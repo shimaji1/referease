@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-// POST /api/extract — Extract provider info from a website URL (supports multi-location)
+// POST /api/extract, Extract provider info from a website URL (supports multi-location)
 export async function POST(request) {
   const { url } = await request.json()
   if (!url) return NextResponse.json({ error: 'URL required' }, { status: 400 })
@@ -91,9 +91,9 @@ Rules:
 - If hours differ by location, use location-specific hours
 - Extract ALL doctors/physicians mentioned anywhere on the site AS OBJECTS with name, specialty and gender
 - SPECIALTY per doctor: look at their bio, credentials, or department. Common: Family Medicine, Cardiology, Dermatology, Paediatrics, Obstetrics and gynaecology, Ophthalmology, etc. Use null if the site doesn't say.
-- GENDER per doctor: infer from bio pronouns ("she", "her", "he", "his"), photos, or title. If none of those are clear, output "unknown" — do NOT guess from the name alone.
+- GENDER per doctor: infer from bio pronouns ("she", "her", "he", "his"), photos, or title. If none of those are clear, output "unknown", do NOT guess from the name alone.
 - Extract ALL services mentioned anywhere on the site
-- HOURS ARE IMPORTANT: hunt for opening hours anywhere in the text (e.g. "Mon-Fri 9am-5pm", "Open until 8", "Hours of operation"). Convert to 24h "9:00-17:00" format. Use null ONLY when hours are genuinely absent from the page — never output placeholder text.`
+- HOURS ARE IMPORTANT: hunt for opening hours anywhere in the text (e.g. "Mon-Fri 9am-5pm", "Open until 8", "Hours of operation"). Convert to 24h "9:00-17:00" format. Use null ONLY when hours are genuinely absent from the page, never output placeholder text.`
         }]
       })
     })

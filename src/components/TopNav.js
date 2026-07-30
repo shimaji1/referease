@@ -12,10 +12,10 @@ export default function TopNav() {
   }
   return (
     <nav className="border-b border-gray-200 bg-white sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <img src="/img/icon.png" alt="ReferEasy" className="w-10 h-10 rounded-lg" />
-          <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+          <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
+          <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
         </Link>
         <div className="flex items-center gap-3 sm:gap-5">
           <Link href="/search" className={linkCls('/search') + ' hidden sm:inline'}>Find Care</Link>

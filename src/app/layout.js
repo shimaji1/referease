@@ -7,7 +7,7 @@ const BASE = 'https://www.refereasy.ca'
 export const metadata = {
   metadataBase: new URL(BASE),
   title: {
-    default: 'ReferEasy — Ontario\'s Live Physician Referral Platform',
+    default: 'ReferEasy, Ontario\'s Live Physician Referral Platform',
     template: '%s · ReferEasy',
   },
   description: 'Find Ontario specialists, imaging centres, and clinics accepting referrals in real time. Cut rejected referrals to zero with verified availability, wait times, and referral criteria.',
@@ -22,13 +22,13 @@ export const metadata = {
     locale: 'en_CA',
     url: BASE,
     siteName: 'ReferEasy',
-    title: 'ReferEasy — Ontario\'s Live Physician Referral Platform',
+    title: 'ReferEasy, Ontario\'s Live Physician Referral Platform',
     description: 'Real-time availability, wait times, and referral criteria for Ontario physicians.',
-    images: [{ url: '/img/logo.png', width: 1200, height: 630, alt: 'ReferEasy — Ontario physician referral platform' }],
+    images: [{ url: '/img/logo.png', width: 1200, height: 630, alt: 'ReferEasy, Ontario physician referral platform' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ReferEasy — Ontario\'s Live Physician Referral Platform',
+    title: 'ReferEasy, Ontario\'s Live Physician Referral Platform',
     description: 'Real-time availability, wait times, and referral criteria for Ontario physicians.',
     images: ['/img/logo.png'],
   },

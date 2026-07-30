@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 
-// One card design for every featured slot — navy banner top, white body
+// One card design for every featured slot, navy banner top, white body
 export default function FeaturedCard({ item, size = 'md' }) {
   const router = useRouter()
   const pathname = usePathname()

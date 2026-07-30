@@ -5,7 +5,7 @@
 //   - Their assigned `plan` (listed/verified/featured), IF one of:
 //     (a) plan_granted_by_admin = true (admin gave it, no expiry)
 //     (b) trial_ends_at is in the future (active trial)
-//   - Otherwise 'listed' (free) — trial expired without conversion
+//   - Otherwise 'listed' (free), trial expired without conversion
 
 export function getEffectivePlan(provider) {
   if (!provider) return 'listed'
@@ -15,7 +15,7 @@ export function getEffectivePlan(provider) {
   // Admin grant = permanent (until admin changes it)
   if (provider.plan_granted_by_admin) return plan
 
-  // Trial mode — check expiry
+  // Trial mode, check expiry
   if (provider.trial_ends_at) {
     const expiresAt = new Date(provider.trial_ends_at).getTime()
     if (expiresAt > Date.now()) return plan  // Trial still active

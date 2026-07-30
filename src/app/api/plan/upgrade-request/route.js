@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase-server'
 
 // POST /api/plan/upgrade-request
-// Records interest in upgrading. No payment — this is contact-us until Stripe ships.
+// Records interest in upgrading. No payment, this is contact-us until Stripe ships.
 // Body: { email, name?, requested_plan, message?, provider_id? }
 export async function POST(request) {
   const { email, name, requested_plan, message, provider_id } = await request.json()
@@ -19,5 +19,5 @@ export async function POST(request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ ok: true, message: 'Request received — we\'ll be in touch within 1 business day.' })
+  return NextResponse.json({ ok: true, message: 'Request received, we\'ll be in touch within 1 business day.' })
 }

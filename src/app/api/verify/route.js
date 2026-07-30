@@ -5,7 +5,7 @@ function generateCode() {
   return String(Math.floor(100000 + Math.random() * 900000))
 }
 
-// POST /api/verify — handle all verification actions
+// POST /api/verify, handle all verification actions
 export async function POST(request) {
   const supabase = getSupabase()
   if (!supabase) return NextResponse.json({ error: 'Database not connected' }, { status: 503 })
@@ -162,7 +162,7 @@ refereasy.ca
               </div>
               <p style="color:#999;font-size:12px">This code expires in 30 minutes. If you didn't request this, ignore this email.</p>
               <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0">
-              <p style="color:#aaa;font-size:11px">ReferEasy — Ontario Healthcare Referral Platform</p>
+              <p style="color:#aaa;font-size:11px">ReferEasy, Ontario Healthcare Referral Platform</p>
             </div>
           `
         })

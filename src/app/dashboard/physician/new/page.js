@@ -80,7 +80,7 @@ export default function NewPhysicianPage() {
       let provId = l.provider_id
       if (!provId) {
         const prov = {
-          name: (l.name||'').trim() || `${name} — Office`,
+          name: (l.name||'').trim() || `${name}, Office`,
           type: doc.specialty || 'Physician office', category: 'Clinic',
           services: [], address: l.address || null, phone: l.phone || null, fax: l.fax || null,
           languages: rec.languages || ['English'], hours: { mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null },
@@ -100,10 +100,10 @@ export default function NewPhysicianPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/img/icon.png" alt="ReferEasy" className="w-10 h-10 rounded-lg" />
-            <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+            <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
+            <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </Link>
           <Link href="/dashboard" className="text-xs font-medium text-gray-500 hover:text-brand">← Dashboard</Link>
         </div>
@@ -133,7 +133,7 @@ export default function NewPhysicianPage() {
               <div>
                 <label className={lbl}>Gender</label>
                 <select className={inp} value={doc.gender || ''} onChange={e => set('gender', e.target.value)}>
-                  <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
+                  <option value="">,</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
                 </select>
               </div>
               <div>
@@ -161,7 +161,7 @@ export default function NewPhysicianPage() {
               <div>
                 <label className={lbl}>Accepting Referrals</label>
                 <select className={inp} value={doc.accepting_referrals == null ? 'unknown' : doc.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
-                  <option value="unknown">Unknown</option><option value="true">Yes — Accepting</option><option value="false">No — Not Accepting</option>
+                  <option value="unknown">Unknown</option><option value="true">Yes, Accepting</option><option value="false">No, Not Accepting</option>
                 </select>
               </div>
               <div>
@@ -200,7 +200,7 @@ export default function NewPhysicianPage() {
 
           <section className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="text-sm font-bold text-gray-900 mb-1">Where You Practise</h3>
-            <p className="text-xs text-gray-500 mb-4">Link an existing clinic to auto-fill its address, phone, fax and hours — or type a new location below.</p>
+            <p className="text-xs text-gray-500 mb-4">Link an existing clinic to auto-fill its address, phone, fax and hours, or type a new location below.</p>
 
             <div className="relative mb-3">
               <input className={inp} value={clinicQuery} onChange={e => searchClinics(e.target.value)} placeholder="🔎 Search existing clinics to link…" />
@@ -224,12 +224,12 @@ export default function NewPhysicianPage() {
                     <span className="text-[9px] font-bold text-brand bg-white border border-brand/20 rounded-full px-2 py-0.5 shrink-0">LINKED</span>
                     <button onClick={() => rmLoc(i)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-100 shrink-0">Unlink</button>
                   </div>
-                  <input className={inp + ' mb-2'} value={l.address || ''} onChange={e => updLoc(i, { address: e.target.value })} placeholder="Address (your copy — editable)" />
+                  <input className={inp + ' mb-2'} value={l.address || ''} onChange={e => updLoc(i, { address: e.target.value })} placeholder="Address (your copy, editable)" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input className={inp} value={l.phone || ''} onChange={e => updLoc(i, { phone: e.target.value })} placeholder="Phone" />
                     <input className={inp} value={l.fax || ''} onChange={e => updLoc(i, { fax: e.target.value })} placeholder="Fax" />
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1.5">Copied from the linked clinic — edits change only your listing, not the clinic.</p>
+                  <p className="text-[10px] text-gray-400 mt-1.5">Copied from the linked clinic, edits change only your listing, not the clinic.</p>
                 </div>
               ) : (
                 <div key={i} className="border border-gray-200 rounded-lg p-3 mb-3">

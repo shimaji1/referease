@@ -1,6 +1,6 @@
 'use client'
 
-// One profile header for every category — clinics, doctors, imaging, labs.
+// One profile header for every category, clinics, doctors, imaging, labs.
 // Navy banner + initials avatar + overlapping quick-stat tiles (z-fixed).
 export default function ProfileHeader({ name, subtitle, verified, action, tiles = [], footer }) {
   const initials = (name || '?').replace(/^(dr\.?|the)\s+/i, '').split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase()

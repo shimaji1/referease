@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase-server'
 
-// GET /api/specialties — list all SNOMED CT specialties grouped by category
+// GET /api/specialties, list all SNOMED CT specialties grouped by category
 export async function GET() {
   const supabase = getSupabase()
   if (!supabase) return NextResponse.json({ error: 'Database not connected' }, { status: 503 })

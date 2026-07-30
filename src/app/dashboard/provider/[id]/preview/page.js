@@ -22,14 +22,14 @@ export default function PreviewPage({ params }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-brand text-white text-center py-2 text-xs font-semibold">
-        👁 Preview Mode — This is how physicians will see your listing
+        👁 Preview Mode, This is how physicians will see your listing
         <Link href={`/dashboard/provider/${id}`} className="ml-3 underline">← Back to Edit</Link>
       </div>
       <nav className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center">
           <div className="flex items-center gap-2">
-            <img src="/img/icon.png" alt="ReferEasy" className="w-10 h-10 rounded-lg" />
-            <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+            <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
+            <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </div>
         </div>
       </nav>
@@ -54,7 +54,7 @@ export default function PreviewPage({ params }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Contact & Location</h3>
-            <R l="Address" v={p.address || '—'} />
+            <R l="Address" v={p.address || ','} />
             {p.phone && <R l="Phone" v={p.phone} />}
             {p.fax && <R l="Fax" v={p.fax} />}
             {p.email && <R l="Email" v={p.email} />}

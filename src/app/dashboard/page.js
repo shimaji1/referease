@@ -141,13 +141,13 @@ function SpecialistDashboard({ profile, user }) {
               </div>
               <div className="text-lg font-bold text-gray-900">{highestListing.status.label}</div>
               {highestListing.status.kind === 'trial' && highestListing.status.daysLeft <= 15 && (
-                <p className="text-xs text-amber-700 mt-1 font-semibold">⏰ Trial ends in {highestListing.status.daysLeft} day{highestListing.status.daysLeft !== 1 ? 's' : ''} — reply to the reminder email or contact us to keep your plan.</p>
+                <p className="text-xs text-amber-700 mt-1 font-semibold">⏰ Trial ends in {highestListing.status.daysLeft} day{highestListing.status.daysLeft !== 1 ? 's' : ''}, reply to the reminder email or contact us to keep your plan.</p>
               )}
               {highestListing.status.kind === 'expired' && (
-                <p className="text-xs text-red-600 mt-1 font-semibold">Your trial ended — paid features are hidden until you keep your plan.</p>
+                <p className="text-xs text-red-600 mt-1 font-semibold">Your trial ended, paid features are hidden until you keep your plan.</p>
               )}
               {highestListing.status.tier === 'listed' && (
-                <p className="text-xs text-gray-500 mt-1">Upgrade to be seen. Verified badge, priority ranking, referral forms — try Verified free for 60 days, no card.</p>
+                <p className="text-xs text-gray-500 mt-1">Upgrade to be seen. Verified badge, priority ranking, referral forms, try Verified free for 60 days, no card.</p>
               )}
             </div>
             {highestListing.status.tier !== 'featured' && (
@@ -284,10 +284,10 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/img/icon.png" alt="ReferEasy" className="w-10 h-10 rounded-lg" />
-            <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+            <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
+            <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </Link>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
