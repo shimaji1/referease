@@ -132,9 +132,9 @@ export default function PricingPage() {
                   60 days free · No credit card
                 </div>
               )}
-              {(tier.key === 'verified' || tier.key === 'featured') && (
+              {tier.key === 'verified' && (
                 <div className="flex justify-center mb-4">
-                  <img src="/img/verified-seal.png" alt="Verified badge" className={tier.key === 'featured' ? 'w-20 h-20' : 'w-24 h-24'} />
+                  <img src="/img/verified-seal.png" alt="Verified badge" className="w-24 h-24" />
                 </div>
               )}
               <h2 className={`text-2xl font-bold ${tier.highlight ? 'text-white' : 'text-gray-900'}`}>{tier.name}</h2>

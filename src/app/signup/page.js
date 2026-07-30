@@ -39,8 +39,8 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="p-4">
         <Link href="/" className="inline-flex items-center gap-2">
-          <img src="/img/icon.png" alt="ReferEasy" className="w-7 h-7 rounded-lg" />
-          <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+          <img src="/img/icon.png" alt="ReferEasy" className="w-10 h-10 rounded-lg" />
+          <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
         </Link>
       </div>
 

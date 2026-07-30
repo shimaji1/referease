@@ -8,8 +8,8 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-2">
             <div className="flex items-center gap-2 mb-3">
-              <img src="/img/icon.png" alt="ReferEasy" className="w-9 h-9 rounded-lg" />
-              <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+              <img src="/img/icon.png" alt="ReferEasy" className="w-10 h-10 rounded-lg" />
+              <span className="text-xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
             </div>
             <p className="text-sm text-gray-500 leading-relaxed max-w-sm">
               Ontario's live physician-to-physician referral platform. Real-time availability,
