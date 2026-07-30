@@ -45,7 +45,7 @@ export default function HomePage() {
       supabase.from('providers').select('id', { count: 'exact', head: true }).eq('data_status', 'complete'),
       supabase.from('physicians').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       supabase.from('specialties').select('snomed_code', { count: 'exact', head: true }),
-      supabase.from('providers').select('id, name, type, rating, accepting_referrals, verified').eq('data_status', 'complete').not('rating', 'is', null).order('rating', { ascending: false }).limit(6),
+      supabase.from('providers').select('id, name, type, rating, accepting_referrals, verified, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').not('rating', 'is', null).order('rating', { ascending: false }).limit(6),
     ]).then(([p, d, sp, f]) => {
       setCounts({ prov: p.count, docs: d.count, specs: sp.count })
       if (f.data) setFeatured(f.data)

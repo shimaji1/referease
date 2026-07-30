@@ -156,7 +156,7 @@ function Detail({ p, onBack, isFav, onFav }) {
       <ProfileView
         name={p.name}
         subtitle={`${p.type}${p.category ? ` · ${p.category}` : ''}`}
-        verified={p.verified}
+        verified={p.verified && can(p, 'verified_badge')}
         action={<button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
         tiles={[
           { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },
@@ -197,7 +197,7 @@ function SponsoredSlot({ category, slotIndex, loc }) {
     let alive = true
     const load = async () => {
       if (!supabase) return
-      let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true)
+      let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, plan, trial_ends_at, plan_granted_by_admin, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true)
       if (category) q = q.eq('category', category)
       const { data } = await q.range(0, 40)
       if (!alive || !data || data.length === 0) return
@@ -335,7 +335,7 @@ export default function SearchPage() {
       // Try category-preferred first
       if (cat !== 'all') {
         if (!wantsDoctor) {
-          const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true).eq('category', cat).limit(20)
+          const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services, plan, trial_ends_at, plan_granted_by_admin, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true).eq('category', cat).limit(20)
           if (data) results.push(...data.map(x => ({ ...x, _kind: 'provider' })))
         }
         if (!wantsFacility && results.length < 4) {
@@ -345,7 +345,7 @@ export default function SearchPage() {
       }
       // Fallback: any featured, if we didn't fill 4 yet
       if (results.length < 4) {
-        const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true).limit(20)
+        const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services, plan, trial_ends_at, plan_granted_by_admin, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true).limit(20)
         if (data) data.forEach(x => { if (!results.some(r => r._kind === 'provider' && r.id === x.id)) results.push({ ...x, _kind: 'provider' }) })
       }
       if (results.length < 4) {
@@ -363,7 +363,7 @@ export default function SearchPage() {
     if (typeof window === 'undefined') return
     const openById = async (id) => {
       if (!supabase) return
-      const { data } = await supabase.from('providers').select('*').eq('id', id).single()
+      const { data } = await supabase.from('providers').select('*, plan, trial_ends_at, plan_granted_by_admin').eq('id', id).single()
       if (data) { setSel(data); setView('detail'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
     }
     const handler = (e) => openById(e.detail?.id)
@@ -376,7 +376,7 @@ export default function SearchPage() {
     const urlId = new URL(window.location.href).searchParams.get('id')
     if (!urlId || !supabase) return
     let alive = true
-    supabase.from('providers').select('*').eq('id', urlId).single().then(({ data }) => {
+    supabase.from('providers').select('*, plan, trial_ends_at, plan_granted_by_admin').eq('id', urlId).single().then(({ data }) => {
       if (alive && data) { setSel(data); setView('detail'); window.scrollTo({ top: 0, behavior: 'auto' }) }
     })
     return () => { alive = false }

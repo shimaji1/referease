@@ -53,7 +53,12 @@ function PlanDropdown({ provider, onChange }) {
       payload.last_reminder_sent = null
       payload.featured = false        // Verified doesn't get featured slots
     }
-    await supabase.from('providers').update(payload).eq('id', provider.id)
+    await supabase.from('providers').update(payload).eq('id', provider.id).then(({ error }) => {
+      if (error) {
+        console.error('PlanDropdown update failed:', error)
+        alert('Plan update failed: ' + error.message)
+      }
+    })
     setBusy(false)
     if (onChange) onChange()
   }

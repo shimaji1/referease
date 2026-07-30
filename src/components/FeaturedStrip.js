@@ -48,7 +48,7 @@ export default function FeaturedStrip({
       const pool = []
 
       if (doctorSide !== true) {
-        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete')
+        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, plan, trial_ends_at, plan_granted_by_admin, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete')
         if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
         const { data } = await q.eq('featured', true).limit(60)
         if (data) pool.push(...data.map(p => ({ ...p, _kind: 'provider' })))
@@ -63,7 +63,7 @@ export default function FeaturedStrip({
       // Fallback: no featured yet → pull well-rated verified as placeholder
       if (pool.length === 0 && fallbackToNearest) {
         if (doctorSide !== true) {
-          let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng').eq('data_status', 'complete').eq('verified', true)
+          let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('verified', true)
           if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
           const { data } = await q.limit(60)
           if (data) pool.push(...data.map(p => ({ ...p, _kind: 'provider' })))
