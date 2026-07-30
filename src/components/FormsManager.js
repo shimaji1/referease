@@ -1,9 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { limit as planLimit } from '@/lib/plan'
 
 // Attach named, downloadable forms to a clinic (providerId) or a doctor (physicianId).
-export default function FormsManager({ providerId = null, physicianId = null, ownerId = null, dark = false }) {
+export default function FormsManager({ providerId = null, physicianId = null, ownerId = null, provider = null, dark = false }) {
   const [forms, setForms] = useState([])
   const [name, setName] = useState('')
   const [file, setFile] = useState(null)
@@ -15,6 +17,10 @@ export default function FormsManager({ providerId = null, physicianId = null, ow
   const idValue = physicianId || providerId
   const keyPrefix = physicianId ? `physician-${physicianId}` : `provider-${providerId}`
 
+  // Plan-based upload cap. Provider-side uploads are gated. Doctor-side (physicianId) is ungated for now.
+  const uploadCap = provider ? planLimit(provider, 'form_uploads') : 999
+  const atCap = provider && forms.length >= uploadCap
+
   const load = async () => {
     if (!supabase || !idValue) return
     const { data } = await supabase.from('listing_forms').select('*').eq(idField, idValue).order('created_at', { ascending: false })
@@ -23,6 +29,7 @@ export default function FormsManager({ providerId = null, physicianId = null, ow
   useEffect(() => { load() }, [idValue])
 
   const upload = async () => {
+    if (atCap) { setErr(`Your plan allows ${uploadCap} form${uploadCap === 1 ? '' : 's'}. Upgrade to add more.`); return }
     if (!supabase || !file || !name.trim()) { setErr('Add a name and choose a file.'); return }
     setBusy(true); setErr('')
     const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -71,6 +78,17 @@ export default function FormsManager({ providerId = null, physicianId = null, ow
 
   return (
     <div>
+      {provider && (
+        <div className={dark ? 'text-[11px] text-[#7a8599] mb-3 flex items-center gap-2' : 'text-[11px] text-gray-500 mb-3 flex items-center gap-2'}>
+          <span>{forms.length} of {uploadCap === 999 ? '∞' : uploadCap} used</span>
+          {atCap && uploadCap < 999 && (
+            <>
+              <span>·</span>
+              <Link href="/pricing" className={dark ? 'text-[#60a5fa] font-semibold hover:underline' : 'text-brand font-semibold hover:underline'}>Upgrade for more →</Link>
+            </>
+          )}
+        </div>
+      )}
       {forms.length > 0 ? (
         <div className="mb-3">
           {forms.map(f => (
@@ -97,7 +115,7 @@ export default function FormsManager({ providerId = null, physicianId = null, ow
             <input key={nonce} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => setFile(e.target.files?.[0] || null)} className="hidden" />
           </label>
           <span className={t.muted + ' truncate min-w-0'}>{file ? file.name : 'No file chosen'}</span>
-          <button onClick={upload} disabled={busy || !file || !name.trim()} className={t.btn + ' ml-auto'}>{busy ? 'Uploading…' : 'Upload'}</button>
+          <button onClick={upload} disabled={busy || !file || !name.trim() || atCap} className={t.btn + ' ml-auto'}>{busy ? 'Uploading…' : atCap ? 'Limit reached' : 'Upload'}</button>
         </div>
         {(!name.trim() || !file) && <p className={t.muted + ' mt-2'}>Add a name and choose a file, then Upload.</p>}
       </div>

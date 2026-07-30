@@ -38,12 +38,20 @@ function PlanDropdown({ provider, onChange }) {
       payload.trial_ends_at = null
       payload.plan_granted_by_admin = false
       payload.plan_notes = null
-    } else {
-      // Admin promotion = granted, no expiry
+      payload.featured = false        // downgrade removes them from featured slots
+    } else if (nextPlan === 'featured') {
       payload.plan_granted_by_admin = true
       payload.plan_started_at = new Date().toISOString()
       payload.trial_ends_at = null
       payload.last_reminder_sent = null
+      payload.featured = true         // Featured plan grants featured slot placement
+    } else {
+      // Verified
+      payload.plan_granted_by_admin = true
+      payload.plan_started_at = new Date().toISOString()
+      payload.trial_ends_at = null
+      payload.last_reminder_sent = null
+      payload.featured = false        // Verified doesn't get featured slots
     }
     await supabase.from('providers').update(payload).eq('id', provider.id)
     setBusy(false)

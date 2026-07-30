@@ -8,6 +8,7 @@ import TopNav from '@/components/TopNav'
 import FeaturedStrip from '@/components/FeaturedStrip'
 import useLocation from '@/hooks/useLocation'
 import { useAuth } from '@/context/AuthContext'
+import { can } from '@/lib/plan'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -70,7 +71,7 @@ function Card({ p, onSelect, isFav, onFav }) {
         <div className="flex items-center gap-1.5 flex-wrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3></div>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
-          {p.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+          {p.verified && can(p, 'verified_badge') && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
           <AcceptPill v={p.accepting_referrals} />
           <WaitBadge weeks={p.wait_weeks} />
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
@@ -97,7 +98,7 @@ function DoctorCard({ d, isFav, onFav }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(d.category || "Specialist")}`}>{(d.category || "Specialist").toUpperCase()}</span>
             <h3 className="font-semibold text-gray-900 text-base leading-snug">{d.name}</h3>
-            {d.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+            {d.verified && can(d, 'verified_badge') && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
           </div>
           <p className="text-sm text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
           <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
@@ -196,7 +197,7 @@ function SponsoredSlot({ category, slotIndex, loc }) {
     let alive = true
     const load = async () => {
       if (!supabase) return
-      let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng').eq('data_status', 'complete').eq('featured', true)
+      let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true)
       if (category) q = q.eq('category', category)
       const { data } = await q.range(0, 40)
       if (!alive || !data || data.length === 0) return
@@ -334,7 +335,7 @@ export default function SearchPage() {
       // Try category-preferred first
       if (cat !== 'all') {
         if (!wantsDoctor) {
-          const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services').eq('data_status', 'complete').eq('featured', true).eq('category', cat).limit(20)
+          const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true).eq('category', cat).limit(20)
           if (data) results.push(...data.map(x => ({ ...x, _kind: 'provider' })))
         }
         if (!wantsFacility && results.length < 4) {
@@ -344,7 +345,7 @@ export default function SearchPage() {
       }
       // Fallback: any featured, if we didn't fill 4 yet
       if (results.length < 4) {
-        const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services').eq('data_status', 'complete').eq('featured', true).limit(20)
+        const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true).limit(20)
         if (data) data.forEach(x => { if (!results.some(r => r._kind === 'provider' && r.id === x.id)) results.push({ ...x, _kind: 'provider' }) })
       }
       if (results.length < 4) {
@@ -454,11 +455,14 @@ export default function SearchPage() {
         })
       }
     }
-    if (sort==="name") r=[...r].sort((a,b)=>a.name.localeCompare(b.name))
-    if (sort==="rating") r=[...r].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))
-    if (sort==="wait") r=[...r].sort((a,b)=>(a.wait_weeks??999)-(b.wait_weeks??999))
-    if (sort==="reviews") r=[...r].sort((a,b)=>(b.reviews||0)-(a.reviews||0))
-    if (sort==="distance") r=[...r].sort((a,b)=>distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng))
+    // Plan-based priority: within any sort, higher-plan providers surface first
+    // (Featured=100, Verified=10, Listed=0). Applied as a tiebreaker weight.
+    const planWeight = (p) => Number(can(p, 'search_priority')) || 0
+    if (sort==="name") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || a.name.localeCompare(b.name))
+    else if (sort==="rating") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || ((Number(b.rating)||0)-(Number(a.rating)||0)))
+    else if (sort==="wait") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || ((a.wait_weeks??999)-(b.wait_weeks??999)))
+    else if (sort==="reviews") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || ((b.reviews||0)-(a.reviews||0)))
+    else if (sort==="distance") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || (distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng)))
     return r
   }, [search,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,providers,provSpecialty])
 

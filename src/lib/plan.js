@@ -53,6 +53,70 @@ export function getPlanStatus(provider) {
 // Trial length in days
 export const TRIAL_DAYS = 60
 
+// ─── Capability matrix ──────────────────────────────────────────────────────
+// Every gate in the app calls `can(provider, capability)` — one place changes
+// everything. Add a capability here, use it everywhere.
+const CAPABILITIES = {
+  listed: {
+    'verified_badge':      false,
+    'featured_slot':       false,
+    'search_priority':     0,        // ranking weight
+    'form_uploads':        0,        // max forms
+    'max_locations':       1,
+    'max_staff':           1,
+    'custom_how_to_refer': false,
+    'analytics_basic':     false,
+    'analytics_full':      false,
+    'monthly_report':      false,
+    'editorial_spotlight': false,
+    'direct_inbox':        false,
+    'blog_spotlight':      false,
+  },
+  verified: {
+    'verified_badge':      true,
+    'featured_slot':       false,
+    'search_priority':     10,
+    'form_uploads':        5,
+    'max_locations':       3,
+    'max_staff':           3,
+    'custom_how_to_refer': true,
+    'analytics_basic':     true,
+    'analytics_full':      false,
+    'monthly_report':      false,
+    'editorial_spotlight': false,
+    'direct_inbox':        true,
+    'blog_spotlight':      false,
+  },
+  featured: {
+    'verified_badge':      true,
+    'featured_slot':       true,
+    'search_priority':     100,
+    'form_uploads':        999,      // effectively unlimited
+    'max_locations':       999,
+    'max_staff':           999,
+    'custom_how_to_refer': true,
+    'analytics_basic':     true,
+    'analytics_full':      true,
+    'monthly_report':      true,
+    'editorial_spotlight': true,
+    'direct_inbox':        true,
+    'blog_spotlight':      true,
+  },
+}
+
+// The one gate function. Returns true/false for boolean caps, numeric for limits.
+export function can(provider, capability) {
+  const tier = getEffectivePlan(provider)
+  const matrix = CAPABILITIES[tier] || CAPABILITIES.listed
+  return matrix[capability] ?? false
+}
+
+// Convenience: what's the numeric limit for a capability (form_uploads, max_locations, etc.)?
+export function limit(provider, capability) {
+  const v = can(provider, capability)
+  return typeof v === 'number' ? v : 0
+}
+
 export function trialEndDate(startDate = new Date()) {
   const d = new Date(startDate)
   d.setDate(d.getDate() + TRIAL_DAYS)

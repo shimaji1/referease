@@ -104,7 +104,7 @@ export default function EditProviderPage({ params }) {
         <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5">
           <h3 className="text-sm font-bold text-gray-900 mb-1">Forms</h3>
           <p className="text-xs text-gray-500 mb-4">Upload referral or intake forms. They appear on your public listing for referring doctors to download.</p>
-          <FormsManager providerId={id} ownerId={user.id} />
+          <FormsManager providerId={id} ownerId={user.id} provider={provider} />
         </div>
       </div>
     </div>

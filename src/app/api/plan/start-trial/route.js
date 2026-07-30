@@ -45,6 +45,7 @@ export async function POST(request) {
     plan_started_at: startedAt.toISOString(),
     plan_granted_by_admin: false,
     last_reminder_sent: null,
+    featured: plan === 'featured',   // Featured plan grants featured slot placement
   }).eq('id', provider_id)
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })

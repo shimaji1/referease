@@ -43,6 +43,7 @@ async function handleReminders(request) {
   for (const p of (expired || [])) {
     await sb.from('providers').update({
       plan: 'listed',
+      featured: false,  // Downgrade removes them from featured slots
       // Preserve trial_ends_at + plan_started_at for history; just flip the plan
     }).eq('id', p.id)
     downgraded++
