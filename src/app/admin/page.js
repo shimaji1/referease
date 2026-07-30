@@ -30,9 +30,8 @@ function PlanDropdown({ provider, onChange }) {
   const [busy, setBusy] = useState(false)
   const status = getPlanStatus(provider)
   const change = async (nextPlan) => {
-    alert(`DEBUG 1: change() called with nextPlan=${nextPlan}, current plan=${provider.plan}, provider.id=${provider.id}`)
-    if (!supabase) { alert('DEBUG ABORT: supabase is null'); return }
-    if (nextPlan === provider.plan) { alert('DEBUG ABORT: same plan, no-op'); return }
+    if (!supabase) return
+    if (nextPlan === provider.plan) return
     setBusy(true)
     const payload = { plan: nextPlan }
     if (nextPlan === 'listed') {
@@ -53,15 +52,10 @@ function PlanDropdown({ provider, onChange }) {
       payload.last_reminder_sent = null
       payload.featured = false
     }
-    alert(`DEBUG 2: about to UPDATE providers WHERE id=${provider.id} SET ${JSON.stringify(payload)}`)
-    const result = await supabase.from('providers').update(payload).eq('id', provider.id).select()
-    alert(`DEBUG 3: result = ${JSON.stringify(result, null, 2).slice(0, 500)}`)
-    if (result.error) {
-      alert('DEBUG ERROR: ' + result.error.message + ' (code: ' + result.error.code + ')')
-    } else if (!result.data || result.data.length === 0) {
-      alert('DEBUG WARN: update ran but no rows returned. Row may not match id, or RLS is blocking.')
-    } else {
-      alert('DEBUG OK: row updated. New plan=' + result.data[0].plan + ', featured=' + result.data[0].featured)
+    const { error } = await supabase.from('providers').update(payload).eq('id', provider.id)
+    if (error) {
+      console.error('PlanDropdown update failed:', error)
+      alert('Plan update failed: ' + error.message)
     }
     setBusy(false)
     if (onChange) onChange()
