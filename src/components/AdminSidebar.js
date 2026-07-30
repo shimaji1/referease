@@ -56,9 +56,7 @@ export default function AdminSidebar({ tab, setTab, counts = {} }) {
     <aside style={{ width:'260px', background:'#ffffff', borderRight:'1px solid #e2e8f0', minHeight:'100vh', padding:'20px 0', flexShrink:0, boxSizing:'border-box' }}>
       <div style={{ padding:'0 20px 16px', borderBottom:'1px solid #f1f5f9', marginBottom:'12px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-          <div style={{ width:'32px', height:'32px', background:'#1e3a5f', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <span style={{ color:'#fff', fontWeight:700, fontSize:'14px' }}>R</span>
-          </div>
+          <img src="/img/icon.png" alt="ReferEasy" style={{ width:'32px', height:'32px', borderRadius:'8px' }} />
           <div>
             <div style={{ fontSize:'14px', fontWeight:700, color:'#0f172a' }}>Refer<span style={{ color:'#2563eb' }}>Easy</span></div>
             <div style={{ fontSize:'10px', color:'#94a3b8', letterSpacing:'0.06em', textTransform:'uppercase' }}>Admin</div>

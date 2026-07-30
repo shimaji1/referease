@@ -14,7 +14,7 @@ export default function TopNav() {
     <nav className="border-b border-gray-200 bg-white sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white font-bold text-sm">R</div>
+          <img src="/img/icon.png" alt="ReferEasy" className="w-8 h-8 rounded-lg" />
           <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
         </Link>
         <div className="flex items-center gap-3 sm:gap-5">

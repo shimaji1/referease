@@ -29,7 +29,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="p-4">
         <Link href="/" className="inline-flex items-center gap-2">
-          <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
+          <img src="/img/icon.png" alt="ReferEasy" className="w-7 h-7 rounded-lg" />
           <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
         </Link>
       </div>

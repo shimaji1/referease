@@ -24,19 +24,18 @@ export const metadata = {
     siteName: 'ReferEasy',
     title: 'ReferEasy — Ontario\'s Live Physician Referral Platform',
     description: 'Real-time availability, wait times, and referral criteria for Ontario physicians.',
-    images: [{ url: '/img/hero.jpg', width: 1200, height: 630, alt: 'ReferEasy — Ontario physician referral platform' }],
+    images: [{ url: '/img/logo.png', width: 1200, height: 630, alt: 'ReferEasy — Ontario physician referral platform' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'ReferEasy — Ontario\'s Live Physician Referral Platform',
     description: 'Real-time availability, wait times, and referral criteria for Ontario physicians.',
-    images: ['/img/hero.jpg'],
+    images: ['/img/logo.png'],
   },
   robots: {
     index: true, follow: true,
     googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
   },
-  icons: { icon: '/favicon.ico', apple: '/apple-touch-icon.png' },
   category: 'health',
 }
 

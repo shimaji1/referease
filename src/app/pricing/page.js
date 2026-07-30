@@ -132,6 +132,11 @@ export default function PricingPage() {
                   60 days free · No credit card
                 </div>
               )}
+              {(tier.key === 'verified' || tier.key === 'featured') && (
+                <div className="flex justify-center mb-4">
+                  <img src="/img/verified-seal.png" alt="Verified badge" className={tier.key === 'featured' ? 'w-20 h-20' : 'w-24 h-24'} />
+                </div>
+              )}
               <h2 className={`text-2xl font-bold ${tier.highlight ? 'text-white' : 'text-gray-900'}`}>{tier.name}</h2>
               <p className={`text-sm mt-1 mb-6 ${tier.highlight ? 'text-white/80' : 'text-gray-500'}`}>{tier.tagline}</p>
               <div className="mb-6">
@@ -164,12 +169,52 @@ export default function PricingPage() {
           ))}
         </div>
 
-        <div className="mt-16 text-center max-w-2xl mx-auto">
-          <h3 className="text-lg font-bold text-gray-900 mb-3">Trials end honestly</h3>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            No auto-charge, ever, until Stripe payments are live. If your trial ends and you haven't kept your plan, your listing drops to Listed (free) — your data stays intact, your paid features are hidden until you keep your plan. Reminder emails at 15, 7, 5, and 1 day before the trial ends.
-          </p>
+        {/* Benefits section — why upgrade */}
+        <div className="mt-20 max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Get in front of the doctors who send referrals</h2>
+            <p className="text-base text-gray-600 max-w-2xl mx-auto">Family physicians across Ontario search ReferEasy every day looking for someone accepting referrals. Paid plans put you where they're looking.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4 text-2xl">🔍</div>
+              <h3 className="font-bold text-gray-900 mb-2">Be seen first</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">Verified and Featured providers appear above unverified listings in every search. Referring physicians see you before your competition.</p>
+            </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4 text-2xl">🤝</div>
+              <h3 className="font-bold text-gray-900 mb-2">Build instant trust</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">The Verified badge — earned through fax, email, and ID verification — signals to referring doctors that your listing is real, current, and physician-managed.</p>
+            </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4 text-2xl">📥</div>
+              <h3 className="font-bold text-gray-900 mb-2">Get the right referrals</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">Upload your intake forms, spell out your referral criteria, and specify what you accept. Fewer rejected referrals. Better-matched patients.</p>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 mt-6">
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
+              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4 text-2xl">📊</div>
+              <h3 className="font-bold text-gray-900 mb-2">See who's finding you</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">Featured providers get a full analytics dashboard — profile views, search impressions, contact clicks — plus a monthly performance summary.</p>
+            </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
+              <div className="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center mb-4 text-2xl">📍</div>
+              <h3 className="font-bold text-gray-900 mb-2">Reach patients near you</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">Priority placement in "near me" searches means referring doctors in your catchment area find you first — before providers hours away.</p>
+            </div>
+            <div className="bg-white border-2 border-gray-100 rounded-2xl p-6">
+              <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-4 text-2xl">📰</div>
+              <h3 className="font-bold text-gray-900 mb-2">Editorial spotlight</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">Featured members get an annual editorial spotlight on the ReferEasy blog — a proper article about your practice, your specialty, and how you help physicians and patients.</p>
+            </div>
+          </div>
         </div>
+
+        {/* Small trust-note footer */}
+        <p className="mt-16 text-center text-xs text-gray-400 max-w-xl mx-auto leading-relaxed">
+          Try Verified or Featured free for 60 days — no credit card required. Downgrades to free automatically if you don't keep your plan. Your data is always preserved.
+        </p>
       </section>
     </div>
   )

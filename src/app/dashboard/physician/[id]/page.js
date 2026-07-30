@@ -88,7 +88,7 @@ export default function EditPhysicianPage({ params }) {
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
+            <img src="/img/icon.png" alt="ReferEasy" className="w-7 h-7 rounded-lg" />
             <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </Link>
           <div className="flex items-center gap-3">
