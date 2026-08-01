@@ -39,7 +39,7 @@ function PlanDropdown({ provider, onChange }) {
       payload.plan_granted_by_admin = false
       payload.plan_notes = null
       payload.featured = false
-      // Model C: only strip verified if it was admin-granted (not actually earned via fax+email+ID)
+      // Only strip verified if it was admin-granted (user-earned verification is permanent)
       if (provider.verified_granted_by_admin) {
         payload.verified = false
         payload.verified_granted_by_admin = false
@@ -50,11 +50,9 @@ function PlanDropdown({ provider, onChange }) {
       payload.trial_ends_at = null
       payload.last_reminder_sent = null
       payload.featured = true
-      // Model C: admin grant vouches for verified status IF they weren't already verified
-      if (!provider.verified) {
-        payload.verified = true
-        payload.verified_granted_by_admin = true
-      }
+      // Admin promotion always vouches for verified status. Idempotent.
+      payload.verified = true
+      if (!provider.verified) payload.verified_granted_by_admin = true
     } else {
       // Verified plan
       payload.plan_granted_by_admin = true
@@ -62,11 +60,9 @@ function PlanDropdown({ provider, onChange }) {
       payload.trial_ends_at = null
       payload.last_reminder_sent = null
       payload.featured = false
-      // Model C: admin grant vouches for verified status IF they weren't already verified
-      if (!provider.verified) {
-        payload.verified = true
-        payload.verified_granted_by_admin = true
-      }
+      // Admin promotion always vouches for verified status. Idempotent.
+      payload.verified = true
+      if (!provider.verified) payload.verified_granted_by_admin = true
     }
     const { error } = await supabase.from('providers').update(payload).eq('id', provider.id)
     if (error) {
