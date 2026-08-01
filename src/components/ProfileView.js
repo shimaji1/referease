@@ -116,7 +116,11 @@ export default function ProfileView({
             {locations.map((loc, i) => (
               <div key={loc.id || i} className={i > 0 ? 'pt-3 mt-3 border-t border-gray-100' : ''}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-gray-900">{loc.name}</span>
+                  {loc.id ? (
+                    <a href={`/search?id=${loc.id}`} className="text-sm font-semibold text-brand hover:underline">{loc.name}</a>
+                  ) : (
+                    <span className="text-sm font-semibold text-gray-900">{loc.name}</span>
+                  )}
                   {i === 0 && locations.length > 1 && <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full shrink-0">Main clinic</span>}
                 </div>
                 {loc.address && <Row l="Address" v={loc.address} href={`https://maps.google.com/?q=${encodeURIComponent(loc.address)}`} />}

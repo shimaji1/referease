@@ -52,6 +52,13 @@ export default function DoctorPage() {
     let alive = true
     async function load() {
       if (!supabase || !id) { setLoading(false); return }
+      // If this physician was migrated to a provider row, redirect to the unified URL
+      const { data: migrated } = await supabase.from('providers').select('id').eq('migrated_from_physician_id', id).limit(1).single()
+      if (!alive) return
+      if (migrated?.id) {
+        window.location.replace(`/search?id=${migrated.id}`)
+        return
+      }
       const { data: d } = await supabase.from('physicians').select('*').eq('id', id).single()
       if (!alive) return
       if (!d) { setMissing(true); setLoading(false); return }

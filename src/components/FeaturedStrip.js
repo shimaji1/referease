@@ -44,36 +44,21 @@ export default function FeaturedStrip({
     if (!supabase) { setLoaded(true); return }
     let alive = true
     const load = async () => {
-      const doctorSide = category ? DOC_CATS.has(category) : null
       const pool = []
 
-      if (doctorSide !== true) {
-        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete')
-        if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
-        const { data } = await q.eq('featured', true).limit(60)
-        if (data) pool.push(...data.map(p => ({ ...p, _kind: 'provider' })))
-      }
-      if (doctorSide !== false) {
-        let q = supabase.from('physicians').select('id, name, specialty, category, accepting_referrals, verified, wait_weeks, featured').eq('status', 'active')
-        if (category && DOC_CATS.has(category)) q = q.eq('category', category)
-        const { data } = await q.eq('featured', true).limit(60)
-        if (data) pool.push(...data.map(d => ({ ...d, _kind: 'doctor' })))
-      }
+      // After the physicians migration, doctors are providers with category='Specialist' or 'Family Medicine'.
+      // One unified query handles clinics AND doctors.
+      let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, plan, trial_ends_at, plan_granted_by_admin, clinic_provider_id').eq('data_status', 'complete')
+      if (category) q = q.eq('category', category)
+      const { data } = await q.eq('featured', true).limit(60)
+      if (data) pool.push(...data.map(p => ({ ...p, _kind: DOC_CATS.has(p.category) ? 'doctor' : 'provider' })))
 
       // Fallback: no featured yet → pull well-rated verified as placeholder
       if (pool.length === 0 && fallbackToNearest) {
-        if (doctorSide !== true) {
-          let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('verified', true)
-          if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
-          const { data } = await q.limit(60)
-          if (data) pool.push(...data.map(p => ({ ...p, _kind: 'provider' })))
-        }
-        if (doctorSide !== false && pool.length < 12) {
-          let q = supabase.from('physicians').select('id, name, specialty, category, accepting_referrals, verified, wait_weeks').eq('status', 'active').eq('verified', true)
-          if (category && DOC_CATS.has(category)) q = q.eq('category', category)
-          const { data } = await q.limit(60)
-          if (data) pool.push(...data.map(d => ({ ...d, _kind: 'doctor' })))
-        }
+        let q2 = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, plan, trial_ends_at, plan_granted_by_admin, clinic_provider_id').eq('data_status', 'complete').eq('verified', true)
+        if (category) q2 = q2.eq('category', category)
+        const { data: d2 } = await q2.limit(60)
+        if (d2) pool.push(...d2.map(p => ({ ...p, _kind: DOC_CATS.has(p.category) ? 'doctor' : 'provider' })))
       }
 
       // Sort: geographic if we have location, otherwise seeded shuffle so different sections show different items

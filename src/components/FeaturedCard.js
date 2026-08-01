@@ -7,7 +7,7 @@ export default function FeaturedCard({ item, size = 'md' }) {
   const router = useRouter()
   const pathname = usePathname()
   const isDoctor = item._kind === 'doctor'
-  const href = isDoctor ? `/doctors/${item.id}` : `/search?id=${item.id}`
+  const href = `/search?id=${item.id}`
   const alreadyOnSearch = pathname === '/search'
   const openIt = (e) => {
     if (isDoctor) return  // let the Link do its thing

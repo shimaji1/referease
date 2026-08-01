@@ -92,7 +92,7 @@ function DoctorCard({ d, isFav, onFav }) {
   const dist = (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng).toFixed(1) : null
   const isFamily = (d.specialty || '').toLowerCase().includes('family')
   return (
-    <Link href={`/doctors/${d.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/40">
+    <Link href={`/search?id=${d.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/40">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -124,6 +124,7 @@ function Detail({ p, onBack, isFav, onFav }) {
   const open = isOpenNow(p.hours)
   const [docs, setDocs] = useState([])
   const [pforms, setPforms] = useState([])
+  const [parentClinic, setParentClinic] = useState(null)
   useEffect(() => {
     let alive = true
     if (!supabase || !p?.id) return () => { alive = false }
@@ -133,8 +134,14 @@ function Detail({ p, onBack, isFav, onFav }) {
     supabase.from('listing_forms').select('*').eq('provider_id', p.id).then(({ data }) => {
       if (alive) setPforms(data || [])
     })
+    // If this is a doctor with a clinic link, fetch the clinic so we can render it as a Location with a link
+    if (p.clinic_provider_id) {
+      supabase.from('providers').select('id, name, address, phone, fax, website, hours').eq('id', p.clinic_provider_id).single().then(({ data }) => {
+        if (alive && data) setParentClinic(data)
+      })
+    }
     return () => { alive = false }
-  }, [p?.id])
+  }, [p?.id, p?.clinic_provider_id])
   return (
     <div className="animate-fade-in">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
@@ -179,9 +186,10 @@ function Detail({ p, onBack, isFav, onFav }) {
         }
         contact={{ address: p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
         hours={p.hours}
+        locations={parentClinic ? [{ id: parentClinic.id, name: parentClinic.name, address: parentClinic.address, phone: parentClinic.phone, fax: parentClinic.fax, website: parentClinic.website }] : null}
         referral={{ wait: p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`, requirements: p.requirements, criteria: p.criteria, types: p.referral_types, cpso_url: p.cpso_url }}
         notes={p.notes}
-        people={docs.length > 0 ? docs.map(d => ({ id: d.id, name: d.name, detail: d.specialty, href: `/doctors/${d.id}` })) : null}
+        people={docs.length > 0 ? docs.map(d => ({ id: d.id, name: d.name, detail: d.specialty, href: `/search?id=${d.id}` })) : null}
         forms={pforms.map(f => ({ id: f.id, name: f.name, url: f.file_url }))}
         services={p.services}
       />
@@ -236,7 +244,7 @@ function SponsoredSlot({ category, slotIndex, loc }) {
 function SponsoredCard({ item, onSelect }) {
   const isDoctor = item._kind === 'doctor'
   const handleClick = () => {
-    if (isDoctor) { window.location.href = `/doctors/${item.id}`; return }
+    if (isDoctor) { window.location.href = `/search?id=${item.id}`; return }
     onSelect(item)
   }
   return (
@@ -305,13 +313,19 @@ export default function SearchPage() {
     async function load() {
       if (!supabase) { setLoading(false); return }
       try {
-        const [provAll, docsAll, specsRes] = await Promise.all([
+        const [provAll, specsRes] = await Promise.all([
           fetchAll(() => supabase.from("providers").select("*").eq("data_status", "complete").order("name")),
-          fetchAll(() => supabase.from("physicians").select("id, name, specialty, specialty_code, gender, category, accepting_referrals, accepting_new_patients, wait_weeks, languages, rating, verified, hours, physician_locations(is_primary, providers(id, name, address, lat, lng, hours, services))").eq("status", "active")),
           supabase.from("specialties").select("snomed_code, category, name"),
         ])
-        setProviders(provAll)
-        setDoctors(docsAll)
+        // Split providers into clinics/facilities vs doctors by category
+        const DOC_CATS_SET = new Set(['Specialist', 'Family Medicine'])
+        const clinics = provAll.filter(p => !DOC_CATS_SET.has(p.category))
+        const doctors = provAll.filter(p => DOC_CATS_SET.has(p.category)).map(p => ({
+          ...p,
+          specialty: p.type || p.category,      // doctor cards expect specialty field
+        }))
+        setProviders(clinics)
+        setDoctors(doctors)
         if (specsRes.data) setSpecialties(specsRes.data)
       } catch {}
       setLoading(false)
@@ -339,8 +353,8 @@ export default function SearchPage() {
           if (data) results.push(...data.map(x => ({ ...x, _kind: 'provider' })))
         }
         if (!wantsFacility && results.length < 4) {
-          const { data } = await supabase.from('physicians').select('id, name, specialty, category, accepting_referrals, verified, wait_weeks').eq('status', 'active').eq('featured', true).eq('category', cat).limit(20)
-          if (data) results.push(...data.map(x => ({ ...x, _kind: 'doctor', type: x.specialty })))
+          const { data } = await supabase.from('providers').select('id, name, type, category, accepting_referrals, verified, wait_weeks, clinic_provider_id').eq('data_status', 'complete').eq('featured', true).eq('category', cat).in('category', ['Specialist','Family Medicine']).limit(20)
+          if (data) results.push(...data.map(x => ({ ...x, _kind: 'doctor' })))
         }
       }
       // Fallback: any featured, if we didn't fill 4 yet
@@ -349,8 +363,8 @@ export default function SearchPage() {
         if (data) data.forEach(x => { if (!results.some(r => r._kind === 'provider' && r.id === x.id)) results.push({ ...x, _kind: 'provider' }) })
       }
       if (results.length < 4) {
-        const { data } = await supabase.from('physicians').select('id, name, specialty, category, accepting_referrals, verified, wait_weeks').eq('status', 'active').eq('featured', true).limit(20)
-        if (data) data.forEach(x => { if (!results.some(r => r._kind === 'doctor' && r.id === x.id)) results.push({ ...x, _kind: 'doctor', type: x.specialty }) })
+        const { data } = await supabase.from('providers').select('id, name, type, category, accepting_referrals, verified, wait_weeks, clinic_provider_id').eq('data_status', 'complete').eq('featured', true).in('category', ['Specialist','Family Medicine']).limit(20)
+        if (data) data.forEach(x => { if (!results.some(r => r._kind === 'doctor' && r.id === x.id)) results.push({ ...x, _kind: 'doctor' }) })
       }
       if (alive) setSponsorPool(results.slice(0, 6))
     }
