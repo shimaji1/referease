@@ -68,10 +68,10 @@ function Card({ p, onSelect, isFav, onFav }) {
     <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
       <button onClick={() => onFav(p.id)} className={`absolute top-3 right-3 text-lg transition ${isFav ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
       <button onClick={() => onSelect(p)} className="text-left w-[calc(100%-30px)]">
-        <div className="flex items-center gap-1.5 flex-wrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3></div>
+        <div className="flex items-center gap-1.5 flex-wrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug inline-flex items-center gap-1.5">{p.name}{p.verified && can(p, 'verified_badge') && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-5 h-5 rounded" />}</h3></div>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
-          {p.verified && can(p, 'verified_badge') && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+          {p.verified && can(p, 'verified_badge') && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/5 px-1.5 py-0.5 rounded-full border border-brand/15"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
           <AcceptPill v={p.accepting_referrals} />
           <WaitBadge weeks={p.wait_weeks} />
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
@@ -97,8 +97,8 @@ function DoctorCard({ d, isFav, onFav }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(d.category || "Specialist")}`}>{(d.category || "Specialist").toUpperCase()}</span>
-            <h3 className="font-semibold text-gray-900 text-base leading-snug">{d.name}</h3>
-            {d.verified && can(d, 'verified_badge') && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+            <h3 className="font-semibold text-gray-900 text-base leading-snug inline-flex items-center gap-1.5">{d.name}{d.verified && can(d, 'verified_badge') && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-5 h-5 rounded" />}</h3>
+            {d.verified && can(d, 'verified_badge') && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/5 px-1.5 py-0.5 rounded-full border border-brand/15"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
           </div>
           <p className="text-sm text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
           <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
@@ -217,10 +217,10 @@ function SponsoredSlot({ category, slotIndex, loc }) {
     <div className="bg-amber-50/40 border border-amber-200 rounded-xl p-4 cursor-pointer hover:border-amber-400 transition relative" onClick={() => { window.location.href = `/search?id=${item.id}` }}>
       <span className="absolute top-3 right-3 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full uppercase tracking-wider">Sponsored</span>
       <div className="pr-20">
-        <h3 className="font-semibold text-gray-900 text-base leading-snug">{item.name}</h3>
+        <h3 className="font-semibold text-gray-900 text-base leading-snug inline-flex items-center gap-1.5">{item.name}{item.verified && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-5 h-5 rounded" />}</h3>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{item.type || item.category}</p>
         <div className="flex flex-wrap gap-1.5 mt-2 items-center">
-          {item.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+          {item.verified && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/5 px-1.5 py-0.5 rounded-full border border-brand/15"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
           {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
           {item.accepting_referrals === false && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
           {item.accepting_referrals == null && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Unknown</span>}
@@ -243,10 +243,10 @@ function SponsoredCard({ item, onSelect }) {
     <div onClick={handleClick} data-sponsored="true" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', cursor: 'pointer', position: 'relative' }}>
       <span style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '11px', fontWeight: 700, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', padding: '4px 12px', borderRadius: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Sponsored</span>
       <div style={{ paddingRight: '80px' }}>
-        <h3 className="font-semibold text-gray-900 text-base leading-snug">{item.name}</h3>
+        <h3 className="font-semibold text-gray-900 text-base leading-snug inline-flex items-center gap-1.5">{item.name}{item.verified && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-5 h-5 rounded" />}</h3>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{item.type || item.category || 'Provider'}</p>
         <div className="flex flex-wrap gap-1.5 mt-2 items-center">
-          {item.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+          {item.verified && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/5 px-1.5 py-0.5 rounded-full border border-brand/15"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
           {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
           {item.accepting_referrals === false && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
           {item.accepting_referrals == null && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Unknown</span>}

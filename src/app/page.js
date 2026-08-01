@@ -190,8 +190,8 @@ export default function HomePage() {
             {featured.map(p => (
               <Link key={p.id} href={`/search?id=${p.id}`} className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md hover:border-brand/30 transition block">
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="font-semibold text-gray-900 text-sm leading-snug">{p.name}</h3>
-                  {p.verified && can(p, 'verified_badge') && <span className="text-[10px] font-bold text-brand bg-brand/5 px-2 py-0.5 rounded-full border border-brand/15 shrink-0">✓ Verified</span>}
+                  <h3 className="font-semibold text-gray-900 text-sm leading-snug inline-flex items-center gap-1.5">{p.name}{p.verified && can(p, 'verified_badge') && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-4 h-4 rounded" />}</h3>
+                  {p.verified && can(p, 'verified_badge') && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/5 px-1.5 py-0.5 rounded-full border border-brand/15 shrink-0"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
                 </div>
                 <p className="text-xs text-brand/70 font-medium mb-3">{p.type}</p>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
