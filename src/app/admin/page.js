@@ -102,6 +102,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [catFilter, setCatFilter] = useState("")
+  const [planFilter, setPlanFilter] = useState("")
   const [msg, setMsg] = useState("")
   const [tab, setTab] = useState("list")
   const [page, setPage] = useState(0)
@@ -144,13 +145,14 @@ export default function AdminPage() {
     if (search) query = query.or(`name.ilike.%${search}%,type.ilike.%${search}%,address.ilike.%${search}%`)
     if (statusFilter) query = query.eq("data_status", statusFilter)
     if (catFilter) query = query.eq("category", catFilter)
+    if (planFilter) query = query.eq("plan", planFilter)
     query = query.order("name").range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
     const { data, count } = await query
     if (data) setProviders(data)
     if (count !== null) setTotal(count)
 
-    // doctors live in the same list (status filter is provider-only, so skip doctors when it's set)
-    if (statusFilter) { setPhysicians([]); return }
+    // doctors live in the same list (status/plan filters are provider-only, so skip doctors when either is set)
+    if (statusFilter || planFilter) { setPhysicians([]); return }
     let dq = supabase.from('physicians').select('*')
     if (search) {
       const t = search.replace(/^dr\.?\s*/i, '').replace(/[,%]/g, '').trim()
@@ -158,7 +160,7 @@ export default function AdminPage() {
     }
     const { data: docs } = await dq.order('name').limit(50)
     setPhysicians(docs || [])
-  }, [search, statusFilter, catFilter, page])
+  }, [search, statusFilter, catFilter, planFilter, page])
 
   const loadStats = useCallback(async () => {
     if (!supabase) return
@@ -632,6 +634,12 @@ export default function AdminPage() {
               <select value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(0) }} style={{ ...s, marginTop:0, width:"140px", flex:"0 0 auto" }}>
                 <option value="">All categories</option>
                 {ALL_CATS.map(c => <option key={c} value={c}>{c}</option>)}<option value="__add__">+ Add new category…</option>
+              </select>
+              <select value={planFilter} onChange={e => { setPlanFilter(e.target.value); setPage(0) }} style={{ ...s, marginTop:0, width:"130px", flex:"0 0 auto" }}>
+                <option value="">All plans</option>
+                <option value="listed">Listed</option>
+                <option value="verified">Verified</option>
+                <option value="featured">Featured</option>
               </select>
             </div>
 
