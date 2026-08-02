@@ -184,7 +184,7 @@ function Detail({ p, onBack, isFav, onFav }) {
             </div>
           )
         }
-        contact={{ address: p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
+        contact={{ address: parentClinic ? null : p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
         hours={p.hours}
         locations={parentClinic ? [{ id: parentClinic.id, name: parentClinic.name, address: parentClinic.address, phone: parentClinic.phone, fax: parentClinic.fax, website: parentClinic.website }] : null}
         referral={{ wait: p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`, requirements: p.requirements, criteria: p.criteria, types: p.referral_types, cpso_url: p.cpso_url }}
