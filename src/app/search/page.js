@@ -213,25 +213,34 @@ export default function SearchPage() {
     async function load() {
       if (!supabase) { setLoading(false); return }
       try {
-        const [provRes, specs] = await Promise.all([
-          supabase.from("providers").select("*").eq("data_status", "complete").order("name"),
+        // Supabase caps a single query at 1000 rows. Paginate through all of them.
+        async function fetchAll(builder, pageSize = 1000, cap = 20000) {
+          const results = []
+          for (let from = 0; from < cap; from += pageSize) {
+            const to = from + pageSize - 1
+            const { data, error } = await builder().range(from, to)
+            if (error || !data) break
+            results.push(...data)
+            if (data.length < pageSize) break
+          }
+          return results
+        }
+        const [provAll, specsRes] = await Promise.all([
+          fetchAll(() => supabase.from("providers").select("*").eq("data_status", "complete").order("name")),
           supabase.from("specialties").select("snomed_code, category, name"),
         ])
-        if (provRes.data) {
-          // Split into clinics and doctors by category. Doctors get their clinic's location embedded.
-          const DOC_CATS_SET = new Set(['Specialist', 'Family Medicine'])
-          const provAll = provRes.data
-          const byId = new Map(provAll.map(p => [p.id, p]))
-          const clinics = provAll.filter(p => !DOC_CATS_SET.has(p.category))
-          const doctors = provAll.filter(p => DOC_CATS_SET.has(p.category)).map(d => {
-            const clinic = d.clinic_provider_id ? byId.get(d.clinic_provider_id) : null
-            return { ...d, specialty: d.type || d.category, physician_locations: clinic ? [{ is_primary: true, providers: { id: clinic.id, name: clinic.name, address: clinic.address, lat: clinic.lat, lng: clinic.lng, hours: clinic.hours, services: clinic.services } }] : [] }
-          })
-          setProviders(clinics)
-          setDoctors(doctors)
-        }
-        if (specs.data) setSpecialties(specs.data)
-      } catch {}
+        // Split into clinics and doctors by category. Doctors get their clinic's location embedded.
+        const DOC_CATS_SET = new Set(['Specialist', 'Family Medicine'])
+        const byId = new Map(provAll.map(p => [p.id, p]))
+        const clinics = provAll.filter(p => !DOC_CATS_SET.has(p.category))
+        const doctors = provAll.filter(p => DOC_CATS_SET.has(p.category)).map(d => {
+          const clinic = d.clinic_provider_id ? byId.get(d.clinic_provider_id) : null
+          return { ...d, specialty: d.type || d.category, physician_locations: clinic ? [{ is_primary: true, providers: { id: clinic.id, name: clinic.name, address: clinic.address, lat: clinic.lat, lng: clinic.lng, hours: clinic.hours, services: clinic.services } }] : [] }
+        })
+        setProviders(clinics)
+        setDoctors(doctors)
+        if (specsRes.data) setSpecialties(specsRes.data)
+      } catch (e) { console.error('search load failed:', e) }
       setLoading(false)
     }
     load()
