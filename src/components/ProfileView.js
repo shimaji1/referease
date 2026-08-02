@@ -3,7 +3,7 @@ import Link from 'next/link'
 import ProfileHeader from './ProfileHeader'
 
 // ============================================================================
-// ONE profile body for every category, clinics, doctors, imaging, labs.
+// ONE profile body for every category — clinics, doctors, imaging, labs.
 // Both the search detail and the doctor page render THIS component, so fonts,
 // sizes, spacing and layout are identical by construction.
 // Cards render only when they have data.
@@ -43,7 +43,7 @@ function HoursRows({ hours }) {
 
 export default function ProfileView({
   name, subtitle, verified, action, tiles = [], headerFooter = null,
-  banner = null,                    // e.g. claim banner, renders under the header
+  banner = null,                    // e.g. claim banner — renders under the header
   languages = null,                 // top-level languages fallback (used for the Location card)
   contact = null,                   // { address, phone, fax, email, website, languages }
   hours = null,                     // { mon..sun }
@@ -104,7 +104,7 @@ export default function ProfileView({
           <Card title="Physicians">
             {people.map(d => (
               <Link key={d.id} href={d.href} className="flex items-center justify-between py-2 text-sm border-b border-gray-50 last:border-0 group">
-                <span className="text-gray-900 group-hover:text-brand font-semibold">{d.name}{d.detail ? `, ${d.detail}` : ''}</span>
+                <span className="text-gray-900 group-hover:text-brand font-semibold">{d.name}{d.detail ? ` — ${d.detail}` : ''}</span>
                 <span className="text-gray-300 group-hover:text-brand">→</span>
               </Link>
             ))}
@@ -117,7 +117,7 @@ export default function ProfileView({
               <div key={loc.id || i} className={i > 0 ? 'pt-3 mt-3 border-t border-gray-100' : ''}>
                 <div className="flex items-center justify-between gap-2">
                   {loc.id ? (
-                    <a href={`/search?id=${loc.id}`} className="text-sm font-semibold text-brand hover:underline">{loc.name}</a>
+                    <Link href={`/search?id=${loc.id}`} className="text-sm font-semibold text-brand hover:underline">{loc.name}</Link>
                   ) : (
                     <span className="text-sm font-semibold text-gray-900">{loc.name}</span>
                   )}

@@ -256,12 +256,27 @@ export default function SearchPage() {
   const toggleFavDoc = useCallback(id => saveFavDocs(favDocs.includes(id) ? favDocs.filter(f => f !== id) : [...favDocs, id]), [favDocs, saveFavDocs])
 
   // Deep-link: /search?id=123 opens that provider's listing directly. Search BOTH clinics and doctors.
+  // Handle initial load AND subsequent URL changes (client-side navigation from doctor→clinic→doctor links).
   useEffect(() => {
     if (typeof window === 'undefined' || (!providers.length && !doctors.length)) return
-    const pid = new URLSearchParams(window.location.search).get('id')
-    if (!pid) return
-    const p = providers.find(x => String(x.id) === String(pid)) || doctors.find(x => String(x.id) === String(pid))
-    if (p) { setSel(p); setView('detail') }
+    const resolve = () => {
+      const pid = new URLSearchParams(window.location.search).get('id')
+      if (!pid) return
+      const p = providers.find(x => String(x.id) === String(pid)) || doctors.find(x => String(x.id) === String(pid))
+      if (p) { setSel(p); setView('detail'); window.scrollTo({ top: 0, behavior: 'instant' }) }
+    }
+    resolve()
+    const onPop = () => resolve()
+    window.addEventListener('popstate', onPop)
+    // Also poll for URL changes triggered by Next.js Link clicks that don't fire popstate
+    let lastSearch = window.location.search
+    const iv = setInterval(() => {
+      if (window.location.search !== lastSearch) {
+        lastSearch = window.location.search
+        resolve()
+      }
+    }, 100)
+    return () => { window.removeEventListener('popstate', onPop); clearInterval(iv) }
   }, [providers, doctors])
 
   // Open a specific listing when arriving via /search?id=123 (e.g. from a favourite)
