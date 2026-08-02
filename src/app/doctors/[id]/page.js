@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import ProfileView from '@/components/ProfileView'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
@@ -44,7 +43,6 @@ export default function DoctorPage() {
   const [missing, setMissing] = useState(false)
   const [forms, setForms] = useState([])
   const [isFav, setIsFav] = useState(false)
-  useEffect(() => { if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' }) }, [id])
   useEffect(() => { try { const s = JSON.parse(localStorage.getItem('re-favs-docs') || '[]'); setIsFav(s.includes(id)) } catch {} }, [id])
   const toggleFav = () => { try { const s = JSON.parse(localStorage.getItem('re-favs-docs') || '[]'); const next = s.includes(id) ? s.filter(x => x !== id) : [...s, id]; localStorage.setItem('re-favs-docs', JSON.stringify(next)); setIsFav(next.includes(id)) } catch {} }
 
@@ -52,23 +50,15 @@ export default function DoctorPage() {
     let alive = true
     async function load() {
       if (!supabase || !id) { setLoading(false); return }
-      // If this physician was migrated to a provider row, redirect to the unified URL
-      const { data: migrated } = await supabase.from('providers').select('id').eq('migrated_from_physician_id', id).limit(1).single()
-      if (!alive) return
-      if (migrated?.id) {
-        window.location.replace(`/search?id=${migrated.id}`)
+      // If id is numeric, this is a provider row — redirect to /search?id=
+      if (/^\d+$/.test(String(id))) {
+        window.location.replace(`/search?id=${id}`)
         return
       }
-      const { data: d } = await supabase.from('physicians').select('*').eq('id', id).single()
+      // Legacy UUID from old physicians table: search providers by owner_id (physicians that got migrated had owner_id preserved)
+      // If not found, show 'not found' state
       if (!alive) return
-      if (!d) { setMissing(true); setLoading(false); return }
-      setDoc(d)
-      const { data: links } = await supabase.from('physician_locations').select('is_primary, name, address, phone, fax, hours, providers(*)').eq('physician_id', id)
-      if (!alive) return
-      { const arr = (links || []).filter(l => l.providers).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)); const seen = new Set(); const uniq = arr.filter(l => { if (seen.has(l.providers.id)) return false; seen.add(l.providers.id); return true }); setLocs(uniq.map(l => ({ ...l, providers: { ...l.providers, name: l.name || l.providers.name, address: l.address || l.providers.address, phone: l.phone || l.providers.phone, fax: l.fax || l.providers.fax, hours: l.hours || l.providers.hours } }))) }
-      const { data: fdata } = await supabase.from('listing_forms').select('*').eq('physician_id', id).order('created_at', { ascending: false })
-      if (!alive) return
-      setForms(fdata || [])
+      setMissing(true)
       setLoading(false)
     }
     load()
@@ -79,7 +69,7 @@ export default function DoctorPage() {
   if (missing || !doc) return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 text-gray-500 text-sm">
       <p>This doctor’s profile isn’t available.</p>
-      <button onClick={() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); const prev = nav[nav.length - 1]; if (prev) { window.location.href = prev.url; return } } catch {} router.back() }} className="text-brand font-medium hover:underline">← Back</button>
+      <Link href="/search" className="text-brand font-medium hover:underline">← Back to search</Link>
     </div>
   )
 
@@ -91,19 +81,8 @@ export default function DoctorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'Physician',
-        name: doc.name,
-        url: `https://www.refereasy.ca/doctors/${doc.id}`,
-        medicalSpecialty: doc.specialty || undefined,
-        gender: doc.gender || undefined,
-        knowsLanguage: (doc.languages || undefined),
-        availableService: (doc.referral_types || []).map(t => ({ '@type': 'MedicalProcedure', name: t })),
-        aggregateRating: doc.rating ? { '@type': 'AggregateRating', ratingValue: doc.rating, reviewCount: 0 } : undefined,
-      }) }} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        <button onClick={() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); const prev = nav[nav.length - 1]; if (prev) { window.location.href = prev.url; return } } catch {} router.back() }} className="text-sm text-brand font-semibold mb-4 hover:underline inline-block">← Back</button>
+        <Link href="/search" className="text-sm text-brand font-semibold mb-4 hover:underline inline-block">← Back to search</Link>
         <div className="mt-4" />
         <ProfileView
           name={doc.name}
@@ -144,7 +123,7 @@ export default function DoctorPage() {
             wait: doc.wait_weeks == null ? 'Varies' : doc.wait_weeks === 0 ? 'No wait' : `~${doc.wait_weeks} week${doc.wait_weeks === 1 ? '' : 's'}`,
             criteria: doc.criteria, types: doc.referral_types, cpso_number: doc.cpso_number, cpso_url: doc.cpso_url,
           }}
-          howToRefer={primaryClinic ? <>Send the referral to <span className="font-semibold text-gray-900">{primaryClinic.name}</span>{primaryClinic.fax ? <> by fax at <span className="font-semibold text-gray-900">{primaryClinic.fax}</span></> : primaryClinic.phone ? <>, call <span className="font-semibold text-gray-900">{primaryClinic.phone}</span></> : null}. Include the patient's OHIP number and reason for consult.</> : null}
+          howToRefer={primaryClinic ? <>Send the referral to <span className="font-semibold text-gray-900">{primaryClinic.name}</span>{primaryClinic.fax ? <> by fax at <span className="font-semibold text-gray-900">{primaryClinic.fax}</span></> : primaryClinic.phone ? <> — call <span className="font-semibold text-gray-900">{primaryClinic.phone}</span></> : null}. Include the patient's OHIP number and reason for consult.</> : null}
           locations={locs.map(l => ({ id: l.providers.id, name: l.providers.name, address: l.providers.address, phone: l.providers.phone, fax: l.providers.fax, website: l.providers.website, languages: doc.languages || ['English'] }))}
           forms={forms.map(f => ({ id: f.id, name: f.name, url: f.file_url }))}
         />

@@ -4,11 +4,9 @@ import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
 import ProfileView from '@/components/ProfileView'
-import TopNav from '@/components/TopNav'
 import FeaturedStrip from '@/components/FeaturedStrip'
 import useLocation from '@/hooks/useLocation'
 import { useAuth } from '@/context/AuthContext'
-import { can } from '@/lib/plan'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -21,7 +19,7 @@ function isOpenEvenings(h) { if (!h) return false; return Object.values(h).some(
 function distKm(a,b,c,d) { const R=6371,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)) }
 const CENTER = { lat: 43.810, lng: -79.430 }
 
-// Map a SNOMED specialty (category + name) to one of the search category buttons, same rules as the admin form.
+// Map a SNOMED specialty (category + name) to one of the search category buttons — same rules as the admin form.
 function specToCategory(specCategory, specName) {
   if (/famil/i.test(specName || '')) return 'Family Medicine'
   if (specCategory === 'Diagnostics and imaging') return 'Imaging'
@@ -68,10 +66,10 @@ function Card({ p, onSelect, isFav, onFav }) {
     <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
       <button onClick={() => onFav(p.id)} className={`absolute top-3 right-3 text-lg transition ${isFav ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
       <button onClick={() => onSelect(p)} className="text-left w-[calc(100%-30px)]">
-        <div className="flex items-center gap-1.5 flex-wrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug inline-flex items-center gap-1.5">{p.name}{p.verified && can(p, 'verified_badge') && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-5 h-5 rounded" />}</h3></div>
+        <div className="flex items-center gap-1.5 flex-wrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3></div>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
-          {p.verified && can(p, 'verified_badge') && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/5 px-1.5 py-0.5 rounded-full border border-brand/15"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
+          {p.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
           <AcceptPill v={p.accepting_referrals} />
           <WaitBadge weeks={p.wait_weeks} />
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
@@ -97,8 +95,8 @@ function DoctorCard({ d, isFav, onFav }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(d.category || "Specialist")}`}>{(d.category || "Specialist").toUpperCase()}</span>
-            <h3 className="font-semibold text-gray-900 text-base leading-snug inline-flex items-center gap-1.5">{d.name}{d.verified && can(d, 'verified_badge') && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-5 h-5 rounded" />}</h3>
-            {d.verified && can(d, 'verified_badge') && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/5 px-1.5 py-0.5 rounded-full border border-brand/15"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
+            <h3 className="font-semibold text-gray-900 text-base leading-snug">{d.name}</h3>
+            {d.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
           </div>
           <p className="text-sm text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
           <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
@@ -134,7 +132,6 @@ function Detail({ p, onBack, isFav, onFav }) {
     supabase.from('listing_forms').select('*').eq('provider_id', p.id).then(({ data }) => {
       if (alive) setPforms(data || [])
     })
-    // If this is a doctor with a clinic link, fetch the clinic so we can render it as a Location with a link
     if (p.clinic_provider_id) {
       supabase.from('providers').select('id, name, address, phone, fax, website, hours').eq('id', p.clinic_provider_id).single().then(({ data }) => {
         if (alive && data) setParentClinic(data)
@@ -144,26 +141,11 @@ function Detail({ p, onBack, isFav, onFav }) {
   }, [p?.id, p?.clinic_provider_id])
   return (
     <div className="animate-fade-in">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'MedicalOrganization',
-        name: p.name,
-        url: `https://www.refereasy.ca/search?id=${p.id}`,
-        description: p.type ? `${p.type}${p.category ? ' · ' + p.category : ''}` : (p.category || 'Healthcare provider'),
-        telephone: p.phone || undefined,
-        faxNumber: p.fax || undefined,
-        email: p.email || undefined,
-        address: p.address ? { '@type': 'PostalAddress', streetAddress: p.address, addressRegion: 'ON', addressCountry: 'CA' } : undefined,
-        geo: (p.lat && p.lng) ? { '@type': 'GeoCoordinates', latitude: p.lat, longitude: p.lng } : undefined,
-        medicalSpecialty: p.type || p.category || undefined,
-        availableService: (p.services || []).map(s => ({ '@type': 'MedicalProcedure', name: s })),
-        aggregateRating: p.rating ? { '@type': 'AggregateRating', ratingValue: p.rating, reviewCount: p.reviews || 0 } : undefined,
-      }) }} />
-      <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back</button>
+      <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back to results</button>
       <ProfileView
         name={p.name}
         subtitle={`${p.type}${p.category ? ` · ${p.category}` : ''}`}
-        verified={p.verified && can(p, 'verified_badge')}
+        verified={p.verified}
         action={<button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
         tiles={[
           { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },
@@ -198,75 +180,6 @@ function Detail({ p, onBack, isFav, onFav }) {
 }
 
 
-
-function SponsoredSlot({ category, slotIndex, loc }) {
-  const [item, setItem] = useState(null)
-  useEffect(() => {
-    let alive = true
-    const load = async () => {
-      if (!supabase) return
-      let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, plan, trial_ends_at, plan_granted_by_admin, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true)
-      if (category) q = q.eq('category', category)
-      const { data } = await q.range(0, 40)
-      if (!alive || !data || data.length === 0) return
-      let sorted = data
-      if (loc?.lat && loc?.lng) {
-        sorted = data.map(x => ({ ...x, _d: (x.lat && x.lng) ? distKm(loc.lat, loc.lng, x.lat, x.lng) : 9999 })).sort((a, b) => a._d - b._d)
-      }
-      // Rotate by slot index so different sponsored spots on the page pick different providers
-      const pick = sorted[slotIndex % sorted.length]
-      setItem(pick)
-    }
-    load()
-    return () => { alive = false }
-  }, [category, slotIndex, loc?.lat, loc?.lng])
-  if (!item) return null
-  return (
-    <div className="bg-amber-50/40 border border-amber-200 rounded-xl p-4 cursor-pointer hover:border-amber-400 transition relative" onClick={() => { window.location.href = `/search?id=${item.id}` }}>
-      <span className="absolute top-3 right-3 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full uppercase tracking-wider">Sponsored</span>
-      <div className="pr-20">
-        <h3 className="font-semibold text-gray-900 text-base leading-snug inline-flex items-center gap-1.5">{item.name}{item.verified && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-5 h-5 rounded" />}</h3>
-        <p className="text-sm text-brand/80 font-medium mt-0.5">{item.type || item.category}</p>
-        <div className="flex flex-wrap gap-1.5 mt-2 items-center">
-          {item.verified && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/5 px-1.5 py-0.5 rounded-full border border-brand/15"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
-          {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
-          {item.accepting_referrals === false && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
-          {item.accepting_referrals == null && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Unknown</span>}
-          {item.rating && <span className="text-[10px] font-semibold text-amber-500">★ {Number(item.rating).toFixed(1)}</span>}
-          {item.address && <span className="text-xs text-gray-500">📍 {item.address}</span>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-function SponsoredCard({ item, onSelect }) {
-  const isDoctor = item._kind === 'doctor'
-  const handleClick = () => {
-    if (isDoctor) { window.location.href = `/search?id=${item.id}`; return }
-    onSelect(item)
-  }
-  return (
-    <div onClick={handleClick} data-sponsored="true" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', cursor: 'pointer', position: 'relative' }}>
-      <span style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '11px', fontWeight: 700, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', padding: '4px 12px', borderRadius: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Sponsored</span>
-      <div style={{ paddingRight: '80px' }}>
-        <h3 className="font-semibold text-gray-900 text-base leading-snug inline-flex items-center gap-1.5">{item.name}{item.verified && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-5 h-5 rounded" />}</h3>
-        <p className="text-sm text-brand/80 font-medium mt-0.5">{item.type || item.category || 'Provider'}</p>
-        <div className="flex flex-wrap gap-1.5 mt-2 items-center">
-          {item.verified && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/5 px-1.5 py-0.5 rounded-full border border-brand/15"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
-          {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
-          {item.accepting_referrals === false && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
-          {item.accepting_referrals == null && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Unknown</span>}
-          {item.wait_weeks != null && <span className="text-[10px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">~{item.wait_weeks} wk</span>}
-          {item.rating && <span className="text-[10px] font-semibold text-amber-500">★ {Number(item.rating).toFixed(1)}</span>}
-          {item.address && <span className="text-xs text-gray-500">📍 {item.address}</span>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function SearchPage() {
   const [providers, setProviders] = useState([])
   const [doctors, setDoctors] = useState([])
@@ -295,38 +208,29 @@ export default function SearchPage() {
   const [favDocs, setFavDocs] = useState([])
   const [showFavs, setShowFavs] = useState(false)
   const [showF, setShowF] = useState(false)
-  const [sponsorPool, setSponsorPool] = useState([])
 
   useEffect(() => {
-    async function fetchAll(builder, pageSize = 1000, cap = 20000) {
-      const out = []
-      let from = 0
-      while (from < cap) {
-        const { data, error } = await builder().range(from, from + pageSize - 1)
-        if (error || !data || data.length === 0) break
-        out.push(...data)
-        if (data.length < pageSize) break
-        from += pageSize
-      }
-      return out
-    }
     async function load() {
       if (!supabase) { setLoading(false); return }
       try {
-        const [provAll, specsRes] = await Promise.all([
-          fetchAll(() => supabase.from("providers").select("*").eq("data_status", "complete").order("name")),
+        const [provRes, specs] = await Promise.all([
+          supabase.from("providers").select("*").eq("data_status", "complete").order("name"),
           supabase.from("specialties").select("snomed_code, category, name"),
         ])
-        // Split providers into clinics/facilities vs doctors by category
-        const DOC_CATS_SET = new Set(['Specialist', 'Family Medicine'])
-        const clinics = provAll.filter(p => !DOC_CATS_SET.has(p.category))
-        const doctors = provAll.filter(p => DOC_CATS_SET.has(p.category)).map(p => ({
-          ...p,
-          specialty: p.type || p.category,      // doctor cards expect specialty field
-        }))
-        setProviders(clinics)
-        setDoctors(doctors)
-        if (specsRes.data) setSpecialties(specsRes.data)
+        if (provRes.data) {
+          // Split into clinics and doctors by category. Doctors get their clinic's location embedded.
+          const DOC_CATS_SET = new Set(['Specialist', 'Family Medicine'])
+          const provAll = provRes.data
+          const byId = new Map(provAll.map(p => [p.id, p]))
+          const clinics = provAll.filter(p => !DOC_CATS_SET.has(p.category))
+          const doctors = provAll.filter(p => DOC_CATS_SET.has(p.category)).map(d => {
+            const clinic = d.clinic_provider_id ? byId.get(d.clinic_provider_id) : null
+            return { ...d, specialty: d.type || d.category, physician_locations: clinic ? [{ is_primary: true, providers: { id: clinic.id, name: clinic.name, address: clinic.address, lat: clinic.lat, lng: clinic.lng, hours: clinic.hours, services: clinic.services } }] : [] }
+          })
+          setProviders(clinics)
+          setDoctors(doctors)
+        }
+        if (specs.data) setSpecialties(specs.data)
       } catch {}
       setLoading(false)
     }
@@ -335,67 +239,6 @@ export default function SearchPage() {
 
   useEffect(() => { try { const s = localStorage.getItem("re-favs"); if (s) setFavs(JSON.parse(s)) } catch {} }, [])
   useEffect(() => { if (!loc && typeof window !== 'undefined' && !localStorage.getItem('re-loc-asked')) { try { localStorage.setItem('re-loc-asked', '1') } catch {}; requestGeo() } }, [loc, requestGeo])
-  useEffect(() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); if (nav[nav.length - 1]?.url !== '/search') { nav.push({ url: '/search', label: 'Search' }); sessionStorage.setItem('re-nav', JSON.stringify(nav.slice(-20))) } } catch {} }, [])
-
-  // Load the sponsor pool, prefer category-matching featured, fall back to any featured
-  useEffect(() => {
-    if (!supabase) return
-    let alive = true
-    const load = async () => {
-      const results = []
-      const DOC_CATS = new Set(['Family Medicine', 'Specialist'])
-      const wantsDoctor = cat !== 'all' && DOC_CATS.has(cat)
-      const wantsFacility = cat !== 'all' && !DOC_CATS.has(cat)
-      // Try category-preferred first
-      if (cat !== 'all') {
-        if (!wantsDoctor) {
-          const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services, plan, trial_ends_at, plan_granted_by_admin, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true).eq('category', cat).limit(20)
-          if (data) results.push(...data.map(x => ({ ...x, _kind: 'provider' })))
-        }
-        if (!wantsFacility && results.length < 4) {
-          const { data } = await supabase.from('providers').select('id, name, type, category, accepting_referrals, verified, wait_weeks, clinic_provider_id').eq('data_status', 'complete').eq('featured', true).eq('category', cat).in('category', ['Specialist','Family Medicine']).limit(20)
-          if (data) results.push(...data.map(x => ({ ...x, _kind: 'doctor' })))
-        }
-      }
-      // Fallback: any featured, if we didn't fill 4 yet
-      if (results.length < 4) {
-        const { data } = await supabase.from('providers').select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, services, plan, trial_ends_at, plan_granted_by_admin, plan, trial_ends_at, plan_granted_by_admin').eq('data_status', 'complete').eq('featured', true).limit(20)
-        if (data) data.forEach(x => { if (!results.some(r => r._kind === 'provider' && r.id === x.id)) results.push({ ...x, _kind: 'provider' }) })
-      }
-      if (results.length < 4) {
-        const { data } = await supabase.from('providers').select('id, name, type, category, accepting_referrals, verified, wait_weeks, clinic_provider_id').eq('data_status', 'complete').eq('featured', true).in('category', ['Specialist','Family Medicine']).limit(20)
-        if (data) data.forEach(x => { if (!results.some(r => r._kind === 'doctor' && r.id === x.id)) results.push({ ...x, _kind: 'doctor' }) })
-      }
-      if (alive) setSponsorPool(results.slice(0, 6))
-    }
-    load()
-    return () => { alive = false }
-  }, [cat])
-
-  // If URL has ?id=NNN (e.g. arriving from a featured card), open that provider directly
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const openById = async (id) => {
-      if (!supabase) return
-      const { data } = await supabase.from('providers').select('*, plan, trial_ends_at, plan_granted_by_admin').eq('id', id).single()
-      if (data) { setSel(data); setView('detail'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
-    }
-    const handler = (e) => openById(e.detail?.id)
-    window.addEventListener('re-open-listing', handler)
-    return () => window.removeEventListener('re-open-listing', handler)
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const urlId = new URL(window.location.href).searchParams.get('id')
-    if (!urlId || !supabase) return
-    let alive = true
-    supabase.from('providers').select('*, plan, trial_ends_at, plan_granted_by_admin').eq('id', urlId).single().then(({ data }) => {
-      if (alive && data) { setSel(data); setView('detail'); window.scrollTo({ top: 0, behavior: 'auto' }) }
-    })
-    return () => { alive = false }
-  }, [])
-
   const saveFavs = useCallback(ids => { setFavs(ids); try { localStorage.setItem("re-favs", JSON.stringify(ids)) } catch {} }, [])
   const toggleFav = useCallback(id => saveFavs(favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id]), [favs, saveFavs])
 
@@ -403,14 +246,14 @@ export default function SearchPage() {
   const saveFavDocs = useCallback(ids => { setFavDocs(ids); try { localStorage.setItem("re-favs-docs", JSON.stringify(ids)) } catch {} }, [])
   const toggleFavDoc = useCallback(id => saveFavDocs(favDocs.includes(id) ? favDocs.filter(f => f !== id) : [...favDocs, id]), [favDocs, saveFavDocs])
 
-  // Deep-link: /search?id=123 opens that provider's listing directly.
+  // Deep-link: /search?id=123 opens that provider's listing directly. Search BOTH clinics and doctors.
   useEffect(() => {
-    if (typeof window === 'undefined' || !providers.length) return
+    if (typeof window === 'undefined' || (!providers.length && !doctors.length)) return
     const pid = new URLSearchParams(window.location.search).get('id')
     if (!pid) return
-    const p = providers.find(x => String(x.id) === String(pid))
+    const p = providers.find(x => String(x.id) === String(pid)) || doctors.find(x => String(x.id) === String(pid))
     if (p) { setSel(p); setView('detail') }
-  }, [providers])
+  }, [providers, doctors])
 
   // Open a specific listing when arriving via /search?id=123 (e.g. from a favourite)
   useEffect(() => {
@@ -450,33 +293,12 @@ export default function SearchPage() {
     if (mw) r = r.filter(p => p.wait_weeks !== null && p.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(p => p.rating && Number(p.rating) >= parseFloat(mr))
     if (md) r = r.filter(p => distKm(CENTER.lat,CENTER.lng,p.lat,p.lng) <= parseFloat(md))
-    if (search.trim()) {
-      const STOPWORDS = new Set(['the','and','a','an','of','in','at','on','for','to','with','by','or'])
-      const tokens = search.toLowerCase().split(/\s+/).filter(t => t.length >= 2 && !STOPWORDS.has(t))
-      if (tokens.length > 0) {
-        r = r.filter(p => {
-          // Build a giant haystack from every text-bearing field on the listing
-          const hay = [
-            p.name, p.type, p.sub_specialty, p.category, p.address, p.city, p.province,
-            p.email, p.gender, p.criteria, p.requirements, p.notes,
-            ...(p.services || []), ...(p.doctors || []), ...(p.languages || []),
-            ...(p.referral_types || []),
-          ].filter(Boolean).join(' ').toLowerCase()
-          // Every token must be present (AND). Try full phrase first as a shortcut.
-          const phrase = search.toLowerCase().trim()
-          if (hay.includes(phrase)) return true
-          return tokens.every(t => hay.includes(t))
-        })
-      }
-    }
-    // Plan-based priority: within any sort, higher-plan providers surface first
-    // (Featured=100, Verified=10, Listed=0). Applied as a tiebreaker weight.
-    const planWeight = (p) => Number(can(p, 'search_priority')) || 0
-    if (sort==="name") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || a.name.localeCompare(b.name))
-    else if (sort==="rating") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || ((Number(b.rating)||0)-(Number(a.rating)||0)))
-    else if (sort==="wait") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || ((a.wait_weeks??999)-(b.wait_weeks??999)))
-    else if (sort==="reviews") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || ((b.reviews||0)-(a.reviews||0)))
-    else if (sort==="distance") r=[...r].sort((a,b)=> (planWeight(b) - planWeight(a)) || (distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng)))
+    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(p => p.name.toLowerCase().includes(q) || p.type.toLowerCase().includes(q) || (p.address||"").toLowerCase().includes(q) || (p.services||[]).some(s => s.toLowerCase().includes(q)) || (p.doctors||[]).some(d => d.toLowerCase().includes(q))) }
+    if (sort==="name") r=[...r].sort((a,b)=>a.name.localeCompare(b.name))
+    if (sort==="rating") r=[...r].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))
+    if (sort==="wait") r=[...r].sort((a,b)=>(a.wait_weeks??999)-(b.wait_weeks??999))
+    if (sort==="reviews") r=[...r].sort((a,b)=>(b.reviews||0)-(a.reviews||0))
+    if (sort==="distance") r=[...r].sort((a,b)=>distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng))
     return r
   }, [search,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,providers,provSpecialty])
 
@@ -514,22 +336,7 @@ export default function SearchPage() {
     if (mw) r = r.filter(d => d.wait_weeks !== null && d.wait_weeks !== undefined && d.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(d => d.rating && Number(d.rating) >= parseFloat(mr))
     if (md) r = r.filter(d => d.lat && d.lng && distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) <= parseFloat(md))
-    if (search.trim()) {
-      const STOPWORDS = new Set(['the','and','a','an','of','in','at','on','for','to','with','by','or'])
-      const tokens = search.toLowerCase().split(/\s+/).filter(t => t.length >= 2 && !STOPWORDS.has(t))
-      if (tokens.length > 0) {
-        r = r.filter(d => {
-          const hay = [
-            d.name, d.specialty, d.sub_specialty, d.category, d.clinicName, d.clinicAddress,
-            d.gender, d.criteria, d.requirements, d.notes,
-            ...(d.languages || []), ...(d.referral_types || []), ...(d.services || []),
-          ].filter(Boolean).join(' ').toLowerCase()
-          const phrase = search.toLowerCase().trim()
-          if (hay.includes(phrase)) return true
-          return tokens.every(t => hay.includes(t))
-        })
-      }
-    }
+    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(d => (d.name || "").toLowerCase().includes(q) || (d.specialty || "").toLowerCase().includes(q) || (d.clinicName || "").toLowerCase().includes(q)) }
     const far = (d) => (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) : 99999
     if (sort === "name") r = [...r].sort((a,b) => a.name.localeCompare(b.name))
     else if (sort === "wait") r = [...r].sort((a,b) => (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999))
@@ -562,9 +369,23 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Nav */}
-      <TopNav />
-<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        {view === "detail" && sel ? <Detail p={sel} onBack={() => { const u = new URL(window.location.href); if (u.searchParams.has('id')) { u.searchParams.delete('id'); window.history.replaceState({}, '', u.toString()) } try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); const prev = nav[nav.length - 1]; if (prev && prev.url !== '/search') { window.location.href = prev.url; return } } catch {} setView('search'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
+            <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>
+              ★ Favourites {(favs.length + favDocs.length) > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length + favDocs.length}</span>}
+            </button>
+            <Link href="/login" className="text-xs font-medium text-gray-500 hover:text-brand px-3 py-1.5">Sign In</Link>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        {view === "detail" && sel ? <Detail p={sel} onBack={() => setView("search")} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
           <>
             {/* Hero search block */}
             <div className="bg-gradient-to-br from-brand to-[#2c4f7c] rounded-3xl p-6 sm:p-8 mb-6 text-white">
@@ -572,7 +393,7 @@ export default function SearchPage() {
               <p className="text-sm text-white/70 mb-5">Search verified providers accepting referrals across Ontario.</p>
               <div className="flex flex-col md:flex-row gap-2 bg-white/10 backdrop-blur border border-white/15 rounded-2xl p-2">
                 <div className="relative flex-1">
-                  <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Try: general surgeon markham female" className="w-full pl-11 pr-4 h-12 text-sm bg-white rounded-xl text-gray-900 outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400" />
+                  <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Specialty, doctor, service, or clinic…" className="w-full pl-11 pr-4 h-12 text-sm bg-white rounded-xl text-gray-900 outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400" />
                   <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
                 <div className="relative md:w-64">
@@ -653,13 +474,17 @@ export default function SearchPage() {
                     {loc?.label && <> · near <span className="font-semibold text-gray-800">{loc.label}</span></>}
                     {cat !== 'all' && <> · <span className="font-semibold text-brand">{CATEGORIES.find(c => c.key === cat)?.label}</span></>}
                   </div>
-                  <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>
-                    ★ Favourites {(favs.length + favDocs.length) > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length + favDocs.length}</span>}
-                  </button>
                   <select value={sort} onChange={e => setSort(e.target.value)} className="text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1.5 outline-none focus:border-brand">
                     <option value="distance">Sort: Distance</option><option value="rating">Rating</option><option value="wait">Wait time</option><option value="name">Name</option><option value="reviews">Reviews</option>
                   </select>
                 </div>
+
+                {/* Featured top row (3 big cards) */}
+                {!showFavs && (
+                  <div className="mb-6">
+                    <FeaturedStrip category={cat === 'all' ? null : cat} title={cat === 'all' ? 'Featured providers near you' : `Featured ${CATEGORIES.find(c => c.key === cat)?.label || cat}`} subtitle="Sponsored — geographic rotation." loc={loc} fallbackToNearest />
+                  </div>
+                )}
 
                 {showFavs && favs.length === 0 && favDocs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
 
@@ -672,50 +497,8 @@ export default function SearchPage() {
                       <button onClick={() => { setSearch(''); setSpec(''); setSvc(''); setLang(''); setAcc(false); setOn(false); setWe(false); setEv(false); setCat('all'); setPage(1) }} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">Clear all filters</button>
                     </div>
                   )}
-                  {(() => {
-                    try {
-                      // Build organic result rows
-                      const merged = [
-                        ...pagedDoctors.map(d => ({ kind: 'doc', data: d })),
-                        ...pagedProviders.map(p => ({ kind: 'prov', data: p })),
-                      ]
-                      const organicRows = merged.map((row, idx) =>
-                        row.kind === 'doc'
-                          ? <DoctorCard key={'doc-' + row.data.id} d={row.data} isFav={favDocs.includes(row.data.id)} onFav={toggleFavDoc} />
-                          : <Card key={row.data.id} p={row.data} onSelect={pr => { setSel(pr); setView("detail"); window.scrollTo({ top: 0, behavior: "auto" }) }} isFav={favs.includes(row.data.id)} onFav={toggleFav} />
-                      )
-                      if (showFavs) return organicRows
-                      const pool = Array.isArray(sponsorPool) ? sponsorPool : []
-                      if (pool.length === 0) return organicRows
-                      const SPONSOR_POSITIONS = [1, 3, 8, 13, 18, 24]
-                      const rows = []
-                      let organicIdx = 0
-                      let sponsorIdx = 0
-                      let displayPos = 1
-                      const MAX_POS = organicRows.length + pool.length + 5
-                      while (displayPos <= MAX_POS && (organicIdx < organicRows.length || sponsorIdx < pool.length)) {
-                        if (SPONSOR_POSITIONS.includes(displayPos) && sponsorIdx < pool.length) {
-                          const sp = pool[sponsorIdx]
-                          rows.push(<SponsoredCard key={`spon-${sp._kind}-${sp.id}-${displayPos}`} item={sp} onSelect={pr => { setSel(pr); setView("detail"); window.scrollTo({ top: 0, behavior: "auto" }) }} />)
-                          sponsorIdx++
-                        } else if (organicIdx < organicRows.length) {
-                          rows.push(organicRows[organicIdx])
-                          organicIdx++
-                        } else {
-                          break
-                        }
-                        displayPos++
-                      }
-                      return rows
-                    } catch (err) {
-                      if (typeof window !== 'undefined') { window.__renderErr = err?.message || String(err) }
-                      console.error('[re-render]', err)
-                      return [
-                        ...pagedDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />),
-                        ...pagedProviders.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail"); window.scrollTo({ top: 0, behavior: "auto" }) }} isFav={favs.includes(p.id)} onFav={toggleFav} />),
-                      ]
-                    }
-                  })()}
+                  {pagedDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />)}
+                  {pagedProviders.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
                 </div>
 
                 {/* Pagination */}

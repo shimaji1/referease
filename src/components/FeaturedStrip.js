@@ -1,88 +1,68 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import FeaturedCard from './FeaturedCard'
 
 const DOC_CATS = new Set(['Family Medicine', 'Specialist'])
 
-const shuffle = (arr, seed = 0) => {
-  const a = [...arr]
-  // Deterministic order with a seeded rotation so different sections show different items
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(((Math.sin(seed + i) + 1) / 2) * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
+const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] } return a }
 const km = (a, b, c, d) => { const R = 6371, r = Math.PI / 180, dLat = (c - a) * r, dLng = (d - b) * r; const A = Math.sin(dLat / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dLng / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(A), Math.sqrt(1 - A)) }
 
-/**
- * layout:
- *   'hero-6'   → 3 columns × 2 rows (6 cards, homepage top)
- *   'row-3'    → 3 columns × 1 row (3 cards, other homepage sections)
- *   'stack-3'  → 1 column × 3 rows (3 cards vertical, Find Care top of results)
- */
-export default function FeaturedStrip({
-  layout = 'row-3',
-  category = null,
-  title = 'Featured providers',
-  subtitle = null,
-  loc = null,
-  tint = false,
-  fallbackToNearest = false,
-  excludeIds = null,        // Set of "kind:id" strings to skip (dedupe across sections)
-  onLoaded = null,          // callback(items) so parent can accumulate the exclude set
-  sectionKey = 0,           // integer used to seed the shuffle so different sections rotate differently
-}) {
+export default function FeaturedStrip({ category = null, title = 'Featured providers', subtitle = null, loc = null, tint = false, fallbackToNearest = false }) {
   const [items, setItems] = useState([])
   const [loaded, setLoaded] = useState(false)
-
-  const target = layout === 'hero-6' ? 6 : 3
+  const scroller = useRef(null)
 
   useEffect(() => {
     if (!supabase) { setLoaded(true); return }
     let alive = true
     const load = async () => {
-      const pool = []
+      const doctorSide = category ? DOC_CATS.has(category) : null
+      const results = []
 
-      // After the physicians migration, doctors are providers with category='Specialist' or 'Family Medicine'.
-      // One unified query handles clinics AND doctors.
-      let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, plan, trial_ends_at, plan_granted_by_admin, clinic_provider_id').eq('data_status', 'complete')
-      if (category) q = q.eq('category', category)
-      const { data } = await q.eq('featured', true).limit(60)
-      if (data) pool.push(...data.map(p => ({ ...p, _kind: DOC_CATS.has(p.category) ? 'doctor' : 'provider' })))
-
-      // Fallback: no featured yet → pull well-rated verified as placeholder
-      if (pool.length === 0 && fallbackToNearest) {
-        let q2 = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, plan, trial_ends_at, plan_granted_by_admin, clinic_provider_id').eq('data_status', 'complete').eq('verified', true)
-        if (category) q2 = q2.eq('category', category)
-        const { data: d2 } = await q2.limit(60)
-        if (d2) pool.push(...d2.map(p => ({ ...p, _kind: DOC_CATS.has(p.category) ? 'doctor' : 'provider' })))
+      if (doctorSide !== true) {
+        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured').eq('data_status', 'complete')
+        if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
+        q = q.eq('featured', true).limit(24)
+        const { data } = await q
+        if (data) results.push(...data.map(p => ({ ...p, _kind: 'provider' })))
+      }
+      if (doctorSide !== false) {
+        // Doctors ARE providers now: category IN ('Specialist','Family Medicine')
+        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured').eq('data_status', 'complete').in('category', ['Specialist','Family Medicine'])
+        if (category && DOC_CATS.has(category)) q = q.eq('category', category)
+        q = q.eq('featured', true).limit(24)
+        const { data } = await q
+        if (data) results.push(...data.map(d => ({ ...d, specialty: d.type, _kind: 'doctor' })))
       }
 
-      // Sort: geographic if we have location, otherwise seeded shuffle so different sections show different items
-      let ordered = pool
+      if (results.length === 0 && fallbackToNearest) {
+        if (doctorSide !== true) {
+          let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng').eq('data_status', 'complete').eq('verified', true)
+          if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
+          const { data } = await q.limit(60)
+          if (data) results.push(...data.map(p => ({ ...p, _kind: 'provider' })))
+        }
+        if (doctorSide !== false && results.length < 12) {
+          let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng').eq('data_status', 'complete').eq('verified', true).in('category', ['Specialist','Family Medicine'])
+          if (category && DOC_CATS.has(category)) q = q.eq('category', category)
+          const { data } = await q.limit(60)
+          if (data) results.push(...data.map(d => ({ ...d, specialty: d.type, _kind: 'doctor' })))
+        }
+      }
+
+      let final = results
       if (loc?.lat && loc?.lng) {
-        ordered = pool.map(x => ({ ...x, _d: (x.lat && x.lng) ? km(loc.lat, loc.lng, x.lat, x.lng) : 9999 })).sort((a, b) => a._d - b._d)
+        final = results.map(x => ({ ...x, _d: (x.lat && x.lng) ? km(loc.lat, loc.lng, x.lat, x.lng) : 9999 })).sort((a, b) => a._d - b._d)
       } else {
-        ordered = shuffle(pool, sectionKey)
+        final = shuffle(results)
       }
-
-      // Drop excluded IDs (already shown in prior sections)
-      const filtered = excludeIds && excludeIds.size > 0
-        ? ordered.filter(x => !excludeIds.has(`${x._kind}:${x.id}`))
-        : ordered
-
-      const picked = filtered.slice(0, target)
-      if (alive) {
-        setItems(picked); setLoaded(true)
-        if (onLoaded) onLoaded(picked)
-      }
+      if (alive) { setItems(final.slice(0, 12)); setLoaded(true) }
     }
     load()
     return () => { alive = false }
-  }, [category, loc?.lat, loc?.lng, fallbackToNearest, sectionKey])
+  }, [category, loc?.lat, loc?.lng, fallbackToNearest])
 
   if (!loaded) return null
 
@@ -92,12 +72,12 @@ export default function FeaturedStrip({
     return (
       <section className={wrapCls}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          {(title || subtitle) && (
-            <div className="mb-4">
+          <div className="flex items-baseline justify-between mb-4">
+            <div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
               {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
             </div>
-          )}
+          </div>
           <div className="bg-gradient-to-r from-brand/5 to-brand/10 border border-brand/15 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <p className="text-sm sm:text-base font-bold text-gray-900">Your practice here.</p>
@@ -110,22 +90,23 @@ export default function FeaturedStrip({
     )
   }
 
-  const gridCls =
-    layout === 'hero-6'  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' :
-    layout === 'stack-3' ? 'grid grid-cols-1 gap-4' :
-                           'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+  const scrollBy = (dx) => scroller.current?.scrollBy({ left: dx, behavior: 'smooth' })
 
   return (
     <section className={wrapCls}>
-      <div className={`${layout === 'stack-3' ? '' : 'max-w-6xl mx-auto px-4 sm:px-6 lg:px-8'}`}>
-        {(title || subtitle) && (
-          <div className="mb-5">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-baseline justify-between mb-4 gap-3">
+          <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
             {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
           </div>
-        )}
-        <div className={gridCls}>
-          {items.map(x => <FeaturedCard key={x._kind + x.id} item={x} size={layout === 'hero-6' ? 'md' : 'lg'} />)}
+          <div className="hidden sm:flex gap-2 shrink-0">
+            <button onClick={() => scrollBy(-340)} aria-label="Scroll left" className="w-10 h-10 rounded-full border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition flex items-center justify-center text-lg">←</button>
+            <button onClick={() => scrollBy(340)} aria-label="Scroll right" className="w-10 h-10 rounded-full border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition flex items-center justify-center text-lg">→</button>
+          </div>
+        </div>
+        <div ref={scroller} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: 'thin' }}>
+          {items.map(x => <FeaturedCard key={x._kind + x.id} item={x} />)}
         </div>
       </div>
     </section>
