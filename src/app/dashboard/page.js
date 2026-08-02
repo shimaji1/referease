@@ -1,5 +1,6 @@
 'use client'
 import { useAuth } from '@/context/AuthContext'
+import { VerifiedPill } from '@/components/Badges'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
@@ -121,44 +122,8 @@ function SpecialistDashboard({ profile, user }) {
 
   if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>
 
-  // Determine highest active plan across all this user's listings (for the header banner)
-  const planRank = { listed: 0, verified: 1, featured: 2 }
-  const highestListing = providers.reduce((best, p) => {
-    const status = getPlanStatus(p)
-    if (!best || planRank[status.tier] > planRank[best.status.tier]) return { provider: p, status }
-    return best
-  }, null)
-
   return (
     <div>
-      {highestListing && (
-        <div className={`rounded-2xl p-5 mb-6 border-2 ${highestListing.status.tier === 'featured' ? 'bg-gradient-to-r from-purple-50 to-white border-purple-200' : highestListing.status.tier === 'verified' ? 'bg-gradient-to-r from-blue-50 to-white border-blue-200' : 'bg-gradient-to-r from-gray-50 to-white border-gray-200'}`}>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`text-xs font-bold uppercase tracking-wider ${highestListing.status.tier === 'featured' ? 'text-purple-600' : highestListing.status.tier === 'verified' ? 'text-blue-600' : 'text-gray-500'}`}>Your plan</span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${highestListing.status.tier === 'featured' ? 'bg-purple-100 text-purple-700' : highestListing.status.tier === 'verified' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{highestListing.status.tier === 'featured' ? 'FEATURED' : highestListing.status.tier === 'verified' ? 'VERIFIED' : 'LISTED (FREE)'}</span>
-              </div>
-              <div className="text-lg font-bold text-gray-900">{highestListing.status.label}</div>
-              {highestListing.status.kind === 'trial' && highestListing.status.daysLeft <= 15 && (
-                <p className="text-xs text-amber-700 mt-1 font-semibold">⏰ Trial ends in {highestListing.status.daysLeft} day{highestListing.status.daysLeft !== 1 ? 's' : ''}, reply to the reminder email or contact us to keep your plan.</p>
-              )}
-              {highestListing.status.kind === 'expired' && (
-                <p className="text-xs text-red-600 mt-1 font-semibold">Your trial ended, paid features are hidden until you keep your plan.</p>
-              )}
-              {highestListing.status.tier === 'listed' && (
-                <p className="text-xs text-gray-500 mt-1">Upgrade to be seen. Verified badge, priority ranking, referral forms, try Verified free for 60 days, no card.</p>
-              )}
-            </div>
-            {highestListing.status.tier !== 'featured' && (
-              <Link href="/pricing" className="shrink-0 px-5 py-2.5 bg-brand text-white text-sm font-bold rounded-xl hover:bg-brand-dark transition">
-                {highestListing.status.tier === 'listed' ? 'See paid plans →' : 'Upgrade to Featured →'}
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-white border border-gray-200 rounded-xl p-5">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My Listings</div>
@@ -178,6 +143,9 @@ function SpecialistDashboard({ profile, user }) {
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="text-lg font-bold text-gray-900">My Provider Listings</h2>
         <div className="flex gap-2">
+          <Link href="/dashboard/physician/new" className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-brand border border-brand/20 text-sm font-semibold rounded-lg hover:bg-brand/5 transition">
+            + List as Doctor
+          </Link>
           <Link href="/dashboard/provider/new" className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:bg-brand-dark transition">
             + Add New Listing
           </Link>
@@ -205,16 +173,9 @@ function SpecialistDashboard({ profile, user }) {
                   <p className="text-xs text-gray-500 mt-1">📍 {p.address}</p>
                   {p.phone && <p className="text-xs text-gray-500">📞 {p.phone} {p.fax ? `· 📠 ${p.fax}` : ''}</p>}
                 </div>
-                <div className="flex gap-2 shrink-0 flex-wrap justify-end">
-                  {(() => {
-                    const s = getPlanStatus(p)
-                    const cls = s.tier === 'featured' ? 'text-purple-700 bg-purple-50 border-purple-200'
-                              : s.tier === 'verified' ? 'text-blue-700 bg-blue-50 border-blue-200'
-                              : 'text-gray-500 bg-gray-50 border-gray-200'
-                    return <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg border ${cls}`}>{s.label}</span>
-                  })()}
+                <div className="flex gap-2 shrink-0">
                   {p.verified
-                    ? <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">✓ Verified</span>
+                    ? <VerifiedPill />
                     : <Link href={`/dashboard/verify?provider_id=${p.id}`} className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition">Verify</Link>
                   }
                   <Link href={`/dashboard/provider/${p.id}`} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/10 px-3 py-1.5 rounded-lg hover:bg-brand/10 transition">Edit</Link>
@@ -284,10 +245,10 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
-            <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+            <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center"><span className="text-white font-bold text-xs">R</span></div>
+            <span className="text-lg font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
           </Link>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">

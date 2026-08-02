@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
 import ProfileView from '@/components/ProfileView'
+import { VerifiedPill, FeaturedTag } from '@/components/Badges'
 import FeaturedStrip from '@/components/FeaturedStrip'
 import useLocation from '@/hooks/useLocation'
 import { useAuth } from '@/context/AuthContext'
@@ -63,14 +64,14 @@ function Card({ p, onSelect, isFav, onFav, sponsored }) {
   const dist = distKm(CENTER.lat, CENTER.lng, p.lat, p.lng).toFixed(1)
   const open = isOpenNow(p.hours)
   return (
-    <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${sponsored ? 'ring-1 ring-brand/20 bg-gradient-to-br from-brand/[0.02] to-white' : ''} ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
-      {sponsored && <span className="absolute top-3 left-3 text-[9px] font-bold text-brand bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded-full">SPONSORED</span>}
+    <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${sponsored ? '' : ''} ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
+      {sponsored && <FeaturedTag />}
       <button onClick={() => onFav(p.id)} className={`absolute top-3 right-3 text-lg transition ${isFav ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
-      <button onClick={() => onSelect(p)} className={`text-left w-[calc(100%-30px)] ${sponsored ? 'mt-4' : ''}`}>
+      <button onClick={() => onSelect(p)} className="text-left w-[calc(100%-30px)]">
         <div className="flex items-center gap-1.5 flex-wrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3></div>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
-          {p.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+          {p.verified && <VerifiedPill />}
           <AcceptPill v={p.accepting_referrals} />
           <WaitBadge weeks={p.wait_weeks} />
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
@@ -91,14 +92,14 @@ function DoctorCard({ d, isFav, onFav, sponsored }) {
   const dist = (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng).toFixed(1) : null
   const isFamily = (d.specialty || '').toLowerCase().includes('family')
   return (
-    <Link href={`/search?id=${d.id}`} className={`block bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/40 ${sponsored ? 'border-brand/25 ring-1 ring-brand/20 bg-gradient-to-br from-brand/[0.02] to-white' : 'border-gray-200'}`}>
-      {sponsored && <span className="absolute top-3 left-3 text-[9px] font-bold text-brand bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded-full z-10">SPONSORED</span>}
-      <div className={`flex items-start justify-between gap-2 ${sponsored ? 'mt-4' : ''}`}>
+    <Link href={`/search?id=${d.id}`} className={`block bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/40 ${sponsored ? 'border-brand/20' : 'border-gray-200'}`}>
+      {sponsored && <FeaturedTag />}
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(d.category || "Specialist")}`}>{(d.category || "Specialist").toUpperCase()}</span>
             <h3 className="font-semibold text-gray-900 text-base leading-snug">{d.name}</h3>
-            {d.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+            {d.verified && <VerifiedPill />}
           </div>
           <p className="text-sm text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
           <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">

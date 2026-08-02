@@ -1,6 +1,6 @@
 'use client'
 
-// One profile header for every category, clinics, doctors, imaging, labs.
+// One profile header for every category — clinics, doctors, imaging, labs.
 // Navy banner + initials avatar + overlapping quick-stat tiles (z-fixed).
 export default function ProfileHeader({ name, subtitle, verified, action, tiles = [], footer }) {
   const initials = (name || '?').replace(/^(dr\.?|the)\s+/i, '').split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase()
@@ -12,8 +12,8 @@ export default function ProfileHeader({ name, subtitle, verified, action, tiles 
             <div className="w-16 h-16 rounded-2xl bg-white/15 border border-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-xl shrink-0">{initials}</div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-2xl font-bold text-white leading-tight inline-flex items-center gap-2">{name}{verified && <img src="/img/icon.png" alt="Verified" title="Verified on ReferEasy" className="w-6 h-6 rounded shrink-0" />}</h2>
-                {verified && <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-white/20 border border-white/25 px-2 py-0.5 rounded-full"><img src="/img/icon.png" alt="" className="w-4 h-4 rounded" />Verified</span>}
+                <h2 className="text-2xl font-bold text-white leading-tight">{name}</h2>
+                {verified && <VerifiedPill dark />}
               </div>
               {subtitle && <p className="text-sm text-white/80 font-medium mt-1">{subtitle}</p>}
             </div>

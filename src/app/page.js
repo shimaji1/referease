@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import FeaturedStrip from '@/components/FeaturedStrip'
+import { VerifiedPill } from '@/components/Badges'
 import useLocation from '@/hooks/useLocation'
 
 const IMG = {
@@ -201,7 +202,7 @@ export default function HomePage() {
               <Link key={p.id} href={`/search?id=${p.id}`} className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md hover:border-brand/30 transition block">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <h3 className="font-semibold text-gray-900 text-sm leading-snug">{p.name}</h3>
-                  {p.verified && <span className="text-[10px] font-bold text-brand bg-brand/5 px-2 py-0.5 rounded-full border border-brand/15 shrink-0">✓ Verified</span>}
+                  {p.verified && <VerifiedPill />}
                 </div>
                 <p className="text-xs text-brand/70 font-medium mb-3">{p.type}</p>
                 <div className="flex items-center gap-3 text-xs text-gray-500">

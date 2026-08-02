@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { VerifiedPill, FeaturedTag } from '@/components/Badges'
 
 // One card design for every featured slot — navy banner top, white body
 export default function FeaturedCard({ item, size = 'md' }) {
@@ -23,7 +24,7 @@ export default function FeaturedCard({ item, size = 'md' }) {
         {!isDoctor && item.address && <p className="text-xs text-gray-500 mt-1 line-clamp-1">📍 {item.address}</p>}
         {isDoctor && item.category && <p className="text-xs text-brand/70 font-medium mt-1">{item.category}</p>}
         <div className="flex items-center gap-1.5 flex-wrap mt-auto pt-3">
-          {item.verified && <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">✓ Verified</span>}
+          {item.verified && <VerifiedPill />}
           {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
           {item.accepting_referrals === false && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
           {item.accepting_referrals == null && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Availability unknown</span>}
