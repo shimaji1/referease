@@ -59,13 +59,14 @@ function Stars({ r }) {
   return <span className="text-xs font-semibold text-amber-500">★ {Number(r).toFixed(1)}</span>
 }
 
-function Card({ p, onSelect, isFav, onFav }) {
+function Card({ p, onSelect, isFav, onFav, sponsored }) {
   const dist = distKm(CENTER.lat, CENTER.lng, p.lat, p.lng).toFixed(1)
   const open = isOpenNow(p.hours)
   return (
-    <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
+    <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${sponsored ? 'ring-1 ring-brand/20 bg-gradient-to-br from-brand/[0.02] to-white' : ''} ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
+      {sponsored && <span className="absolute top-3 left-3 text-[9px] font-bold text-brand bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded-full">SPONSORED</span>}
       <button onClick={() => onFav(p.id)} className={`absolute top-3 right-3 text-lg transition ${isFav ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
-      <button onClick={() => onSelect(p)} className="text-left w-[calc(100%-30px)]">
+      <button onClick={() => onSelect(p)} className={`text-left w-[calc(100%-30px)] ${sponsored ? 'mt-4' : ''}`}>
         <div className="flex items-center gap-1.5 flex-wrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3></div>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
@@ -86,12 +87,13 @@ function Card({ p, onSelect, isFav, onFav }) {
   )
 }
 
-function DoctorCard({ d, isFav, onFav }) {
+function DoctorCard({ d, isFav, onFav, sponsored }) {
   const dist = (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng).toFixed(1) : null
   const isFamily = (d.specialty || '').toLowerCase().includes('family')
   return (
-    <Link href={`/search?id=${d.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/40">
-      <div className="flex items-start justify-between gap-2">
+    <Link href={`/search?id=${d.id}`} className={`block bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/40 ${sponsored ? 'border-brand/25 ring-1 ring-brand/20 bg-gradient-to-br from-brand/[0.02] to-white' : 'border-gray-200'}`}>
+      {sponsored && <span className="absolute top-3 left-3 text-[9px] font-bold text-brand bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded-full z-10">SPONSORED</span>}
+      <div className={`flex items-start justify-between gap-2 ${sponsored ? 'mt-4' : ''}`}>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(d.category || "Specialist")}`}>{(d.category || "Specialist").toUpperCase()}</span>
@@ -183,6 +185,7 @@ function Detail({ p, onBack, isFav, onFav }) {
 export default function SearchPage() {
   const [providers, setProviders] = useState([])
   const [doctors, setDoctors] = useState([])
+  const [featuredMix, setFeaturedMix] = useState([])
   const [specialties, setSpecialties] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -244,6 +247,17 @@ export default function SearchPage() {
       setLoading(false)
     }
     load()
+  }, [])
+
+  // Featured items fetch — for inline mixing at positions 1,3,8,13,18...
+  useEffect(() => {
+    if (!supabase) return
+    let alive = true
+    supabase.from('providers')
+      .select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, clinic_provider_id')
+      .eq('data_status', 'complete').eq('featured', true).limit(30)
+      .then(({ data }) => { if (alive && data) setFeaturedMix(data) })
+    return () => { alive = false }
   }, [])
 
   useEffect(() => { try { const s = localStorage.getItem("re-favs"); if (s) setFavs(JSON.parse(s)) } catch {} }, [])
@@ -503,13 +517,6 @@ export default function SearchPage() {
                   </select>
                 </div>
 
-                {/* Featured top row (3 big cards) */}
-                {!showFavs && (
-                  <div className="mb-6">
-                    <FeaturedStrip category={cat === 'all' ? null : cat} title={cat === 'all' ? 'Featured providers near you' : `Featured ${CATEGORIES.find(c => c.key === cat)?.label || cat}`} subtitle="Sponsored — geographic rotation." loc={loc} fallbackToNearest />
-                  </div>
-                )}
-
                 {showFavs && favs.length === 0 && favDocs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
 
                 <div className="flex flex-col gap-2.5">
@@ -521,8 +528,45 @@ export default function SearchPage() {
                       <button onClick={() => { setSearch(''); setSpec(''); setSvc(''); setLang(''); setAcc(false); setOn(false); setWe(false); setEv(false); setCat('all'); setPage(1) }} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">Clear all filters</button>
                     </div>
                   )}
-                  {pagedDoctors.map(d => <DoctorCard key={'doc-' + d.id} d={d} isFav={favDocs.includes(d.id)} onFav={toggleFavDoc} />)}
-                  {pagedProviders.map(p => <Card key={p.id} p={p} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(p.id)} onFav={toggleFav} />)}
+                  {/* Interleave featured providers into results at positions 1, 3, 8, 13, 18, 23... */}
+                  {(() => {
+                    // Compute positions (0-indexed): 0, 2, 7, 12, 17, 22... = 1, 3, 8, 13, 18, 23 (1-indexed)
+                    const featuredPositions = [0, 2, 7, 12, 17, 22, 27, 32, 37, 42]
+                    // Featured items relevant to current category (or all if cat === 'all')
+                    const featuredForCat = featuredMix.filter(f => {
+                      if (showFavs || totalCount === 0) return false
+                      if (cat === 'all') return true
+                      const isDoctor = f.category === 'Specialist' || f.category === 'Family Medicine'
+                      if (cat === 'Family Medicine') return f.category === 'Family Medicine'
+                      if (cat === 'Specialist') return isDoctor
+                      return f.category === cat
+                    })
+                    // Only exclude featured that are already in pageItems (avoid duplicate visual)
+                    const pageItemIds = new Set(pageItems.map(i => i.id))
+                    const featuredPool = featuredForCat.filter(f => !pageItemIds.has(f.id))
+                    // Build interleaved list
+                    const output = []
+                    let featuredIdx = 0
+                    let resultIdx = 0
+                    let outputIdx = 0
+                    while (resultIdx < pageItems.length || (featuredIdx < featuredPool.length && featuredPositions.includes(outputIdx))) {
+                      if (featuredPositions.includes(outputIdx) && featuredIdx < featuredPool.length) {
+                        const f = featuredPool[featuredIdx++]
+                        const isDoc = f.category === 'Specialist' || f.category === 'Family Medicine'
+                        output.push({ ...f, _t: isDoc ? 'doc' : 'prov', _sponsored: true, specialty: f.type || f.category })
+                      } else if (resultIdx < pageItems.length) {
+                        output.push(pageItems[resultIdx++])
+                      }
+                      outputIdx++
+                      if (output.length > 100) break // safety
+                    }
+                    return output.map((x, i) => {
+                      if (x._t === 'doc') {
+                        return <DoctorCard key={(x._sponsored ? 'feat-' : '') + 'doc-' + x.id + '-' + i} d={x} isFav={favDocs.includes(x.id)} onFav={toggleFavDoc} sponsored={x._sponsored} />
+                      }
+                      return <Card key={(x._sponsored ? 'feat-' : '') + 'prov-' + x.id + '-' + i} p={x} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(x.id)} onFav={toggleFav} sponsored={x._sponsored} />
+                    })
+                  })()}
                 </div>
 
                 {/* Pagination */}

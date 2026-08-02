@@ -9,7 +9,7 @@ const DOC_CATS = new Set(['Family Medicine', 'Specialist'])
 const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] } return a }
 const km = (a, b, c, d) => { const R = 6371, r = Math.PI / 180, dLat = (c - a) * r, dLng = (d - b) * r; const A = Math.sin(dLat / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dLng / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(A), Math.sqrt(1 - A)) }
 
-export default function FeaturedStrip({ category = null, title = 'Featured providers', subtitle = null, loc = null, tint = false, fallbackToNearest = false }) {
+export default function FeaturedStrip({ category = null, title = 'Featured providers', subtitle = null, loc = null, tint = false, fallbackToNearest = false, layout = 'scroll' }) {
   const [items, setItems] = useState([])
   const [loaded, setLoaded] = useState(false)
   const scroller = useRef(null)
@@ -91,6 +91,26 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
   }
 
   const scrollBy = (dx) => scroller.current?.scrollBy({ left: dx, behavior: 'smooth' })
+
+  // Grid layouts: 3x2 grid (limit 6) or 3x1 grid (limit 3)
+  if (layout === 'grid6' || layout === 'grid3') {
+    const limit = layout === 'grid6' ? 6 : 3
+    return (
+      <section className={wrapCls}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-baseline justify-between mb-4 gap-3">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
+              {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {items.slice(0, limit).map(x => <FeaturedCard key={x._kind + x.id} item={x} />)}
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className={wrapCls}>
