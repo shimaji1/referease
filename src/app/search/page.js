@@ -128,8 +128,8 @@ function Detail({ p, onBack, isFav, onFav }) {
   useEffect(() => {
     let alive = true
     if (!supabase || !p?.id) return () => { alive = false }
-    supabase.from('physician_locations').select('physicians(id, name, specialty)').eq('provider_id', p.id).then(({ data }) => {
-      if (alive) setDocs((data || []).map(l => l.physicians).filter(Boolean))
+    supabase.from('providers').select('id, name, type, category').eq('clinic_provider_id', p.id).then(({ data }) => {
+      if (alive) setDocs((data || []).map(d => ({ id: d.id, name: d.name, specialty: d.type || d.category })))
     })
     supabase.from('listing_forms').select('*').eq('provider_id', p.id).then(({ data }) => {
       if (alive) setPforms(data || [])
