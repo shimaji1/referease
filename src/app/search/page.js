@@ -99,7 +99,6 @@ function DoctorCard({ d, isFav, onFav, sponsored }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(d.category || "Specialist")}`}>{(d.category || "Specialist").toUpperCase()}</span>
             <h3 className="font-semibold text-gray-900 text-base leading-snug">{d.name}</h3>
-            {d.verified && <VerifiedPill />}
           </div>
           <p className="text-sm text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
           <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
@@ -107,6 +106,7 @@ function DoctorCard({ d, isFav, onFav, sponsored }) {
               ? <AcceptPill v={d.accepting_new_patients} patient />
               : <AcceptPill v={d.accepting_referrals} />}
             <WaitBadge weeks={d.wait_weeks} />
+            {d.verified && <VerifiedPill />}
             {dist && <span className="text-[10px] text-gray-400">{dist} km</span>}
           </div>
         </div>

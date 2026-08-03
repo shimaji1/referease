@@ -1,4 +1,5 @@
 'use client'
+import { VerifiedPill } from './Badges'
 
 // One profile header for every category — clinics, doctors, imaging, labs.
 // Navy banner + initials avatar + overlapping quick-stat tiles (z-fixed).
