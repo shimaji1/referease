@@ -196,19 +196,11 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         <h3 className="text-sm font-bold text-gray-900 mb-4">Referral Information</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className={lbl}>Accepting Referrals</label>
-            <select className={inp} value={form.accepting_referrals == null ? 'unknown' : form.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
+            <label className={lbl}>Accepting Referrals / New Patients</label>
+            <select className={inp} value={form.accepting_referrals == null ? 'unknown' : form.accepting_referrals ? 'true' : 'false'} onChange={e => { const v = e.target.value === 'unknown' ? null : e.target.value === 'true'; setForm(prev => ({ ...prev, accepting_referrals: v, accepting_new_patients: v })) }}>
               <option value="unknown">Unknown</option>
-              <option value="true">Yes, Accepting</option>
-              <option value="false">No, Not Accepting</option>
-            </select>
-          </div>
-          <div>
-            <label className={lbl}>Accepting New Patients</label>
-            <select className={inp} value={form.accepting_new_patients == null ? 'unknown' : form.accepting_new_patients ? 'true' : 'false'} onChange={e => set('accepting_new_patients', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
-              <option value="unknown">Unknown</option>
-              <option value="true">Yes, Accepting new patients</option>
-              <option value="false">No, Roster full</option>
+              <option value="true">Accepting</option>
+              <option value="false">Not accepting</option>
             </select>
           </div>
           <div>

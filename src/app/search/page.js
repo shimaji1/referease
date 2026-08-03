@@ -167,6 +167,8 @@ function Detail({ p, onBack, isFav, onFav }) {
       <ProfileView
         name={p.name}
         subtitle={`${p.type}${p.category ? ` · ${p.category}` : ''}`}
+        specialty={p.type}
+        subSpecialty={p.sub_specialty}
         verified={p.verified}
         action={<button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
         tiles={[
@@ -352,7 +354,7 @@ export default function SearchPage() {
     if (mw) r = r.filter(p => p.wait_weeks !== null && p.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(p => p.rating && Number(p.rating) >= parseFloat(mr))
     if (md) r = r.filter(p => distKm(CENTER.lat,CENTER.lng,p.lat,p.lng) <= parseFloat(md))
-    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(p => p.name.toLowerCase().includes(q) || p.type.toLowerCase().includes(q) || (p.address||"").toLowerCase().includes(q) || (p.services||[]).some(s => s.toLowerCase().includes(q)) || (p.doctors||[]).some(d => d.toLowerCase().includes(q))) }
+    if (search.trim()) { const words = search.toLowerCase().split(/\s+/).filter(Boolean); r = r.filter(p => { const hay = [p.name, p.type, p.address||"", ...(p.services||[]), ...(p.doctors||[])].join(" ").toLowerCase(); return words.every(w => hay.includes(w)) }) }
     if (sort==="name") r=[...r].sort((a,b)=>a.name.localeCompare(b.name))
     if (sort==="rating") r=[...r].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))
     if (sort==="wait") r=[...r].sort((a,b)=>(a.wait_weeks??999)-(b.wait_weeks??999))
@@ -396,7 +398,7 @@ export default function SearchPage() {
     if (mw) r = r.filter(d => d.wait_weeks !== null && d.wait_weeks !== undefined && d.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(d => d.rating && Number(d.rating) >= parseFloat(mr))
     if (md) r = r.filter(d => d.lat && d.lng && distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) <= parseFloat(md))
-    if (search.trim()) { const q = search.toLowerCase(); r = r.filter(d => (d.name || "").toLowerCase().includes(q) || (d.specialty || "").toLowerCase().includes(q) || (d.clinicName || "").toLowerCase().includes(q)) }
+    if (search.trim()) { const words = search.toLowerCase().split(/\s+/).filter(Boolean); r = r.filter(d => { const hay = [d.name||"", d.specialty||"", d.clinicName||""].join(" ").toLowerCase(); return words.every(w => hay.includes(w)) }) }
     const far = (d) => (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) : 99999
     if (sort === "name") r = [...r].sort((a,b) => a.name.localeCompare(b.name))
     else if (sort === "wait") r = [...r].sort((a,b) => (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999))
@@ -452,7 +454,7 @@ export default function SearchPage() {
               </div>
               <div className="flex gap-2 flex-wrap mt-4">
                 {CATEGORIES.map(c => (
-                  <button key={c.key} onClick={() => { setCat(c.key); setSpec(""); setShowFavs(false); setPage(1) }} className={`px-4 py-2 text-xs font-bold rounded-full border transition ${cat===c.key&&!showFavs ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/25 hover:bg-white/20'}`}>{c.icon} {c.label}</button>
+                  <button key={c.key} onClick={() => { setCat(c.key); setSpec(""); setShowFavs(false); setPage(1) }} className={`px-4 py-2 text-xs font-bold rounded-full border transition ${cat===c.key&&!showFavs ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/25 hover:bg-white/20'}`}>{c.label}</button>
                 ))}
               </div>
             </div>

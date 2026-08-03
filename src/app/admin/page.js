@@ -241,24 +241,6 @@ export default function AdminPage() {
   }
 
 
-  // ── Convert a provider record that is actually a person into a real doctor ──
-  const convertToDoctor = async (pr) => {
-    if (typeof window !== 'undefined' && !window.confirm(`Convert "${pr.name}" into a doctor profile? The current listing becomes their office record (kept, hidden from the public clinic list) and a full doctor profile is created.`)) return
-    const spName = (() => { const t = String(pr.type || '').trim(); if (t && !/^\d+$/.test(t)) return t; const sp = specialties.find(x => x.snomed_code === (pr.specialty_code || t)); return sp?.name || null })()
-    const rec = {
-      name: withDr(pr.name), type: spName, specialty_code: pr.specialty_code || null,
-      category: /famil/i.test(spName || '') ? 'Family Medicine' : 'Specialist',
-      accepting_referrals: pr.accepting_referrals ?? null, wait_weeks: pr.wait_weeks ?? null,
-      languages: pr.languages || ['English'], hours: pr.hours || null, data_status: 'complete',
-      clinic_provider_id: pr.id,
-    }
-    const { data: doc, error } = await supabase.from('providers').insert(rec).select().single()
-    if (error || !doc) { setMsg('Convert failed: ' + (error?.message || 'unknown')); return }
-    await supabase.from('providers').update({ data_status: 'partial' }).eq('id', pr.id)
-    setMsg(`Converted, "${doc.name}" is now a doctor profile; the old listing is their office record.`)
-    edit(doc)
-  }
-
   // ── Duplicates ──
   const scanDupes = async () => {
     if (!supabase) return
@@ -622,7 +604,6 @@ export default function AdminPage() {
                     <button onClick={() => toggleFeatured("provider", p)} title={p.featured ? "Remove featured" : "Mark as featured"} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:p.featured?"#f59e0b30":"#f59e0b15", color:"#b45309", border:"1px solid #f59e0b60" }}>{p.featured ? "★ Featured" : "☆ Feature"}</button>
                     <button onClick={() => del(p.id)} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Del</button>
                     {p.email && <button onClick={() => invite(p)} disabled={inviting === p.id} style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:p.invited_at?"#05966920":"#0891b220", color:p.invited_at?"#059669":"#0891b2", border:"1px solid " + (p.invited_at?"#05966940":"#0891b240") }}>{inviting === p.id ? "…" : p.invited_at ? "✓ Invited" : "✉ Invite"}</button>}
-                    <button onClick={() => convertToDoctor(p)} title="Convert this listing into a doctor profile" style={{ all:"unset", cursor:"pointer", padding:"4px 10px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#7c3aed20", color:"#7c3aed", border:"1px solid #7c3aed40" }}>→ Doctor</button>
                   </div>
                 </div>
               ))}
@@ -716,8 +697,7 @@ export default function AdminPage() {
               <div><label style={lbl}>Sub-specialty</label><input style={s} value={form.sub_specialty || ""} onChange={e => setForm({...form, sub_specialty:e.target.value || null})} placeholder="e.g. Interventional Cardiology" /></div>
               <div><label style={lbl}>Gender</label><select style={s} value={form.gender || ''} onChange={e => setForm({...form, gender:e.target.value || null})}><option value="">,</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
               <div><label style={lbl}>CPSO Profile Link</label><input style={s} value={form.cpso_url || ""} onChange={e => setForm({...form, cpso_url:e.target.value || null})} placeholder="https://doctors.cpso.on.ca/DoctorDetails/..." /></div>
-              <div><label style={lbl}>Accepting Referrals</label><select style={s} value={form.accepting_referrals == null ? 'unknown' : form.accepting_referrals ? 'true' : 'false'} onChange={e => setForm({...form, accepting_referrals: e.target.value === 'unknown' ? null : e.target.value === 'true'})}><option value="unknown">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></div>
-              <div><label style={lbl}>Accepting New Patients</label><select style={s} value={form.accepting_new_patients == null ? 'unknown' : form.accepting_new_patients ? 'true' : 'false'} onChange={e => setForm({...form, accepting_new_patients: e.target.value === 'unknown' ? null : e.target.value === 'true'})}><option value="unknown">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></div>
+              <div><label style={lbl}>Accepting Referrals / New Patients</label><select style={s} value={form.accepting_referrals == null ? 'unknown' : form.accepting_referrals ? 'true' : 'false'} onChange={e => { const v = e.target.value === 'unknown' ? null : e.target.value === 'true'; setForm({...form, accepting_referrals: v, accepting_new_patients: v}) }}><option value="unknown">Unknown</option><option value="true">Accepting</option><option value="false">Not accepting</option></select></div>
             </div>
             <label style={lbl}>Referral Criteria</label>
             <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={form.criteria || ""} onChange={e => setForm({...form, criteria:e.target.value || null})} placeholder="What patients / conditions you accept referrals for" />
