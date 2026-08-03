@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import FeaturedCard from './FeaturedCard'
@@ -9,24 +9,29 @@ const DOC_CATS = new Set(['Family Medicine', 'Specialist'])
 const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] } return a }
 const km = (a, b, c, d) => { const R = 6371, r = Math.PI / 180, dLat = (c - a) * r, dLng = (d - b) * r; const A = Math.sin(dLat / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dLng / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(A), Math.sqrt(1 - A)) }
 
-export default function FeaturedStrip({ category = null, title = 'Featured providers', subtitle = null, loc = null, tint = false, fallbackToNearest = false, layout = 'scroll' }) {
+// layout: 'hero-6' (3x2 grid, 6 items), 'row-3' (3x1 grid, 3 items), or 'scroll' (horizontal carousel, default)
+export default function FeaturedStrip({ category = null, title = 'Featured providers', subtitle = null, loc = null, tint = false, fallbackToNearest = false, layout = 'scroll', sectionKey = 0, excludeIds = null, onLoaded = null }) {
+  const [pool, setPool] = useState(null)
   const [items, setItems] = useState([])
   const [loaded, setLoaded] = useState(false)
   const scroller = useRef(null)
+  const pickedRef = useRef(false)
 
+  // Fetch the raw candidate pool once per category/location — never re-fetches for excludeIds changes.
   useEffect(() => {
     if (!supabase) { setLoaded(true); return }
     let alive = true
+    pickedRef.current = false
     const load = async () => {
       const doctorSide = category ? DOC_CATS.has(category) : null
-      const results = []
+      const featuredResults = []
 
       if (doctorSide !== true) {
         let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured').eq('data_status', 'complete')
         if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
         q = q.eq('featured', true).limit(24)
         const { data } = await q
-        if (data) results.push(...data.map(p => ({ ...p, _kind: 'provider' })))
+        if (data) featuredResults.push(...data.map(p => ({ ...p, _kind: 'provider' })))
       }
       if (doctorSide !== false) {
         // Doctors ARE providers now: category IN ('Specialist','Family Medicine')
@@ -34,22 +39,35 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
         if (category && DOC_CATS.has(category)) q = q.eq('category', category)
         q = q.eq('featured', true).limit(24)
         const { data } = await q
-        if (data) results.push(...data.map(d => ({ ...d, specialty: d.type, _kind: 'doctor' })))
+        if (data) featuredResults.push(...data.map(d => ({ ...d, specialty: d.type, _kind: 'doctor' })))
       }
 
-      if (results.length === 0 && fallbackToNearest) {
+      // Always pull a fallback pool (not just when featured is empty) — with excludeIds dedup across
+      // sections, a section can otherwise run out of items even though featuredResults wasn't empty.
+      const fallbackResults = []
+      if (fallbackToNearest) {
         if (doctorSide !== true) {
           let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng').eq('data_status', 'complete').eq('verified', true)
           if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
           const { data } = await q.limit(60)
-          if (data) results.push(...data.map(p => ({ ...p, _kind: 'provider' })))
+          if (data) fallbackResults.push(...data.map(p => ({ ...p, _kind: 'provider' })))
         }
-        if (doctorSide !== false && results.length < 12) {
+        if (doctorSide !== false) {
           let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng').eq('data_status', 'complete').eq('verified', true).in('category', ['Specialist','Family Medicine'])
           if (category && DOC_CATS.has(category)) q = q.eq('category', category)
           const { data } = await q.limit(60)
-          if (data) results.push(...data.map(d => ({ ...d, specialty: d.type, _kind: 'doctor' })))
+          if (data) fallbackResults.push(...data.map(d => ({ ...d, specialty: d.type, _kind: 'doctor' })))
         }
+      }
+
+      // Featured first, then fallback — deduped so a featured+verified listing doesn't appear twice.
+      const seen = new Set()
+      const results = []
+      for (const x of [...featuredResults, ...fallbackResults]) {
+        const key = `${x._kind}:${x.id}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        results.push(x)
       }
 
       let final = results
@@ -58,11 +76,30 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
       } else {
         final = shuffle(results)
       }
-      if (alive) { setItems(final.slice(0, 12)); setLoaded(true) }
+      if (alive) setPool(final)
     }
     load()
     return () => { alive = false }
   }, [category, loc?.lat, loc?.lng, fallbackToNearest])
+
+  const limit = layout === 'hero-6' || layout === 'grid6' ? 6 : layout === 'row-3' || layout === 'grid3' ? 3 : 12
+  const excludeKey = useMemo(() => excludeIds ? [...excludeIds].sort().join(',') : '', [excludeIds])
+
+  // Pick which items to show once the pool is in, honoring items already shown by earlier sections.
+  // Picks once and freezes — re-running this on every excludeIds change would make a section exclude
+  // its own previously-shown items and keep reshuffling itself.
+  useEffect(() => {
+    if (pool === null || pickedRef.current) return
+    const available = excludeIds ? pool.filter(x => !excludeIds.has(`${x._kind}:${x.id}`)) : pool
+    const offset = available.length ? (sectionKey * limit) % available.length : 0
+    const rotated = [...available.slice(offset), ...available.slice(0, offset)]
+    const picked = rotated.slice(0, limit)
+    pickedRef.current = true
+    setItems(picked)
+    setLoaded(true)
+    if (onLoaded) onLoaded(picked)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pool, excludeKey])
 
   if (!loaded) return null
 
@@ -92,9 +129,7 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
 
   const scrollBy = (dx) => scroller.current?.scrollBy({ left: dx, behavior: 'smooth' })
 
-  // Grid layouts: 3x2 grid (limit 6) or 3x1 grid (limit 3)
-  if (layout === 'grid6' || layout === 'grid3') {
-    const limit = layout === 'grid6' ? 6 : 3
+  if (layout === 'hero-6' || layout === 'grid6' || layout === 'row-3' || layout === 'grid3') {
     return (
       <section className={wrapCls}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -105,7 +140,7 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {items.slice(0, limit).map(x => <FeaturedCard key={x._kind + x.id} item={x} />)}
+            {items.map(x => <FeaturedCard key={x._kind + x.id} item={x} />)}
           </div>
         </div>
       </section>

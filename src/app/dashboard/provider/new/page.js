@@ -15,18 +15,44 @@ export default function NewProviderPage() {
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>
   if (!user || profile?.role !== 'specialist') { router.push('/dashboard'); return null }
 
+  const findDoctorByName = async (name) => {
+    const clean = String(name || '').replace(/^dr\.?\s*/i, '').trim()
+    if (!clean) return null
+    const { data } = await supabase.from('providers').select('id, name').in('category', ['Specialist', 'Family Medicine']).ilike('name', `%${clean}%`).limit(1)
+    return (data && data[0]) || null
+  }
+
   const handleSubmit = async (data) => {
     if (!supabase) return
     setSaving(true)
     const docs = data._doctors || []
+    const locations = data._locations || []
     delete data._doctors
-    const { data: created, error } = await supabase.from('providers').insert({ ...data, owner_id: user.id }).select().single()
-    setSaving(false)
-    if (error || !created) { alert('Error: ' + (error?.message || 'could not save')); return }
-    for (const r of docs) {
-      const { data: doc } = await supabase.from('physicians').insert({ name: r.name, specialty: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist', status: 'active' }).select().single()
-      if (doc) await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: created.id, is_primary: true, name: data.name || null, address: data.address || null, phone: data.phone || null, fax: data.fax || null, hours: data.hours || null })
+    delete data._locations
+    const { data: created, error } = await supabase.from('providers').insert({ ...data, owner_id: user.id, clinic_provider_id: locations[0]?.id || null }).select().single()
+    if (error || !created) { setSaving(false); alert('Error: ' + (error?.message || 'could not save')); return }
+    for (const loc of locations.slice(1)) {
+      await supabase.from('doctor_locations').insert({ doctor_provider_id: created.id, clinic_provider_id: loc.id })
     }
+    let warn = null
+    for (const r of docs) {
+      if (r.id) {
+        const { data: existing } = await supabase.from('providers').select('clinic_provider_id').eq('id', r.id).single()
+        if (!existing?.clinic_provider_id) {
+          await supabase.from('providers').update({ clinic_provider_id: created.id }).eq('id', r.id)
+        } else if (existing.clinic_provider_id !== created.id) {
+          const { count } = await supabase.from('doctor_locations').select('id', { count: 'exact', head: true }).eq('doctor_provider_id', r.id)
+          if ((count || 0) >= 3) warn = `"${r.name}" already has 4 locations, remove one before linking here.`
+          else await supabase.from('doctor_locations').upsert({ doctor_provider_id: r.id, clinic_provider_id: created.id }, { onConflict: 'doctor_provider_id,clinic_provider_id' })
+        }
+      } else {
+        const dupe = await findDoctorByName(r.name)
+        if (dupe) { warn = `"${r.name}" looks like it may already exist as "${dupe.name}" — search for them above and link instead of adding a duplicate.`; continue }
+        await supabase.from('providers').insert({ name: r.name, type: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist', data_status: 'complete', clinic_provider_id: created.id })
+      }
+    }
+    setSaving(false)
+    if (warn) { alert(warn); return }
     router.push('/dashboard')
   }
 

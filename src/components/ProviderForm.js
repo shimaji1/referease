@@ -39,6 +39,36 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
   const addDoctorRow = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '', accepting_referrals: null }])
   const updDoctorRow = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDoctorRow = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
+  const [doctorSearchQuery, setDoctorSearchQuery] = useState('')
+  const [doctorSearchResults, setDoctorSearchResults] = useState([])
+  const searchExistingDoctors = async (q) => {
+    setDoctorSearchQuery(q)
+    if (!supabase || q.trim().length < 2) { setDoctorSearchResults([]); return }
+    const { data } = await supabase.from('providers').select('id, name, type, clinic_provider_id').in('category', ['Specialist', 'Family Medicine']).ilike('name', `%${q.trim()}%`).limit(8)
+    setDoctorSearchResults((data || []).filter(d => !doctorRows.some(r => r.id === d.id)))
+  }
+  const linkExistingDoctorRow = (d) => {
+    setDoctorRows(rows => rows.some(r => r.id === d.id) ? rows : [...rows, { id: d.id, name: d.name, specialty: d.type || '', specialty_code: '', gender: '', accepting_referrals: null }])
+    setDoctorSearchQuery(''); setDoctorSearchResults([])
+  }
+  // Link this listing itself to other clinics/locations (works for any category — a doctor, a lab,
+  // an imaging centre, anyone can be based at, or additionally listed under, another provider).
+  const MAX_LINKED_CLINICS = 4
+  const [linkedClinics, setLinkedClinics] = useState(initial?._locations || [])
+  const [clinicLinkQuery, setClinicLinkQuery] = useState('')
+  const [clinicLinkResults, setClinicLinkResults] = useState([])
+  const searchLinkableClinics = async (q) => {
+    setClinicLinkQuery(q)
+    if (!supabase || q.trim().length < 2) { setClinicLinkResults([]); return }
+    const { data } = await supabase.from('providers').select('id, name, type, address, phone, fax').ilike('name', `%${q.trim()}%`).limit(8)
+    setClinicLinkResults((data || []).filter(c => c.id !== initial?.id && !linkedClinics.some(l => l.id === c.id)))
+  }
+  const linkClinic = (c) => {
+    if (linkedClinics.length >= MAX_LINKED_CLINICS) return
+    setLinkedClinics(l => l.some(x => x.id === c.id) ? l : [...l, c])
+    setClinicLinkQuery(''); setClinicLinkResults([])
+  }
+  const unlinkClinic = (id) => setLinkedClinics(l => l.filter(c => c.id !== id))
   const [servicesText, setServicesText] = useState(joinList(initial?.services))
   const [doctorsText, setDoctorsText] = useState(joinList(initial?.doctors))
   const [languagesText, setLanguagesText] = useState(joinList(initial?.languages || ['English']))
@@ -91,6 +121,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
       wait_weeks: form.wait_weeks !== '' && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null,
       email: form.email || null,
       _doctors: validDocs,
+      _locations: linkedClinics,
     }
     delete data.id; delete data.created_at; delete data.updated_at; delete data.owner_id
     onSubmit(data)
@@ -257,10 +288,26 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
           </div>
           <div>
             <label className={lbl}>Doctors at this clinic</label>
-            <p className="text-[10px] text-gray-400 mb-2">Each doctor gets their own searchable profile page, linked to this listing.</p>
+            <p className="text-[10px] text-gray-400 mb-2">Each doctor gets their own searchable profile page, linked to this listing. Search to link a doctor who already exists, or add a new one below.</p>
+            <div className="relative mb-3">
+              <input className={inp} value={doctorSearchQuery} onChange={e => searchExistingDoctors(e.target.value)} placeholder="🔎 Search existing doctors to link…" />
+              {doctorSearchResults.length > 0 && (
+                <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                  {doctorSearchResults.map(d => (
+                    <button key={d.id} type="button" onClick={() => linkExistingDoctorRow(d)} className="block w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-gray-50">
+                      <div className="text-sm font-semibold text-gray-900">{d.name}</div>
+                      {d.type && <div className="text-xs text-gray-500">{d.type}{d.clinic_provider_id ? ' · already has a primary clinic' : ''}</div>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             {doctorRows.map((r, i) => (
               <div key={i} className="grid grid-cols-1 sm:grid-cols-[1.2fr_1.2fr_0.7fr_0.9fr_auto] gap-2 mb-2 items-center">
-                <input className={inp} placeholder="Dr. Full Name" value={r.name} onChange={e => updDoctorRow(i, { name: e.target.value })} />
+                <div className="relative">
+                  <input className={inp} placeholder="Dr. Full Name" value={r.name} onChange={e => updDoctorRow(i, { name: e.target.value })} disabled={!!r.id} />
+                  {r.id && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-brand bg-brand/10 border border-brand/20 rounded-full px-1.5 py-0.5">LINKED</span>}
+                </div>
                 <select className={inp} value={r.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); updDoctorRow(i, sp ? { specialty_code: sp.snomed_code, specialty: sp.name } : { specialty_code: '', specialty: '' }) }}>
                   <option value="">Specialty…</option>
                   {Object.entries(grouped).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>)}
@@ -277,6 +324,37 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <button type="button" onClick={addDoctorRow} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/15 px-4 py-2 rounded-lg hover:bg-brand/10 transition">+ Add doctor</button>
           </div>
         </div>
+      </section>
+
+      <section className="bg-white border border-gray-200 rounded-xl p-5">
+        <h3 className="text-sm font-bold text-gray-900 mb-4">Link to a Clinic</h3>
+        <p className="text-xs text-gray-500 mb-3">Anyone — a doctor, a lab, an imaging centre — can be based at, or additionally listed under, another clinic. Search to link, up to {MAX_LINKED_CLINICS} locations. Not linked to anyone? Just use the address above.</p>
+        <div className="relative mb-3">
+          <input className={inp} value={clinicLinkQuery} onChange={e => searchLinkableClinics(e.target.value)} placeholder={linkedClinics.length >= MAX_LINKED_CLINICS ? `Location limit reached (${MAX_LINKED_CLINICS})` : "🔎 Search clinics/providers to link…"} disabled={linkedClinics.length >= MAX_LINKED_CLINICS} />
+          {clinicLinkResults.length > 0 && (
+            <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+              {clinicLinkResults.map(c => (
+                <button key={c.id} type="button" onClick={() => linkClinic(c)} className="block w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-gray-50">
+                  <div className="text-sm font-semibold text-gray-900">{c.name}</div>
+                  {c.address && <div className="text-xs text-gray-500">{c.address}</div>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {linkedClinics.length > 0 && (
+          <div className="space-y-2">
+            {linkedClinics.map((c, i) => (
+              <div key={c.id} className="flex items-center justify-between gap-2 border border-brand/20 bg-brand/5 rounded-lg px-3 py-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-gray-900 truncate">{c.name}{i === 0 ? <span className="ml-2 text-[9px] font-bold text-brand bg-white border border-brand/20 rounded-full px-1.5 py-0.5 align-middle">MAIN</span> : null}</div>
+                  {c.address && <div className="text-xs text-gray-500 truncate">{c.address}</div>}
+                </div>
+                <button type="button" onClick={() => unlinkClinic(c.id)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 shrink-0">Unlink</button>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="bg-white border border-gray-200 rounded-xl p-5">

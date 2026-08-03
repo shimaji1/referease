@@ -1,12 +1,13 @@
 'use client'
 import { useState, useMemo, useEffect, useCallback } from "react"
-import Logo from '@/components/Logo'
+import { useRouter } from 'next/navigation'
 import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
 import ProfileView from '@/components/ProfileView'
 import { VerifiedPill, FeaturedTag } from '@/components/Badges'
 import FeaturedStrip from '@/components/FeaturedStrip'
+import TopNav from '@/components/TopNav'
 import useLocation from '@/hooks/useLocation'
 import { useAuth } from '@/context/AuthContext'
 
@@ -92,6 +93,7 @@ function Card({ p, onSelect, isFav, onFav, sponsored }) {
 function DoctorCard({ d, isFav, onFav, sponsored }) {
   const dist = (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng).toFixed(1) : null
   const isFamily = (d.specialty || '').toLowerCase().includes('family')
+  const open = isOpenNow(d.hours)
   return (
     <Link href={`/search?id=${d.id}`} className={`block bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/40 ${sponsored ? 'border-brand/20' : 'border-gray-200'}`}>
       {sponsored && <FeaturedTag />}
@@ -108,8 +110,17 @@ function DoctorCard({ d, isFav, onFav, sponsored }) {
               : <AcceptPill v={d.accepting_referrals} />}
             <WaitBadge weeks={d.wait_weeks} />
             {d.verified && <VerifiedPill />}
+            {d.hours && <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>}
             {dist && <span className="text-[10px] text-gray-400">{dist} km</span>}
           </div>
+          {(d.address || d.phone || d.fax) && (
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 text-sm text-gray-500">
+              {d.address && <span>📍 {d.address}</span>}
+              {d.phone && <span>📞 {d.phone}</span>}
+              {d.fax && <span>📠 {d.fax}</span>}
+            </div>
+          )}
+          {d.rating && <div className="flex gap-2 items-center mt-2.5"><Stars r={d.rating} /><span className="text-[10px] text-gray-400">({d.reviews})</span></div>}
         </div>
         <div className={`flex items-center gap-1 shrink-0 ${sponsored ? 'mt-5' : ''}`}>
           {onFav && <button onClick={e => { e.preventDefault(); e.stopPropagation(); onFav(d.id) }} title={isFav ? 'Remove favourite' : 'Add to favourites'} className={`text-lg leading-none ${isFav ? 'text-amber-400' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>}
@@ -126,7 +137,7 @@ function Detail({ p, onBack, isFav, onFav }) {
   const open = isOpenNow(p.hours)
   const [docs, setDocs] = useState([])
   const [pforms, setPforms] = useState([])
-  const [parentClinic, setParentClinic] = useState(null)
+  const [parentClinics, setParentClinics] = useState([])
   useEffect(() => {
     let alive = true
     if (!supabase || !p?.id) return () => { alive = false }
@@ -136,11 +147,18 @@ function Detail({ p, onBack, isFav, onFav }) {
     supabase.from('listing_forms').select('*').eq('provider_id', p.id).then(({ data }) => {
       if (alive) setPforms(data || [])
     })
-    if (p.clinic_provider_id) {
-      supabase.from('providers').select('id, name, address, phone, fax, website, hours').eq('id', p.clinic_provider_id).single().then(({ data }) => {
-        if (alive && data) setParentClinic(data)
+    // Doctor's linked clinics: primary via clinic_provider_id, up to 3 more via doctor_locations
+    const primaryIds = p.clinic_provider_id ? [p.clinic_provider_id] : []
+    supabase.from('doctor_locations').select('clinic_provider_id').eq('doctor_provider_id', p.id).then(({ data }) => {
+      if (!alive) return
+      const secondaryIds = (data || []).map(l => l.clinic_provider_id).filter(id => !primaryIds.includes(id))
+      const allIds = [...primaryIds, ...secondaryIds]
+      if (!allIds.length) { setParentClinics([]); return }
+      supabase.from('providers').select('id, name, address, phone, fax, website, hours').in('id', allIds).then(({ data: clinics }) => {
+        if (!alive || !clinics) return
+        setParentClinics(allIds.map(id => clinics.find(c => c.id === id)).filter(Boolean))
       })
-    }
+    })
     return () => { alive = false }
   }, [p?.id, p?.clinic_provider_id])
   return (
@@ -170,9 +188,9 @@ function Detail({ p, onBack, isFav, onFav }) {
             </div>
           )
         }
-        contact={{ address: parentClinic ? null : p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
+        contact={{ address: parentClinics.length ? null : p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
         hours={p.hours}
-        locations={parentClinic ? [{ id: parentClinic.id, name: parentClinic.name, address: parentClinic.address, phone: parentClinic.phone, fax: parentClinic.fax, website: parentClinic.website }] : null}
+        locations={parentClinics.length ? parentClinics.map(c => ({ id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax, website: c.website })) : null}
         referral={{ wait: p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`, requirements: p.requirements, criteria: p.criteria, types: p.referral_types, cpso_url: p.cpso_url }}
         notes={p.notes}
         people={docs.length > 0 ? docs.map(d => ({ id: d.id, name: d.name, detail: d.specialty, href: `/search?id=${d.id}` })) : null}
@@ -185,6 +203,7 @@ function Detail({ p, onBack, isFav, onFav }) {
 
 
 export default function SearchPage() {
+  const router = useRouter()
   const [providers, setProviders] = useState([])
   const [doctors, setDoctors] = useState([])
   const [featuredMix, setFeaturedMix] = useState([])
@@ -240,7 +259,7 @@ export default function SearchPage() {
         const clinics = provAll.filter(p => !DOC_CATS_SET.has(p.category))
         const doctors = provAll.filter(p => DOC_CATS_SET.has(p.category)).map(d => {
           const clinic = d.clinic_provider_id ? byId.get(d.clinic_provider_id) : null
-          return { ...d, specialty: d.type || d.category, physician_locations: clinic ? [{ is_primary: true, providers: { id: clinic.id, name: clinic.name, address: clinic.address, lat: clinic.lat, lng: clinic.lng, hours: clinic.hours, services: clinic.services } }] : [] }
+          return { ...d, specialty: d.type || d.category, physician_locations: clinic ? [{ is_primary: true, providers: { id: clinic.id, name: clinic.name, address: clinic.address, phone: clinic.phone, fax: clinic.fax, lat: clinic.lat, lng: clinic.lng, hours: clinic.hours, services: clinic.services } }] : [] }
         })
         setProviders(clinics)
         setDoctors(doctors)
@@ -277,7 +296,7 @@ export default function SearchPage() {
     if (typeof window === 'undefined' || (!providers.length && !doctors.length)) return
     const resolve = () => {
       const pid = new URLSearchParams(window.location.search).get('id')
-      if (!pid) return
+      if (!pid) { setView('search'); setSel(null); return }
       const p = providers.find(x => String(x.id) === String(pid)) || doctors.find(x => String(x.id) === String(pid))
       if (p) { setSel(p); setView('detail'); window.scrollTo({ top: 0, behavior: 'instant' }) }
     }
@@ -356,9 +375,10 @@ export default function SearchPage() {
     return {
       id: doc.id, name: doc.name, specialty: doc.specialty, specialty_code: doc.specialty_code,
       accepting_referrals: doc.accepting_referrals, accepting_new_patients: doc.accepting_new_patients,
-      wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, verified: doc.verified,
+      wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, reviews: doc.reviews, verified: doc.verified,
       category: doc.category || specCatMap[doc.specialty_code] || (/famil/i.test(doc.specialty || '') ? 'Family Medicine' : 'Specialist'),
       clinicName: c?.name || null, lat: c?.lat, lng: c?.lng, hours: doc.hours || c?.hours, services: c?.services || [],
+      address: doc.address || c?.address || null, phone: doc.phone || c?.phone || null, fax: doc.fax || c?.fax || null,
     }
   }), [doctors, specCatMap])
 
@@ -408,21 +428,10 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Nav */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <Logo />
-          <div className="flex items-center gap-3">
-            <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>
-              ★ Favourites {(favs.length + favDocs.length) > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length + favDocs.length}</span>}
-            </button>
-            <Link href="/login" className="text-xs font-medium text-gray-500 hover:text-brand px-3 py-1.5">Sign In</Link>
-          </div>
-        </div>
-      </nav>
+      <TopNav />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        {view === "detail" && sel ? <Detail p={sel} onBack={() => setView("search")} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
+        {view === "detail" && sel ? <Detail p={sel} onBack={() => router.back()} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
           <>
             {/* Hero search block */}
             <div className="bg-gradient-to-br from-brand to-[#2c4f7c] rounded-3xl p-6 sm:p-8 mb-6 text-white">
@@ -511,9 +520,14 @@ export default function SearchPage() {
                     {loc?.label && <> · near <span className="font-semibold text-gray-800">{loc.label}</span></>}
                     {cat !== 'all' && <> · <span className="font-semibold text-brand">{CATEGORIES.find(c => c.key === cat)?.label}</span></>}
                   </div>
-                  <select value={sort} onChange={e => setSort(e.target.value)} className="text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1.5 outline-none focus:border-brand">
-                    <option value="distance">Sort: Distance</option><option value="rating">Rating</option><option value="wait">Wait time</option><option value="name">Name</option><option value="reviews">Reviews</option>
-                  </select>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>
+                      ★ Favourites {(favs.length + favDocs.length) > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length + favDocs.length}</span>}
+                    </button>
+                    <select value={sort} onChange={e => setSort(e.target.value)} className="text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1.5 outline-none focus:border-brand">
+                      <option value="distance">Sort: Distance</option><option value="rating">Rating</option><option value="wait">Wait time</option><option value="name">Name</option><option value="reviews">Reviews</option>
+                    </select>
+                  </div>
                 </div>
 
                 {showFavs && favs.length === 0 && favDocs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
@@ -563,7 +577,7 @@ export default function SearchPage() {
                       if (x._t === 'doc') {
                         return <DoctorCard key={(x._sponsored ? 'feat-' : '') + 'doc-' + x.id + '-' + i} d={x} isFav={favDocs.includes(x.id)} onFav={toggleFavDoc} sponsored={x._sponsored} />
                       }
-                      return <Card key={(x._sponsored ? 'feat-' : '') + 'prov-' + x.id + '-' + i} p={x} onSelect={pr => { setSel(pr); setView("detail") }} isFav={favs.includes(x.id)} onFav={toggleFav} sponsored={x._sponsored} />
+                      return <Card key={(x._sponsored ? 'feat-' : '') + 'prov-' + x.id + '-' + i} p={x} onSelect={pr => { window.history.pushState(null, '', `/search?id=${pr.id}`); setSel(pr); setView("detail"); window.scrollTo({ top: 0, behavior: 'instant' }) }} isFav={favs.includes(x.id)} onFav={toggleFav} sponsored={x._sponsored} />
                     })
                   })()}
                 </div>

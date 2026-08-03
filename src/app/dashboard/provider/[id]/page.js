@@ -22,8 +22,20 @@ export default function EditProviderPage({ params }) {
       if (data) {
         let docRows = []
         try {
-          const { data: links } = await supabase.from('physician_locations').select('physicians(*)').eq('provider_id', id)
-          docRows = (links || []).filter(l => l.physicians).map(l => ({ id: l.physicians.id, name: l.physicians.name || '', specialty: l.physicians.specialty || '', specialty_code: l.physicians.specialty_code || '', accepting_referrals: l.physicians.accepting_referrals !== false }))
+          const { data: docs } = await supabase.from('providers').select('id, name, type, specialty_code, accepting_referrals').eq('clinic_provider_id', id).in('category', ['Specialist', 'Family Medicine'])
+          docRows = (docs || []).map(d => ({ id: d.id, name: d.name || '', specialty: d.type || '', specialty_code: d.specialty_code || '', accepting_referrals: d.accepting_referrals !== false }))
+        } catch {}
+        // This listing's own linked clinics: primary via clinic_provider_id, up to 3 more via doctor_locations
+        let locationRows = []
+        try {
+          const clinicIds = []
+          if (data.clinic_provider_id) clinicIds.push(data.clinic_provider_id)
+          const { data: secondary } = await supabase.from('doctor_locations').select('clinic_provider_id').eq('doctor_provider_id', id)
+          ;(secondary || []).forEach(l => { if (!clinicIds.includes(l.clinic_provider_id)) clinicIds.push(l.clinic_provider_id) })
+          if (clinicIds.length) {
+            const { data: clinics } = await supabase.from('providers').select('id, name, address').in('id', clinicIds)
+            locationRows = clinicIds.map(cid => (clinics || []).find(c => c.id === cid)).filter(Boolean)
+          }
         } catch {}
         setProvider({
           ...data,
@@ -36,6 +48,7 @@ export default function EditProviderPage({ params }) {
           languages: data.languages || ['English'],
           hours: data.hours || { mon: null, tue: null, wed: null, thu: null, fri: null, sat: null, sun: null },
           _doctors: docRows,
+          _locations: locationRows,
         })
       }
       setLoading(false)
@@ -45,29 +58,59 @@ export default function EditProviderPage({ params }) {
   if (authLoading || loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>
   if (!user || !provider) return null
 
+  const findDoctorByName = async (name) => {
+    const clean = String(name || '').replace(/^dr\.?\s*/i, '').trim()
+    if (!clean) return null
+    const { data } = await supabase.from('providers').select('id, name').in('category', ['Specialist', 'Family Medicine']).ilike('name', `%${clean}%`).limit(1)
+    return (data && data[0]) || null
+  }
+
   const handleSubmit = async (data) => {
     if (!supabase) return
     setSaving(true)
     const docs = data._doctors || []
+    const locations = data._locations || []
     delete data._doctors
+    delete data._locations
+    data.clinic_provider_id = locations[0]?.id || null
     const { error } = await supabase.from('providers').update(data).eq('id', id)
     if (error) { setSaving(false); alert('Error: ' + error.message); return }
+    const clinicId = parseInt(id)
+    // reconcile this listing's own secondary linked locations (everything past the primary)
+    await supabase.from('doctor_locations').delete().eq('doctor_provider_id', clinicId)
+    for (const loc of locations.slice(1)) {
+      await supabase.from('doctor_locations').insert({ doctor_provider_id: clinicId, clinic_provider_id: loc.id })
+    }
     // reconcile doctors: update existing, create+link new, unlink removed
     const origIds = (provider._doctors || []).map(r => r.id).filter(Boolean)
+    let warn = null
     for (const r of docs) {
-      const payload = { name: r.name, specialty: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist' }
+      const payload = { name: r.name, type: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist' }
       if (r.id) {
-        await supabase.from('physicians').update(payload).eq('id', r.id)
+        await supabase.from('providers').update(payload).eq('id', r.id)
+        if (!origIds.includes(r.id)) {
+          const { data: existing } = await supabase.from('providers').select('clinic_provider_id').eq('id', r.id).single()
+          if (!existing?.clinic_provider_id) {
+            await supabase.from('providers').update({ clinic_provider_id: clinicId }).eq('id', r.id)
+          } else if (existing.clinic_provider_id !== clinicId) {
+            const { count } = await supabase.from('doctor_locations').select('id', { count: 'exact', head: true }).eq('doctor_provider_id', r.id)
+            if ((count || 0) >= 3) warn = `"${r.name}" already has 4 locations, remove one before linking here.`
+            else await supabase.from('doctor_locations').upsert({ doctor_provider_id: r.id, clinic_provider_id: clinicId }, { onConflict: 'doctor_provider_id,clinic_provider_id' })
+          }
+        }
       } else {
-        const { data: doc } = await supabase.from('physicians').insert({ ...payload, status: 'active' }).select().single()
-        if (doc) await supabase.from('physician_locations').insert({ physician_id: doc.id, provider_id: parseInt(id), is_primary: true, name: data.name || null, address: data.address || null, phone: data.phone || null, fax: data.fax || null, hours: data.hours || null })
+        const dupe = await findDoctorByName(r.name)
+        if (dupe) { warn = `"${r.name}" looks like it may already exist as "${dupe.name}" — search for them above and link instead of adding a duplicate.`; continue }
+        await supabase.from('providers').insert({ ...payload, data_status: 'complete', clinic_provider_id: clinicId })
       }
     }
     const keptIds = docs.map(r => r.id).filter(Boolean)
     for (const rid of origIds.filter(x => !keptIds.includes(x))) {
-      await supabase.from('physician_locations').delete().eq('physician_id', rid).eq('provider_id', parseInt(id))
+      await supabase.from('providers').update({ clinic_provider_id: null }).eq('id', rid).eq('clinic_provider_id', clinicId)
+      await supabase.from('doctor_locations').delete().eq('doctor_provider_id', rid).eq('clinic_provider_id', clinicId)
     }
     setSaving(false)
+    if (warn) { alert(warn); return }
     router.push('/dashboard')
   }
 

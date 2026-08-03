@@ -41,8 +41,8 @@ export default function HomePage() {
   useEffect(() => {
     if (!supabase) return
     Promise.all([
-      supabase.from('providers').select('id', { count: 'exact', head: true }).eq('data_status', 'complete'),
-      supabase.from('physicians').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('providers').select('id', { count: 'exact', head: true }).eq('data_status', 'complete').not('category', 'in', '(Specialist,Family Medicine)'),
+      supabase.from('providers').select('id', { count: 'exact', head: true }).eq('data_status', 'complete').in('category', ['Specialist', 'Family Medicine']),
       supabase.from('specialties').select('snomed_code', { count: 'exact', head: true }),
       supabase.from('providers').select('id, name, type, rating, accepting_referrals, verified').eq('data_status', 'complete').not('rating', 'is', null).order('rating', { ascending: false }).limit(6),
     ]).then(([p, d, sp, f]) => {
@@ -203,7 +203,7 @@ export default function HomePage() {
         </section>
       )}
 
-      <FeaturedStrip layout="row-3" title="More providers you may consider" subtitle="Sponsored placement, geographic rotation." loc={loc} fallbackToNearest sectionKey={4} excludeIds={featuredShown} onLoaded={trackShown} />
+      <FeaturedStrip layout="row-3" title="More providers you may consider" subtitle="Sponsored providers near you." loc={loc} fallbackToNearest sectionKey={4} excludeIds={featuredShown} onLoaded={trackShown} />
 
       {/* FAQ */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">

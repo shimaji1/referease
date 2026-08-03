@@ -7,7 +7,6 @@ export default function FeaturedCard({ item, size = 'md' }) {
   const isDoctor = item._kind === 'doctor'
   const href = isDoctor ? `/search?id=${item.id}` : `/search?id=${item.id}`
   const specialty = (isDoctor ? item.specialty : item.type) || item.category || 'Provider'
-  const category = item.category || (isDoctor ? 'Specialist' : 'Clinic')
 
   const dims = size === 'lg'
     ? { w: 'w-full', banner: 'py-4 px-5', title: 'text-lg', body: 'p-5', min: 'min-h-[220px]' }
@@ -21,8 +20,7 @@ export default function FeaturedCard({ item, size = 'md' }) {
       </div>
       <div className={`${dims.body} flex-1 flex flex-col`}>
         <h3 className={`font-bold text-gray-900 ${dims.title} leading-snug line-clamp-2`}>{item.name}</h3>
-        {!isDoctor && item.address && <p className="text-xs text-gray-500 mt-1 line-clamp-1">📍 {item.address}</p>}
-        {isDoctor && item.category && <p className="text-xs text-brand/70 font-medium mt-1">{item.category}</p>}
+        {item.address && <p className="text-xs text-gray-500 mt-1 line-clamp-1">📍 {item.address}</p>}
         <div className="flex items-center gap-1.5 flex-wrap mt-auto pt-3">
           {item.verified && <VerifiedPill />}
           {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
