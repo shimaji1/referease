@@ -19,7 +19,7 @@ export function VerifiedPill({ dark = false }) {
 
 export function FeaturedTag() {
   return (
-    <span className="absolute top-3 right-3 text-[9px] font-bold text-amber-900 bg-amber-300 border border-amber-400 px-1.5 py-0.5 rounded-full z-10 tracking-wide">
+    <span className="absolute top-3 right-3 text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full z-10 tracking-wide">
       FEATURED
     </span>
   )

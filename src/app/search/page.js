@@ -67,9 +67,9 @@ function Card({ p, onSelect, isFav, onFav, sponsored }) {
   return (
     <div className={`bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/30 ${sponsored ? '' : ''} ${isFav ? 'border-brand/40 shadow-sm' : 'border-gray-200'}`}>
       {sponsored && <FeaturedTag />}
-      <button onClick={() => onFav(p.id)} className={`absolute top-3 right-3 text-lg transition ${isFav ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
-      <button onClick={() => onSelect(p)} className="text-left w-[calc(100%-30px)]">
-        <div className="flex items-center gap-1.5 flex-wrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug">{p.name}</h3></div>
+      <button onClick={() => onFav(p.id)} className={`absolute ${sponsored ? 'top-9' : 'top-3'} right-3 text-lg transition ${isFav ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>
+      <button onClick={() => onSelect(p)} className={`text-left ${sponsored ? 'w-[calc(100%-84px)]' : 'w-[calc(100%-30px)]'}`}>
+        <div className="flex items-center gap-1.5 min-w-0"><span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug truncate min-w-0 flex-1">{p.name}</h3></div>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
           {p.verified && <VerifiedPill />}
@@ -96,10 +96,10 @@ function DoctorCard({ d, isFav, onFav, sponsored }) {
     <Link href={`/search?id=${d.id}`} className={`block bg-white border rounded-xl p-4 relative transition hover:shadow-md hover:border-brand/40 ${sponsored ? 'border-brand/20' : 'border-gray-200'}`}>
       {sponsored && <FeaturedTag />}
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(d.category || "Specialist")}`}>{(d.category || "Specialist").toUpperCase()}</span>
-            <h3 className="font-semibold text-gray-900 text-base leading-snug">{d.name}</h3>
+        <div className={`min-w-0 flex-1 ${sponsored ? 'pr-[84px]' : ''}`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(d.category || "Specialist")}`}>{(d.category || "Specialist").toUpperCase()}</span>
+            <h3 className="font-semibold text-gray-900 text-base leading-snug truncate min-w-0 flex-1">{d.name}</h3>
           </div>
           <p className="text-sm text-brand/80 font-medium mt-0.5">{d.specialty || 'Physician'}{d.clinicName ? ` · ${d.clinicName}` : ''}</p>
           <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
@@ -111,7 +111,7 @@ function DoctorCard({ d, isFav, onFav, sponsored }) {
             {dist && <span className="text-[10px] text-gray-400">{dist} km</span>}
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className={`flex items-center gap-1 shrink-0 ${sponsored ? 'mt-5' : ''}`}>
           {onFav && <button onClick={e => { e.preventDefault(); e.stopPropagation(); onFav(d.id) }} title={isFav ? 'Remove favourite' : 'Add to favourites'} className={`text-lg leading-none ${isFav ? 'text-amber-400' : 'text-gray-300 hover:text-amber-400'}`}>{isFav ? '★' : '☆'}</button>}
           <span className="text-gray-300 text-lg leading-none">›</span>
         </div>
@@ -411,9 +411,7 @@ export default function SearchPage() {
       {/* Nav */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Logo />
-          </Link>
+          <Logo />
           <div className="flex items-center gap-3">
             <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>
               ★ Favourites {(favs.length + favDocs.length) > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length + favDocs.length}</span>}

@@ -29,9 +29,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="p-4">
-        <Link href="/" className="inline-flex items-center gap-2">
-          <Logo />
-        </Link>
+        <Logo />
       </div>
 
       <div className="flex-1 flex items-center justify-center px-4 pb-12">

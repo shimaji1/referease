@@ -16,8 +16,8 @@ export default function FeaturedCard({ item, size = 'md' }) {
   return (
     <Link href={href} className={`${dims.w} shrink-0 snap-start relative bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 hover:border-brand/40 transition group ${dims.min} flex flex-col`}>
       <FeaturedTag />
-      <div className={`bg-gradient-to-r from-brand to-[#2c4f7c] ${dims.banner} flex items-center justify-between gap-2`}>
-        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/95 truncate">{specialty}</span>
+      <div className={`bg-gradient-to-r from-brand to-[#2c4f7c] ${dims.banner} flex items-center gap-2`}>
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/95 truncate min-w-0 flex-1 pr-[84px]">{specialty}</span>
       </div>
       <div className={`${dims.body} flex-1 flex flex-col`}>
         <h3 className={`font-bold text-gray-900 ${dims.title} leading-snug line-clamp-2`}>{item.name}</h3>
