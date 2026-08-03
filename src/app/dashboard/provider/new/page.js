@@ -13,7 +13,7 @@ export default function NewProviderPage() {
   const [saving, setSaving] = useState(false)
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>
-  if (!user || profile?.role !== 'specialist') { router.push('/dashboard'); return null }
+  if (!user || profile?.role !== 'provider') { router.push('/dashboard'); return null }
 
   const findDoctorByName = async (name) => {
     const clean = String(name || '').replace(/^dr\.?\s*/i, '').trim()

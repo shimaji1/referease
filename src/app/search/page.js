@@ -10,6 +10,8 @@ import FeaturedStrip from '@/components/FeaturedStrip'
 import TopNav from '@/components/TopNav'
 import useLocation from '@/hooks/useLocation'
 import { useAuth } from '@/context/AuthContext'
+import ListPickerModal from '@/components/ListPickerModal'
+import { fetchLists, fetchSavedProviderIds, addToList, removeFromAllLists } from '@/lib/favourites'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -206,6 +208,7 @@ function Detail({ p, onBack, isFav, onFav }) {
 
 export default function SearchPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [providers, setProviders] = useState([])
   const [doctors, setDoctors] = useState([])
   const [featuredMix, setFeaturedMix] = useState([])
@@ -286,11 +289,47 @@ export default function SearchPage() {
   useEffect(() => { try { const s = localStorage.getItem("re-favs"); if (s) setFavs(JSON.parse(s)) } catch {} }, [])
   useEffect(() => { if (!loc && typeof window !== 'undefined' && !localStorage.getItem('re-loc-asked')) { try { localStorage.setItem('re-loc-asked', '1') } catch {}; requestGeo() } }, [loc, requestGeo])
   const saveFavs = useCallback(ids => { setFavs(ids); try { localStorage.setItem("re-favs", JSON.stringify(ids)) } catch {} }, [])
-  const toggleFav = useCallback(id => saveFavs(favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id]), [favs, saveFavs])
 
   useEffect(() => { try { const s = localStorage.getItem("re-favs-docs"); if (s) setFavDocs(JSON.parse(s)) } catch {} }, [])
   const saveFavDocs = useCallback(ids => { setFavDocs(ids); try { localStorage.setItem("re-favs-docs", JSON.stringify(ids)) } catch {} }, [])
-  const toggleFavDoc = useCallback(id => saveFavDocs(favDocs.includes(id) ? favDocs.filter(f => f !== id) : [...favDocs, id]), [favDocs, saveFavDocs])
+
+  // Signed-in favourites: DB-backed lists. Anonymous visitors keep the flat localStorage arrays above.
+  const [savedIds, setSavedIds] = useState(new Set())
+  const [myLists, setMyLists] = useState([])
+  const [pickerFor, setPickerFor] = useState(null) // { id, name } — set while the "which list?" modal is open
+  useEffect(() => {
+    if (!user) { setSavedIds(new Set()); setMyLists([]); return }
+    let alive = true
+    Promise.all([fetchSavedProviderIds(user.id), fetchLists(user.id)]).then(([ids, lists]) => {
+      if (alive) { setSavedIds(ids); setMyLists(lists) }
+    })
+    return () => { alive = false }
+  }, [user])
+
+  const isFavId = useCallback(id => user ? savedIds.has(id) : (favs.includes(id) || favDocs.includes(id)), [user, savedIds, favs, favDocs])
+  const nameForId = useCallback(id => providers.find(x => x.id === id)?.name || doctors.find(x => x.id === id)?.name || '', [providers, doctors])
+
+  const handleFav = useCallback(async (id) => {
+    if (!user) {
+      if (favs.includes(id)) { saveFavs(favs.filter(f => f !== id)); return }
+      if (favDocs.includes(id)) { saveFavDocs(favDocs.filter(f => f !== id)); return }
+      saveFavs([...favs, id])
+      return
+    }
+    if (savedIds.has(id)) {
+      const ok = await removeFromAllLists(user.id, id)
+      if (ok) setSavedIds(prev => { const n = new Set(prev); n.delete(id); return n })
+      return
+    }
+    if (myLists.length === 0) {
+      const ok = await addToList(user.id, id)
+      if (ok) { setSavedIds(prev => new Set(prev).add(id)); fetchLists(user.id).then(setMyLists) }
+      return
+    }
+    setPickerFor({ id, name: nameForId(id) })
+  }, [user, favs, favDocs, saveFavs, saveFavDocs, savedIds, myLists, nameForId])
+
+  const favCount = user ? savedIds.size : favs.length + favDocs.length
 
   // Deep-link: /search?id=123 opens that provider's listing directly. Search BOTH clinics and doctors.
   // Handle initial load AND subsequent URL changes (client-side navigation from doctor→clinic→doctor links).
@@ -342,7 +381,7 @@ export default function SearchPage() {
   const activeF = useMemo(() => [acc,on,we,ev,mw,mr,md,svc,lang].filter(Boolean).length, [acc,on,we,ev,mw,mr,md,svc,lang])
 
   const filtered = useMemo(() => {
-    let r = showFavs ? providers.filter(p => favs.includes(p.id)) : providers
+    let r = showFavs ? providers.filter(p => isFavId(p.id)) : providers
     if (cat !== "all") r = r.filter(p => p.category === cat)
     if (spec) r = r.filter(p => provSpecialty(p) === spec || p.type === spec)
     if (svc) r = r.filter(p => (p.services||[]).includes(svc))
@@ -361,7 +400,7 @@ export default function SearchPage() {
     if (sort==="reviews") r=[...r].sort((a,b)=>(b.reviews||0)-(a.reviews||0))
     if (sort==="distance") r=[...r].sort((a,b)=>distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng))
     return r
-  }, [search,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,providers,provSpecialty])
+  }, [search,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,favDocs,savedIds,user,providers,provSpecialty])
 
   // ---- Doctors as first-class results ----
   const specCatMap = useMemo(() => {
@@ -385,7 +424,7 @@ export default function SearchPage() {
   }), [doctors, specCatMap])
 
   const filteredDoctors = useMemo(() => {
-    if (showFavs) return doctorCards.filter(d => favDocs.includes(d.id))
+    if (showFavs) return doctorCards.filter(d => isFavId(d.id))
     let r = doctorCards
     if (cat !== "all") r = r.filter(d => d.category === cat)
     if (spec) r = r.filter(d => (d.specialty || "") === spec)
@@ -404,7 +443,7 @@ export default function SearchPage() {
     else if (sort === "wait") r = [...r].sort((a,b) => (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999))
     else if (sort === "distance") r = [...r].sort((a,b) => far(a) - far(b))
     return r
-  }, [doctorCards,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,search,sort,showFavs,favDocs])
+  }, [doctorCards,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,search,sort,showFavs,favDocs,favs,savedIds,user])
 
   const clearF = () => { setSpec(""); setSvc(""); setLang(""); setAcc(false); setOn(false); setWe(false); setEv(false); setMw(""); setMr(""); setMd("") }
   const sel_s = "px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-lg text-gray-700 outline-none cursor-pointer flex-1 min-w-0 max-w-[180px] focus:border-brand focus:ring-1 focus:ring-brand/20"
@@ -433,7 +472,7 @@ export default function SearchPage() {
       <TopNav />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        {view === "detail" && sel ? <Detail p={sel} onBack={() => router.back()} isFav={favs.includes(sel.id)} onFav={toggleFav} /> : (
+        {view === "detail" && sel ? <Detail p={sel} onBack={() => router.back()} isFav={isFavId(sel.id)} onFav={handleFav} /> : (
           <>
             {/* Hero search block */}
             <div className="bg-gradient-to-br from-brand to-[#2c4f7c] rounded-3xl p-6 sm:p-8 mb-6 text-white">
@@ -524,7 +563,7 @@ export default function SearchPage() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button onClick={() => { setShowFavs(!showFavs); setView("search"); setSel(null) }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${showFavs ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-300 hover:border-brand'}`}>
-                      ★ Favourites {(favs.length + favDocs.length) > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favs.length + favDocs.length}</span>}
+                      ★ Favourites {favCount > 0 && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${showFavs ? 'bg-white/20' : 'bg-brand text-white'}`}>{favCount}</span>}
                     </button>
                     <select value={sort} onChange={e => setSort(e.target.value)} className="text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1.5 outline-none focus:border-brand">
                       <option value="distance">Sort: Distance</option><option value="rating">Rating</option><option value="wait">Wait time</option><option value="name">Name</option><option value="reviews">Reviews</option>
@@ -532,7 +571,7 @@ export default function SearchPage() {
                   </div>
                 </div>
 
-                {showFavs && favs.length === 0 && favDocs.length === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
+                {showFavs && favCount === 0 && <div className="text-center py-16 text-gray-400 text-sm"><div className="text-4xl mb-3">☆</div><p className="font-semibold text-gray-600 mb-1">No favourites yet</p>Click the star on any provider or doctor to save them here.</div>}
 
                 <div className="flex flex-col gap-2.5">
                   {!showFavs && totalCount === 0 && (
@@ -577,9 +616,9 @@ export default function SearchPage() {
                     }
                     return output.map((x, i) => {
                       if (x._t === 'doc') {
-                        return <DoctorCard key={(x._sponsored ? 'feat-' : '') + 'doc-' + x.id + '-' + i} d={x} isFav={favDocs.includes(x.id)} onFav={toggleFavDoc} sponsored={x._sponsored} />
+                        return <DoctorCard key={(x._sponsored ? 'feat-' : '') + 'doc-' + x.id + '-' + i} d={x} isFav={isFavId(x.id)} onFav={handleFav} sponsored={x._sponsored} />
                       }
-                      return <Card key={(x._sponsored ? 'feat-' : '') + 'prov-' + x.id + '-' + i} p={x} onSelect={pr => { window.history.pushState(null, '', `/search?id=${pr.id}`); setSel(pr); setView("detail"); window.scrollTo({ top: 0, behavior: 'instant' }) }} isFav={favs.includes(x.id)} onFav={toggleFav} sponsored={x._sponsored} />
+                      return <Card key={(x._sponsored ? 'feat-' : '') + 'prov-' + x.id + '-' + i} p={x} onSelect={pr => { window.history.pushState(null, '', `/search?id=${pr.id}`); setSel(pr); setView("detail"); window.scrollTo({ top: 0, behavior: 'instant' }) }} isFav={isFavId(x.id)} onFav={handleFav} sponsored={x._sponsored} />
                     })
                   })()}
                 </div>
@@ -611,6 +650,21 @@ export default function SearchPage() {
           </>
         )}
       </div>
+
+      {pickerFor && (
+        <ListPickerModal
+          userId={user.id}
+          lists={myLists}
+          providerId={pickerFor.id}
+          providerName={pickerFor.name}
+          onClose={() => setPickerFor(null)}
+          onSaved={(listId, newList) => {
+            setSavedIds(prev => new Set(prev).add(pickerFor.id))
+            if (newList) setMyLists(prev => [...prev, newList])
+            setPickerFor(null)
+          }}
+        />
+      )}
     </div>
   )
 }

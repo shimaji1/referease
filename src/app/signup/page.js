@@ -30,8 +30,8 @@ export default function SignUpPage() {
   }
 
   const roles = [
-    { key: 'physician', icon: '🩺', title: 'Family Physician', desc: 'Search specialists, save favourites, manage your referral list' },
-    { key: 'specialist', icon: '⚕️', title: 'Specialist / Provider', desc: 'List your practice, manage availability, receive referrals' },
+    { key: 'user', icon: '🔎', title: 'User', desc: 'Search providers, save favourites, build your own lists of doctors and clinics' },
+    { key: 'provider', icon: '⚕️', title: 'Provider', desc: 'List your practice, manage availability, receive referrals — plan-based features, see pricing' },
   ]
 
   const inp = "w-full px-4 py-3 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
@@ -72,9 +72,11 @@ export default function SignUpPage() {
 
           {step === 2 && (
             <div className="animate-fade-in">
-              <button onClick={() => setStep(1)} className="text-sm text-brand font-medium mb-4 hover:underline">← Change role</button>
-              <div className="inline-flex items-center gap-2 bg-brand/5 text-brand text-xs font-semibold px-3 py-1.5 rounded-full mb-4 border border-brand/10">
-                {role === 'physician' ? '🩺' : '⚕️'} {role === 'physician' ? 'Physician Account' : 'Specialist Account'}
+              <div className="flex items-center justify-between mb-6">
+                <button onClick={() => setStep(1)} className="text-sm text-brand font-medium hover:underline">← Change role</button>
+                <div className="inline-flex items-center gap-2 bg-brand/5 text-brand text-xs font-semibold px-3 py-1.5 rounded-full border border-brand/10">
+                  {role === 'user' ? '🔎' : '⚕️'} {role === 'user' ? 'User Account' : 'Provider Account'}
+                </div>
               </div>
               <h1 className="text-2xl font-bold text-gray-900">Your details</h1>
               <p className="text-sm text-gray-500 mt-1 mb-6">Fill in your information to create your account</p>
@@ -96,13 +98,7 @@ export default function SignUpPage() {
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phone</label>
                   <input className={inp} placeholder="905-555-0123" value={form.phone} onChange={e => set('phone', e.target.value)} />
                 </div>
-                {role === 'physician' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">CPSO Number</label>
-                    <input className={inp} placeholder="Optional — for verified reviews" value={form.cpso} onChange={e => set('cpso', e.target.value)} />
-                  </div>
-                )}
-                {role === 'specialist' && (
+                {role === 'provider' && (
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Practice / Clinic Name</label>
                     <input className={inp} placeholder="e.g. York Dermatology Clinic" value={form.clinic} onChange={e => set('clinic', e.target.value)} />

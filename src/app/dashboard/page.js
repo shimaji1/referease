@@ -6,91 +6,128 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { fetchLists, fetchListItems, createList, removeFromList, deleteList } from '@/lib/favourites'
 
-function FavouritesSection() {
-  const [favProviders, setFavProviders] = useState([])
-  const [favDoctors, setFavDoctors] = useState([])
-  useEffect(() => {
-    let alive = true
-    try {
-      const pids = JSON.parse(localStorage.getItem('re-favs') || '[]')
-      const dids = JSON.parse(localStorage.getItem('re-favs-docs') || '[]')
-      if (supabase && pids.length) supabase.from('providers').select('id, name, type, address, accepting_referrals').in('id', pids).then(({ data }) => { if (alive && data) setFavProviders(data) })
-      if (supabase && dids.length) supabase.from('providers').select('id, name, type, accepting_referrals').in('id', dids).then(({ data }) => { if (alive && data) setFavDoctors(data) })
-    } catch {}
-    return () => { alive = false }
-  }, [])
+function ListsSection({ user }) {
+  const [lists, setLists] = useState([])
+  const [itemsByList, setItemsByList] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
 
-  const total = favProviders.length + favDoctors.length
+  const load = useCallback(async () => {
+    const ls = await fetchLists(user.id)
+    setLists(ls)
+    const entries = await Promise.all(ls.map(async l => [l.id, await fetchListItems(l.id)]))
+    setItemsByList(Object.fromEntries(entries))
+    setLoading(false)
+  }, [user.id])
+
+  useEffect(() => { load() }, [load])
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return
+    const list = await createList(user.id, newName.trim())
+    if (list) { setNewName(''); setCreating(false); load() }
+  }
+
+  const handleRemove = async (listId, providerId) => {
+    await removeFromList(listId, providerId)
+    load()
+  }
+
+  const handleDeleteList = async (listId, name) => {
+    if (typeof window !== 'undefined' && !window.confirm(`Delete the list "${name}"? This removes it and its saved items.`)) return
+    await deleteList(listId)
+    load()
+  }
+
+  if (loading) return <div className="text-center py-8 text-gray-400 text-sm">Loading...</div>
+
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-gray-900">My Favourites</h2>
-        <Link href="/search" className="text-sm font-semibold text-brand hover:underline">Search →</Link>
+        <h2 className="text-lg font-bold text-gray-900">My Lists</h2>
+        <div className="flex items-center gap-2">
+          {creating ? (
+            <div className="flex gap-2">
+              <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreate()} placeholder="List name" className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg outline-none focus:border-brand" />
+              <button onClick={handleCreate} disabled={!newName.trim()} className="px-3 py-1.5 bg-brand text-white text-xs font-semibold rounded-lg disabled:opacity-50">Add</button>
+              <button onClick={() => { setCreating(false); setNewName('') }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+            </div>
+          ) : (
+            <button onClick={() => setCreating(true)} className="text-sm font-semibold text-brand hover:underline">+ New list</button>
+          )}
+        </div>
       </div>
-      {total === 0 ? (
+
+      {lists.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
           <div className="text-3xl mb-3">☆</div>
-          <p className="font-semibold text-gray-700 mb-1">No favourites yet</p>
-          <p className="text-sm text-gray-500 mb-4">Star clinics and doctors you work with to keep them handy here.</p>
+          <p className="font-semibold text-gray-700 mb-1">No lists yet</p>
+          <p className="text-sm text-gray-500 mb-4">Star a provider or doctor on search to start your first list.</p>
           <Link href="/search" className="inline-flex px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition">Search</Link>
         </div>
       ) : (
-        <div className="space-y-2.5">
-          {favDoctors.map(d => (
-            <Link key={'d' + d.id} href={`/search?id=${d.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-brand/30 hover:shadow-sm transition">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2"><span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15">DOCTOR</span><span className="font-semibold text-sm text-gray-900 truncate">{d.name}</span></div>
-                  <div className="text-xs text-brand/70 font-medium mt-0.5">{d.type || 'Physician'}</div>
+        <div className="space-y-5">
+          {lists.map(l => {
+            const items = itemsByList[l.id] || []
+            return (
+              <div key={l.id} className="bg-white border border-gray-200 rounded-xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-gray-900">{l.name} <span className="text-gray-400 font-normal">({items.length})</span></h3>
+                  {!l.is_default && <button onClick={() => handleDeleteList(l.id, l.name)} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete list</button>}
                 </div>
-                {d.accepting_referrals
-                  ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">Accepting</span>
-                  : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 shrink-0">Not accepting</span>}
+                {items.length === 0 ? (
+                  <p className="text-xs text-gray-400">Nothing saved here yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {items.map(p => (
+                      <div key={p.id} className="flex items-center justify-between gap-3 border-b border-gray-50 last:border-0 pb-2 last:pb-0">
+                        <Link href={`/search?id=${p.id}`} className="min-w-0 group">
+                          <div className="font-semibold text-sm text-gray-900 group-hover:text-brand truncate">{p.name}</div>
+                          <div className="text-xs text-brand/70 font-medium truncate">{p.type}</div>
+                        </Link>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {p.accepting_referrals
+                            ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>
+                            : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
+                          <button onClick={() => handleRemove(l.id, p.id)} title="Remove from list" className="text-gray-300 hover:text-red-500 text-sm">✕</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </Link>
-          ))}
-          {favProviders.map(p => (
-            <Link key={'p' + p.id} href={`/search?id=${p.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-brand/30 hover:shadow-sm transition">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-semibold text-sm text-gray-900 truncate">{p.name}</div>
-                  <div className="text-xs text-brand/70 font-medium">{p.type}</div>
-                  {p.address && <div className="text-xs text-gray-500 mt-0.5 truncate">📍 {p.address}</div>}
-                </div>
-                {p.accepting_referrals
-                  ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">Accepting</span>
-                  : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 shrink-0">Not accepting</span>}
-              </div>
-            </Link>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
 
-function PhysicianDashboard({ profile }) {
-  const [favs, setFavs] = useState([])
-  const [favProviders, setFavProviders] = useState([])
-
-  useEffect(() => { try { const s = localStorage.getItem('re-favs'); if (s) setFavs(JSON.parse(s)) } catch {} }, [])
+function UserDashboard({ profile, user }) {
+  const [listCount, setListCount] = useState(0)
+  const [savedCount, setSavedCount] = useState(0)
   useEffect(() => {
-    if (!supabase || !favs.length) return
-    supabase.from('providers').select('*').in('id', favs).then(({ data }) => { if (data) setFavProviders(data) })
-  }, [favs])
+    fetchLists(user.id).then(async ls => {
+      setListCount(ls.length)
+      const totals = await Promise.all(ls.map(l => fetchListItems(l.id)))
+      setSavedCount(totals.reduce((sum, items) => sum + items.length, 0))
+    })
+  }, [user.id])
 
   return (
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Favourites</div>
-          <div className="text-3xl font-bold text-gray-900 mt-1">{favs.length}</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saved</div>
+          <div className="text-3xl font-bold text-gray-900 mt-1">{savedCount}</div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Referrals Sent</div>
-          <div className="text-3xl font-bold text-gray-900 mt-1">0</div>
-          <div className="text-xs text-gray-400 mt-1">Coming soon</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Lists</div>
+          <div className="text-3xl font-bold text-gray-900 mt-1">{listCount}</div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</div>
@@ -98,12 +135,12 @@ function PhysicianDashboard({ profile }) {
           <div className="text-xs text-gray-500">{profile.email}</div>
         </div>
       </div>
-      <FavouritesSection />
+      <ListsSection user={user} />
     </div>
   )
 }
 
-function SpecialistDashboard({ profile, user }) {
+function ProviderDashboard({ profile, user }) {
   const [providers, setProviders] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -138,9 +175,12 @@ function SpecialistDashboard({ profile, user }) {
 
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="text-lg font-bold text-gray-900">My Listings</h2>
-        <Link href="/dashboard/provider/new" className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:bg-brand-dark transition">
-          + Add New Listing
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/pricing" className="text-xs font-medium text-gray-500 hover:text-brand">Plan limits →</Link>
+          <Link href="/dashboard/provider/new" className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:bg-brand-dark transition">
+            + Add New Listing
+          </Link>
+        </div>
       </div>
 
       {providers.length === 0 ? (
@@ -183,6 +223,7 @@ function SpecialistDashboard({ profile, user }) {
                   </span>
                 )}
                 {p.rating && <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">★ {Number(p.rating).toFixed(1)}</span>}
+                <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${p.data_status === 'complete' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-amber-700 bg-amber-50 border-amber-200'}`}>{p.data_status === 'complete' ? 'Listed publicly' : 'Not listed — incomplete'}</span>
                 <span className="text-[10px] text-gray-400 px-2.5 py-1">{(p.services || []).length} services · {(p.doctors || []).length} doctors</span>
               </div>
             </div>
@@ -190,7 +231,7 @@ function SpecialistDashboard({ profile, user }) {
         </div>
       )}
 
-      <FavouritesSection />
+      <ListsSection user={user} />
     </div>
   )
 }
@@ -221,11 +262,11 @@ export default function DashboardPage() {
       </nav>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-6">
-          <h1 className="text-xl font-bold text-gray-900">{profile.role === 'physician' ? '🩺 Physician' : '⚕️ Specialist'} Dashboard</h1>
+          <h1 className="text-xl font-bold text-gray-900">{profile.role === 'provider' ? '⚕️ Provider' : '🔎 User'} Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">Welcome back, {profile.full_name?.split(' ')[0]}</p>
         </div>
-        {profile.role === 'physician' && <PhysicianDashboard profile={profile} />}
-        {profile.role === 'specialist' && <SpecialistDashboard profile={profile} user={user} />}
+        {profile.role === 'user' && <UserDashboard profile={profile} user={user} />}
+        {profile.role === 'provider' && <ProviderDashboard profile={profile} user={user} />}
       </div>
     </div>
   )

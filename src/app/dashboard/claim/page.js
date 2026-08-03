@@ -97,7 +97,7 @@ export default function ClaimPage() {
   }
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>
-  if (!user || profile?.role !== 'specialist') { router.push('/dashboard'); return null }
+  if (!user || profile?.role !== 'provider') { router.push('/dashboard'); return null }
 
   const inp = "w-full px-4 py-3 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
   const statusColors = { pending: 'text-amber-700 bg-amber-50 border-amber-200', approved: 'text-emerald-700 bg-emerald-50 border-emerald-200', rejected: 'text-red-600 bg-red-50 border-red-200' }
