@@ -24,6 +24,14 @@ function isOpenEvenings(h) { if (!h) return false; return Object.values(h).some(
 function distKm(a,b,c,d) { const R=6371,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)) }
 const CENTER = { lat: 43.810, lng: -79.430 }
 
+// A lot of imported services[] entries are actually one comma-joined blob ("General Diagnostic
+// X-Ray, General & Obstetrical Ultrasound, Bone Mineral Density (BMD)") stored as a single array
+// element instead of being split. Split every element on commas so the filter shows real,
+// individual services instead of a handful of giant run-on strings.
+function splitServices(arr) {
+  return [...new Set((arr || []).flatMap(s => String(s).split(',').map(x => x.trim()).filter(Boolean)))]
+}
+
 // Map a SNOMED specialty (category + name) to one of the search category buttons — same rules as the admin form.
 function specToCategory(specCategory, specName) {
   if (/famil/i.test(specName || '')) return 'Family Medicine'
@@ -394,18 +402,27 @@ export default function SearchPage() {
   }, [providers])
 
   const codeToName = useMemo(() => { const m = {}; specialties.forEach(sp => { m[sp.snomed_code] = sp.name }); return m }, [specialties])
+  // Prefer the canonical specialty name (via SNOMED code) over the free-text `type` field —
+  // imported/admin-typed type strings are inconsistent (casing, abbreviations, clinic names
+  // mistakenly used as a specialty), so they're only a fallback when no code is set.
   const provSpecialty = useCallback((p) => {
     const t = String(p.type || '').trim()
-    if (t && !/^\d+$/.test(t)) return t
-    return codeToName[p.specialty_code] || codeToName[t] || null
+    return codeToName[p.specialty_code] || (t && !/^\d+$/.test(t) ? t : null)
   }, [codeToName])
+  // The Specialty filter dropdown is sourced ONLY from the canonical specialties table (matched
+  // via specialty_code), not raw `type` text — that free text is a mess of duplicates, typos and
+  // outright junk (clinic names, numeric codes, symptom words) accumulated from bulk imports.
   const allSpecialties = useMemo(() => {
     const set = new Set()
-    providers.forEach(p => { const sname = provSpecialty(p); if (sname) set.add(sname) })
-    doctors.forEach(d => { if (d.specialty) set.add(d.specialty) })
+    providers.forEach(p => { const n = codeToName[p.specialty_code]; if (n) set.add(n) })
+    doctors.forEach(d => { const n = codeToName[d.specialty_code]; if (n) set.add(n) })
     return [...set].sort()
-  }, [providers, doctors, provSpecialty])
-  const allServices = useMemo(() => [...new Set(providers.flatMap(p => p.services || []))].sort(), [providers])
+  }, [providers, doctors, codeToName])
+  // Dropdown only lists clean, single-phrase service tags — comma-joined blobs (giant
+  // multi-service run-ons from a bad import) are excluded since they're unreadable as an
+  // option, but a provider whose ONLY data is that blob is still findable: the filter below
+  // matches against the split-apart version, not just an exact array-element comparison.
+  const allServices = useMemo(() => [...new Set(providers.flatMap(p => (p.services || []).filter(s => !String(s).includes(','))))].sort(), [providers])
   const allLanguages = useMemo(() => [...new Set(providers.flatMap(p => p.languages || []))].sort(), [providers])
   const activeF = useMemo(() => [acc,on,we,ev,mw,mr,md,svc,lang].filter(Boolean).length, [acc,on,we,ev,mw,mr,md,svc,lang])
 
@@ -413,7 +430,7 @@ export default function SearchPage() {
     let r = showFavs ? providers.filter(p => isFavId(p.id)) : providers
     if (cat !== "all") r = r.filter(p => p.category === cat)
     if (spec) r = r.filter(p => provSpecialty(p) === spec || p.type === spec)
-    if (svc) r = r.filter(p => (p.services||[]).includes(svc))
+    if (svc) r = r.filter(p => splitServices(p.services).includes(svc))
     if (lang) r = r.filter(p => (p.languages||[]).includes(lang))
     if (acc) r = r.filter(p => p.accepting_referrals || p.accepting_new_patients)
     if (on) r = r.filter(p => isOpenNow(p.hours))
@@ -443,21 +460,21 @@ export default function SearchPage() {
     const link = links.find(l => l.is_primary && l.providers) || links.find(l => l.providers) || null
     const c = link?.providers || null
     return {
-      id: doc.id, name: doc.name, specialty: doc.specialty, specialty_code: doc.specialty_code,
+      id: doc.id, name: doc.name, specialty: codeToName[doc.specialty_code] || doc.specialty, specialty_code: doc.specialty_code,
       accepting_referrals: doc.accepting_referrals, accepting_new_patients: doc.accepting_new_patients,
       wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, reviews: doc.reviews, verified: doc.verified,
       category: doc.category || specCatMap[doc.specialty_code] || (/famil/i.test(doc.specialty || '') ? 'Family Medicine' : 'Specialist'),
       clinicName: c?.name || null, lat: c?.lat, lng: c?.lng, hours: doc.hours || c?.hours, services: c?.services || [],
       address: doc.address || c?.address || null, phone: doc.phone || c?.phone || null, fax: doc.fax || c?.fax || null,
     }
-  }), [doctors, specCatMap])
+  }), [doctors, specCatMap, codeToName])
 
   const filteredDoctors = useMemo(() => {
     if (showFavs) return doctorCards.filter(d => isFavId(d.id))
     let r = doctorCards
     if (cat !== "all") r = r.filter(d => d.category === cat)
     if (spec) r = r.filter(d => (d.specialty || "") === spec)
-    if (svc) r = r.filter(d => (d.services || []).includes(svc))
+    if (svc) r = r.filter(d => splitServices(d.services).includes(svc))
     if (lang) r = r.filter(d => (d.languages || []).includes(lang))
     if (acc) r = r.filter(d => d.category === 'Family Medicine' ? d.accepting_new_patients : d.accepting_referrals)
     if (on) r = r.filter(d => isOpenNow(d.hours))
