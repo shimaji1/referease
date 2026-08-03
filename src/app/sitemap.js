@@ -33,20 +33,20 @@ export default async function sitemap() {
   }
 
   try {
-    const [providers, doctors, posts] = await Promise.all([
-      fetchAll('providers', 'id, updated_at', q => q.eq('data_status', 'complete')),
-      fetchAll('physicians', 'id, updated_at', q => q.eq('status', 'active')),
+    const [clinics, doctors, posts] = await Promise.all([
+      fetchAll('providers', 'id, updated_at', q => q.eq('data_status', 'complete').not('category', 'in', '(Specialist,Family Medicine)')),
+      fetchAll('providers', 'id, updated_at', q => q.eq('data_status', 'complete').in('category', ['Specialist', 'Family Medicine'])),
       fetchAll('posts', 'slug, updated_at, published_at', q => q.eq('published', true)),
     ])
 
-    const providerUrls = providers.map(p => ({
+    const providerUrls = clinics.map(p => ({
       url: `${BASE}/search?id=${p.id}`,
       lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),
       changeFrequency: 'weekly',
       priority: 0.6,
     }))
     const doctorUrls = doctors.map(d => ({
-      url: `${BASE}/doctors/${d.id}`,
+      url: `${BASE}/search?id=${d.id}`,
       lastModified: d.updated_at ? new Date(d.updated_at) : new Date(),
       changeFrequency: 'weekly',
       priority: 0.6,

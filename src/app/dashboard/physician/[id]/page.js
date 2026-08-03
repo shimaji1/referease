@@ -90,7 +90,7 @@ export default function EditPhysicianPage({ params }) {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-3">
-            <Link href={`/doctors/${id}`} className="text-xs font-medium text-gray-500 hover:text-brand border border-gray-200 px-3 py-1.5 rounded-lg">View public page</Link>
+            <Link href={`/search?id=${id}`} className="text-xs font-medium text-gray-500 hover:text-brand border border-gray-200 px-3 py-1.5 rounded-lg">View public page</Link>
             <Link href="/dashboard" className="text-xs font-medium text-gray-500 hover:text-brand">← Dashboard</Link>
           </div>
         </div>

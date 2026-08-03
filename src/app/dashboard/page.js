@@ -38,7 +38,7 @@ function FavouritesSection() {
       ) : (
         <div className="space-y-2.5">
           {favDoctors.map(d => (
-            <Link key={'d' + d.id} href={`/doctors/${d.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-brand/30 hover:shadow-sm transition">
+            <Link key={'d' + d.id} href={`/search?id=${d.id}`} className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-brand/30 hover:shadow-sm transition">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2"><span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-full border border-brand/15">DOCTOR</span><span className="font-semibold text-sm text-gray-900 truncate">{d.name}</span></div>
@@ -220,7 +220,7 @@ function SpecialistDashboard({ profile, user }) {
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <Link href={`/dashboard/physician/${d.id}`} className="text-xs font-semibold text-brand bg-brand/5 border border-brand/10 px-3 py-1.5 rounded-lg hover:bg-brand/10 transition">Edit</Link>
-                    <Link href={`/doctors/${d.id}`} className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">View</Link>
+                    <Link href={`/search?id=${d.id}`} className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">View</Link>
                   </div>
                 </div>
               </div>

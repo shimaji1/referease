@@ -226,7 +226,7 @@ function VerifyContent() {
             <div className="flex gap-3 justify-center">
               <Link href="/dashboard" className={btn}>Go to Dashboard</Link>
               {physicianId
-                ? <Link href={`/doctors/${physicianId}`} className="px-5 py-3 bg-gray-100 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-200 transition">View Profile</Link>
+                ? <Link href={`/search?id=${physicianId}`} className="px-5 py-3 bg-gray-100 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-200 transition">View Profile</Link>
                 : <Link href={`/dashboard/provider/${providerId}/preview`} className="px-5 py-3 bg-gray-100 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-200 transition">Preview Listing</Link>}
             </div>
           </div>
