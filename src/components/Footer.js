@@ -1,15 +1,19 @@
 'use client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import Logo from './Logo'
 
 export default function Footer() {
+  const pathname = usePathname() || '/'
+  if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) return null
+
   return (
     <footer className="bg-gradient-to-b from-white to-gray-50 border-t border-gray-200 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-2">
-            <div className="flex items-center gap-2 mb-3">
-              <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
-              <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+            <div className="mb-3">
+              <Logo size="lg" href={null} />
             </div>
             <p className="text-sm text-gray-500 leading-relaxed max-w-sm">
               Ontario's live physician-to-physician referral platform. Real-time availability,

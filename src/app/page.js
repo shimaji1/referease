@@ -246,21 +246,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-200 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Logo />
-          </div>
-          <div className="flex gap-6 text-sm text-gray-500">
-            <Link href="/search" className="hover:text-brand">Find care</Link>
-            <Link href="/pricing" className="hover:text-brand">Pricing</Link>
-            <Link href="/signup" className="hover:text-brand">List your practice</Link>
-          </div>
-          <p className="text-xs text-gray-400">© 2026 ReferEasy · Ontario, Canada</p>
-        </div>
-      </footer>
     </div>
   )
 }

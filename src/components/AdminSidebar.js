@@ -1,4 +1,5 @@
 'use client'
+import Logo from './Logo'
 
 // Sections show what's built (active) and what's on the roadmap (soon/planned).
 // This gives Shima the entire admin plan at a glance.
@@ -55,12 +56,9 @@ export default function AdminSidebar({ tab, setTab, counts = {} }) {
   return (
     <aside style={{ width:'260px', background:'#ffffff', borderRight:'1px solid #e2e8f0', minHeight:'100vh', padding:'20px 0', flexShrink:0, boxSizing:'border-box' }}>
       <div style={{ padding:'0 20px 16px', borderBottom:'1px solid #f1f5f9', marginBottom:'12px' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-          <img src="/img/icon.png" alt="ReferEasy" style={{ width:'32px', height:'32px', borderRadius:'8px' }} />
-          <div>
-            <div style={{ fontSize:'14px', fontWeight:700, color:'#0f172a' }}>Refer<span style={{ color:'#2563eb' }}>Easy</span></div>
-            <div style={{ fontSize:'10px', color:'#94a3b8', letterSpacing:'0.06em', textTransform:'uppercase' }}>Admin</div>
-          </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
+          <Logo size="sm" href={null} />
+          <div style={{ fontSize:'10px', color:'#94a3b8', letterSpacing:'0.06em', textTransform:'uppercase' }}>Admin</div>
         </div>
       </div>
       {NAV.map(section => (
