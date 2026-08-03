@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Logo from '@/components/Logo'
 import { useAuth } from '@/context/AuthContext'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -29,8 +30,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="p-4">
         <Link href="/" className="inline-flex items-center gap-2">
-          <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
-          <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+          <Logo />
         </Link>
       </div>
 

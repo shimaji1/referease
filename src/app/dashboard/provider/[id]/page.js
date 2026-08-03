@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, use } from 'react'
+import Logo from '@/components/Logo'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -80,10 +81,9 @@ export default function EditProviderPage({ params }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
-            <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+            <Logo />
           </Link>
           <div className="flex items-center gap-3">
             <Link href={`/dashboard/provider/${id}/preview`} className="text-xs font-medium text-gray-500 hover:text-brand border border-gray-200 px-3 py-1.5 rounded-lg">Preview</Link>
@@ -104,7 +104,7 @@ export default function EditProviderPage({ params }) {
         <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5">
           <h3 className="text-sm font-bold text-gray-900 mb-1">Forms</h3>
           <p className="text-xs text-gray-500 mb-4">Upload referral or intake forms. They appear on your public listing for referring doctors to download.</p>
-          <FormsManager providerId={id} ownerId={user.id} provider={provider} />
+          <FormsManager providerId={id} ownerId={user.id} />
         </div>
       </div>
     </div>

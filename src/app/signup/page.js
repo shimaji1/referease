@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Logo from '@/components/Logo'
 import { useAuth } from '@/context/AuthContext'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -39,8 +40,7 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="p-4">
         <Link href="/" className="inline-flex items-center gap-2">
-          <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
-          <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+          <Logo />
         </Link>
       </div>
 
@@ -101,7 +101,7 @@ export default function SignUpPage() {
                 {role === 'physician' && (
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">CPSO Number</label>
-                    <input className={inp} placeholder="Optional, for verified reviews" value={form.cpso} onChange={e => set('cpso', e.target.value)} />
+                    <input className={inp} placeholder="Optional — for verified reviews" value={form.cpso} onChange={e => set('cpso', e.target.value)} />
                   </div>
                 )}
                 {role === 'specialist' && (

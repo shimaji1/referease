@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, use } from 'react'
+import Logo from '@/components/Logo'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -86,10 +87,9 @@ export default function EditPhysicianPage({ params }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/img/icon.png" alt="ReferEasy" className="w-14 h-14 rounded-lg" />
-            <span className="text-2xl font-bold text-gray-900">Refer<span className="text-[#2563eb]">Easy</span></span>
+            <Logo />
           </Link>
           <div className="flex items-center gap-3">
             <Link href={`/doctors/${id}`} className="text-xs font-medium text-gray-500 hover:text-brand border border-gray-200 px-3 py-1.5 rounded-lg">View public page</Link>
@@ -120,7 +120,7 @@ export default function EditPhysicianPage({ params }) {
               <div>
                 <label className={lbl}>Gender</label>
                 <select className={inp} value={doc.gender || ''} onChange={e => set('gender', e.target.value)}>
-                  <option value="">,</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
+                  <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
                 </select>
               </div>
               <div>
@@ -148,7 +148,7 @@ export default function EditPhysicianPage({ params }) {
               <div>
                 <label className={lbl}>Accepting Referrals</label>
                 <select className={inp} value={doc.accepting_referrals == null ? 'unknown' : doc.accepting_referrals ? 'true' : 'false'} onChange={e => set('accepting_referrals', e.target.value === 'unknown' ? null : e.target.value === 'true')}>
-                  <option value="unknown">Unknown</option><option value="true">Yes, Accepting</option><option value="false">No, Not Accepting</option>
+                  <option value="unknown">Unknown</option><option value="true">Yes — Accepting</option><option value="false">No — Not Accepting</option>
                 </select>
               </div>
               <div>
