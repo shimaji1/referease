@@ -137,7 +137,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <FeaturedStrip layout="hero-6" title="Featured specialists near you" subtitle="Sponsored providers investing in referrer visibility." loc={loc} fallbackToNearest tint sectionKey={1} onLoaded={trackShown} />
+      <FeaturedStrip layout="hero-6" title="Featured specialists near you" subtitle="Sponsored providers investing in referrer visibility." loc={loc} tint sectionKey={1} onLoaded={trackShown} />
 
       {/* How it works */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
@@ -158,7 +158,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <FeaturedStrip layout="row-3" title="Featured clinics & imaging" subtitle="Facilities investing in visibility to referring physicians." loc={loc} fallbackToNearest sectionKey={2} excludeIds={featuredShown} onLoaded={trackShown} />
+      <FeaturedStrip layout="row-3" title="Featured clinics & imaging" subtitle="Facilities investing in visibility to referring physicians." loc={loc} sectionKey={2} excludeIds={featuredShown} onLoaded={trackShown} />
 
       {/* Features */}
       <section className="bg-gray-50 border-y border-gray-200">
@@ -176,7 +176,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <FeaturedStrip layout="row-3" title="Recently verified providers" subtitle="Fresh listings verified in the last 30 days." loc={loc} fallbackToNearest tint sectionKey={3} excludeIds={featuredShown} onLoaded={trackShown} />
+      <FeaturedStrip layout="row-3" title="Recently verified providers" subtitle="Fresh listings verified in the last 30 days." loc={loc} source="verified" tint sectionKey={3} excludeIds={featuredShown} onLoaded={trackShown} />
 
       {/* Top-rated (organic) */}
       {featured.length > 0 && (
@@ -203,7 +203,7 @@ export default function HomePage() {
         </section>
       )}
 
-      <FeaturedStrip layout="row-3" title="More providers you may consider" subtitle="Sponsored providers near you." loc={loc} fallbackToNearest sectionKey={4} excludeIds={featuredShown} onLoaded={trackShown} />
+      <FeaturedStrip layout="row-3" title="More providers you may consider" subtitle="Sponsored providers near you." loc={loc} sectionKey={4} excludeIds={featuredShown} onLoaded={trackShown} />
 
       {/* FAQ */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">

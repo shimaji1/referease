@@ -192,7 +192,7 @@ function Detail({ p, onBack, isFav, onFav }) {
             </div>
           )
         }
-        contact={{ address: parentClinics.length ? null : p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
+        contact={{ address: p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
         hours={p.hours}
         locations={parentClinics.length ? parentClinics.map(c => ({ id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax, website: c.website })) : null}
         referral={{ wait: p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`, requirements: p.requirements, criteria: p.criteria, types: p.referral_types, cpso_url: p.cpso_url }}
@@ -254,17 +254,32 @@ export default function SearchPage() {
           }
           return results
         }
-        const [provAll, specsRes] = await Promise.all([
+        const [provAll, specsRes, docLocsRes] = await Promise.all([
           fetchAll(() => supabase.from("providers").select("*").eq("data_status", "complete").order("name")),
           supabase.from("specialties").select("snomed_code, category, name"),
+          supabase.from("doctor_locations").select("doctor_provider_id, clinic_provider_id"),
         ])
-        // Split into clinics and doctors by category. Doctors get their clinic's location embedded.
+        // Split into clinics and doctors by category. Doctors get every linked clinic's location
+        // embedded (primary via clinic_provider_id, plus secondary via doctor_locations) so a card
+        // can fall back to a linked clinic's address/phone/fax when the doctor's own fields are blank.
         const DOC_CATS_SET = new Set(['Specialist', 'Family Medicine'])
         const byId = new Map(provAll.map(p => [p.id, p]))
         const clinics = provAll.filter(p => !DOC_CATS_SET.has(p.category))
+        const secondaryByDoc = new Map()
+        for (const l of docLocsRes.data || []) {
+          if (!secondaryByDoc.has(l.doctor_provider_id)) secondaryByDoc.set(l.doctor_provider_id, [])
+          secondaryByDoc.get(l.doctor_provider_id).push(l.clinic_provider_id)
+        }
+        const toLoc = (clinic, isPrimary) => clinic ? { is_primary: isPrimary, providers: { id: clinic.id, name: clinic.name, address: clinic.address, phone: clinic.phone, fax: clinic.fax, lat: clinic.lat, lng: clinic.lng, hours: clinic.hours, services: clinic.services } } : null
         const doctors = provAll.filter(p => DOC_CATS_SET.has(p.category)).map(d => {
-          const clinic = d.clinic_provider_id ? byId.get(d.clinic_provider_id) : null
-          return { ...d, specialty: d.type || d.category, physician_locations: clinic ? [{ is_primary: true, providers: { id: clinic.id, name: clinic.name, address: clinic.address, phone: clinic.phone, fax: clinic.fax, lat: clinic.lat, lng: clinic.lng, hours: clinic.hours, services: clinic.services } }] : [] }
+          const links = []
+          if (d.clinic_provider_id) { const l = toLoc(byId.get(d.clinic_provider_id), true); if (l) links.push(l) }
+          for (const cid of secondaryByDoc.get(d.id) || []) {
+            if (cid === d.clinic_provider_id) continue
+            const l = toLoc(byId.get(cid), false)
+            if (l) links.push(l)
+          }
+          return { ...d, specialty: d.type || d.category, physician_locations: links }
         })
         setProviders(clinics)
         setDoctors(doctors)
@@ -282,7 +297,21 @@ export default function SearchPage() {
     supabase.from('providers')
       .select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, clinic_provider_id')
       .eq('data_status', 'complete').eq('featured', true).limit(30)
-      .then(({ data }) => { if (alive && data) setFeaturedMix(data) })
+      .then(async ({ data }) => {
+        if (!alive || !data) return
+        // Fall back to the linked clinic's contact info when a doctor's own fields are blank.
+        const clinicIds = [...new Set(data.filter(d => (!d.address || !d.phone) && d.clinic_provider_id).map(d => d.clinic_provider_id))]
+        let clinicMap = new Map()
+        if (clinicIds.length) {
+          const { data: clinics } = await supabase.from('providers').select('id, address, phone, fax').in('id', clinicIds)
+          clinicMap = new Map((clinics || []).map(c => [c.id, c]))
+        }
+        const merged = data.map(d => {
+          const c = clinicMap.get(d.clinic_provider_id)
+          return c ? { ...d, address: d.address || c.address || null, phone: d.phone || c.phone || null, fax: d.fax || c.fax || null } : d
+        })
+        if (alive) setFeaturedMix(merged)
+      })
     return () => { alive = false }
   }, [])
 

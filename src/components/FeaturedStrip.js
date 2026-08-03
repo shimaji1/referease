@@ -10,7 +10,7 @@ const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0;
 const km = (a, b, c, d) => { const R = 6371, r = Math.PI / 180, dLat = (c - a) * r, dLng = (d - b) * r; const A = Math.sin(dLat / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dLng / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(A), Math.sqrt(1 - A)) }
 
 // layout: 'hero-6' (3x2 grid, 6 items), 'row-3' (3x1 grid, 3 items), or 'scroll' (horizontal carousel, default)
-export default function FeaturedStrip({ category = null, title = 'Featured providers', subtitle = null, loc = null, tint = false, fallbackToNearest = false, layout = 'scroll', sectionKey = 0, excludeIds = null, onLoaded = null }) {
+export default function FeaturedStrip({ category = null, title = 'Featured providers', subtitle = null, loc = null, tint = false, source = 'featured', layout = 'scroll', sectionKey = 0, excludeIds = null, onLoaded = null }) {
   const [pool, setPool] = useState(null)
   const [items, setItems] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -24,50 +24,36 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
     pickedRef.current = false
     const load = async () => {
       const doctorSide = category ? DOC_CATS.has(category) : null
-      const featuredResults = []
+      const results = []
+      // 'featured' sections show ONLY providers who are actually featured=true — never
+      // backfilled with verified-but-not-featured listings. If there aren't enough, the
+      // empty state ("Get Featured →") shows instead, which is the honest outcome.
+      // 'verified' sections (e.g. "Recently verified providers") show verified=true only.
+      const filterCol = source === 'verified' ? 'verified' : 'featured'
 
       if (doctorSide !== true) {
         let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured').eq('data_status', 'complete')
         if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
-        q = q.eq('featured', true).limit(24)
+        q = q.eq(filterCol, true).limit(24)
         const { data } = await q
-        if (data) featuredResults.push(...data.map(p => ({ ...p, _kind: 'provider' })))
+        if (data) results.push(...data.map(p => ({ ...p, _kind: 'provider' })))
       }
       if (doctorSide !== false) {
         // Doctors ARE providers now: category IN ('Specialist','Family Medicine')
-        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured').eq('data_status', 'complete').in('category', ['Specialist','Family Medicine'])
+        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, clinic_provider_id').eq('data_status', 'complete').in('category', ['Specialist','Family Medicine'])
         if (category && DOC_CATS.has(category)) q = q.eq('category', category)
-        q = q.eq('featured', true).limit(24)
+        q = q.eq(filterCol, true).limit(24)
         const { data } = await q
-        if (data) featuredResults.push(...data.map(d => ({ ...d, specialty: d.type, _kind: 'doctor' })))
-      }
-
-      // Always pull a fallback pool (not just when featured is empty) — with excludeIds dedup across
-      // sections, a section can otherwise run out of items even though featuredResults wasn't empty.
-      const fallbackResults = []
-      if (fallbackToNearest) {
-        if (doctorSide !== true) {
-          let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng').eq('data_status', 'complete').eq('verified', true)
-          if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
-          const { data } = await q.limit(60)
-          if (data) fallbackResults.push(...data.map(p => ({ ...p, _kind: 'provider' })))
+        if (data) {
+          // Fall back to the linked clinic's address when the doctor's own address is blank.
+          const clinicIds = [...new Set(data.filter(d => !d.address && d.clinic_provider_id).map(d => d.clinic_provider_id))]
+          let clinicAddr = new Map()
+          if (clinicIds.length) {
+            const { data: clinics } = await supabase.from('providers').select('id, address').in('id', clinicIds)
+            clinicAddr = new Map((clinics || []).map(c => [c.id, c.address]))
+          }
+          results.push(...data.map(d => ({ ...d, specialty: d.type, address: d.address || clinicAddr.get(d.clinic_provider_id) || null, _kind: 'doctor' })))
         }
-        if (doctorSide !== false) {
-          let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng').eq('data_status', 'complete').eq('verified', true).in('category', ['Specialist','Family Medicine'])
-          if (category && DOC_CATS.has(category)) q = q.eq('category', category)
-          const { data } = await q.limit(60)
-          if (data) fallbackResults.push(...data.map(d => ({ ...d, specialty: d.type, _kind: 'doctor' })))
-        }
-      }
-
-      // Featured first, then fallback — deduped so a featured+verified listing doesn't appear twice.
-      const seen = new Set()
-      const results = []
-      for (const x of [...featuredResults, ...fallbackResults]) {
-        const key = `${x._kind}:${x.id}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        results.push(x)
       }
 
       let final = results
@@ -80,7 +66,7 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
     }
     load()
     return () => { alive = false }
-  }, [category, loc?.lat, loc?.lng, fallbackToNearest])
+  }, [category, loc?.lat, loc?.lng, source])
 
   const limit = layout === 'hero-6' || layout === 'grid6' ? 6 : layout === 'row-3' || layout === 'grid3' ? 3 : 12
   const excludeKey = useMemo(() => excludeIds ? [...excludeIds].sort().join(',') : '', [excludeIds])
