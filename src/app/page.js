@@ -1,11 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
-import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import FeaturedStrip from '@/components/FeaturedStrip'
-import { VerifiedPill } from '@/components/Badges'
 import useLocation from '@/hooks/useLocation'
+import TopNav from '@/components/TopNav'
 
 const IMG = {
   hero: '/img/hero.jpg',
@@ -28,19 +27,22 @@ function Icon({ name, className = 'w-5 h-5' }) {
   return <svg className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d={paths[name]} /></svg>
 }
 
-const fmt = (n) => n == null ? '—' : n >= 1000 ? `${(Math.floor(n / 100) / 10).toLocaleString()}k+` : n >= 100 ? `${Math.floor(n / 100) * 100}+` : `${n}`
+const fmt = (n) => n == null ? ',' : n >= 1000 ? `${(Math.floor(n / 100) / 10).toLocaleString()}k+` : n >= 100 ? `${Math.floor(n / 100) * 100}+` : `${n}`
 
 export default function HomePage() {
+  useEffect(() => { try { const nav = JSON.parse(sessionStorage.getItem('re-nav') || '[]'); nav.push({ url: '/', label: 'Home' }); sessionStorage.setItem('re-nav', JSON.stringify(nav.slice(-20))) } catch {} }, [])
   const { loc, status, requestGeo, setPostal } = useLocation()
   const [postalInput, setPostalInput] = useState('')
+  const [featuredShown, setFeaturedShown] = useState(() => new Set())
+  const trackShown = (items) => setFeaturedShown(prev => { const n = new Set(prev); items.forEach(x => n.add(`${x._kind}:${x.id}`)); return n })
   const [counts, setCounts] = useState({ prov: null, docs: null, specs: null })
   const [featured, setFeatured] = useState([])
 
   useEffect(() => {
     if (!supabase) return
     Promise.all([
-      supabase.from('providers').select('id', { count: 'exact', head: true }).eq('data_status', 'complete').not('category', 'in', '(Specialist,Family Medicine)'),
-      supabase.from('providers').select('id', { count: 'exact', head: true }).eq('data_status', 'complete').in('category', ['Specialist','Family Medicine']),
+      supabase.from('providers').select('id', { count: 'exact', head: true }).eq('data_status', 'complete'),
+      supabase.from('physicians').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       supabase.from('specialties').select('snomed_code', { count: 'exact', head: true }),
       supabase.from('providers').select('id, name, type, rating, accepting_referrals, verified').eq('data_status', 'complete').not('rating', 'is', null).order('rating', { ascending: false }).limit(6),
     ]).then(([p, d, sp, f]) => {
@@ -50,50 +52,38 @@ export default function HomePage() {
   }, [])
 
   const features = [
-    { icon: 'clock', title: 'Real-time availability', text: 'See who is accepting referrals right now, with provider-managed wait times — before you send anything.' },
+    { icon: 'clock', title: 'Real-time availability', text: 'See who is accepting referrals right now, with provider-managed wait times, before you send anything.' },
     { icon: 'file', title: 'Criteria & forms up front', text: 'Referral requirements and downloadable intake forms on every profile, so referrals arrive complete the first time.' },
-    { icon: 'shield', title: 'Verified providers', text: 'Listings verified in three steps — fax code, email code, and ID — so the contact details actually work.' },
+    { icon: 'shield', title: 'Verified providers', text: 'Listings verified in three steps, fax code, email code, and ID, so the contact details actually work.' },
     { icon: 'doctor', title: 'Doctor-level profiles', text: 'Refer to a physician, not just a building. Every doctor has their own profile, availability, and locations.' },
     { icon: 'filter', title: 'Smart filters', text: 'Filter by specialty, language, wait time, distance, hours, and gender to find the right match for your patient.' },
-    { icon: 'fax', title: 'Built for how you work', text: 'Fax numbers, phone, hours and addresses front and centre — the details your office actually uses.' },
+    { icon: 'fax', title: 'Built for how you work', text: 'Fax numbers, phone, hours and addresses front and centre, the details your office actually uses.' },
   ]
 
   const faqs = [
-    { q: 'Is ReferEasy free for family physicians?', a: 'Yes — searching, filtering, and downloading referral forms is free for referring physicians and their staff, always.' },
+    { q: 'Is ReferEasy free for family physicians?', a: 'Yes, searching, filtering, and downloading referral forms is free for referring physicians and their staff, always.' },
     { q: 'How do I know the information is current?', a: 'Providers manage their own availability, wait times and criteria, and verified listings have confirmed their fax and email with one-time codes plus ID.' },
-    { q: "I'm a specialist — is my clinic already listed?", a: 'Very likely. We list thousands of Ontario providers. Create a free account, search your name or clinic, and claim your listing to take control of it.' },
+    { q: "I'm a specialist, is my clinic already listed?", a: 'Very likely. We list thousands of Ontario providers. Create a free account, search your name or clinic, and claim your listing to take control of it.' },
     { q: 'What does claiming a listing involve?', a: 'Three quick steps: a code faxed to your practice, a code emailed to you, and an ID or credential upload. It protects your listing from being edited by anyone else.' },
-    { q: 'Do referrals go through ReferEasy?', a: 'No — you keep your existing workflow. ReferEasy makes sure the referral you fax is complete, well-matched, and going to someone who can take it.' },
+    { q: 'Do referrals go through ReferEasy?', a: 'No, you keep your existing workflow. ReferEasy makes sure the referral you fax is complete, well-matched, and going to someone who can take it.' },
   ]
 
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
-      <nav className="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Logo />
-          <div className="hidden sm:flex items-center gap-6">
-            <Link href="/search" className="text-sm font-medium text-gray-600 hover:text-brand transition">Find care</Link>
-            <Link href="/pricing" className="text-sm font-medium text-gray-600 hover:text-brand transition">Pricing</Link>
-            <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-brand transition">Sign in</Link>
-            <Link href="/signup" className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:bg-brand-dark transition">List your practice</Link>
-          </div>
-          <Link href="/search" className="sm:hidden px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg">Search</Link>
-        </div>
-      </nav>
-
-      {/* Hero — text + image */}
+      <TopNav />
+{/* Hero, text + image */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-16 sm:pt-20 sm:pb-24">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand mb-4">Ontario healthcare referral platform</p>
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-[1.1] mb-5">Referrals that don't bounce back.</h1>
-            <p className="text-base sm:text-lg text-gray-500 leading-relaxed mb-8 max-w-lg">Find specialists who are actually accepting, see their criteria and wait times, download their forms — and send complete referrals the first time.</p>
+            <p className="text-base sm:text-lg text-gray-500 leading-relaxed mb-8 max-w-lg">Find specialists who are actually accepting, see their criteria and wait times, download their forms, and send complete referrals the first time.</p>
             <div className="flex flex-col sm:flex-row gap-3 mb-10">
               <Link href="/search" className="inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-brand text-white font-bold rounded-xl hover:bg-brand-dark transition text-sm shadow-lg shadow-brand/20">
                 <Icon name="search" className="w-4 h-4" /> Search providers
               </Link>
-              <Link href="/signup" className="inline-flex items-center justify-center px-7 py-3.5 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:border-brand hover:text-brand transition text-sm">List your practice — free</Link>
+              <Link href="/signup" className="inline-flex items-center justify-center px-7 py-3.5 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:border-brand hover:text-brand transition text-sm">List your practice, free</Link>
             </div>
             <div className="inline-flex items-center gap-3 bg-brand/5 border border-brand/15 rounded-2xl px-5 py-3">
               <div className="text-4xl font-extrabold text-brand leading-none">0</div>
@@ -109,7 +99,7 @@ export default function HomePage() {
             <div className="rounded-3xl overflow-hidden shadow-2xl shadow-brand/10">
               <img src={IMG.hero} alt="Physician reviewing patient information" className="w-full h-[480px] object-cover" />
             </div>
-            <div className="absolute -left-8 top-10 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 flex items-center gap-3">
+            <div className="absolute -left-10 -top-4 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center"><Icon name="check" className="w-4 h-4" /></div>
               <div><div className="text-xs font-bold text-gray-900">Accepting referrals</div><div className="text-[10px] text-gray-400">Dr. M. Chen · Cardiology</div></div>
             </div>
@@ -134,7 +124,7 @@ export default function HomePage() {
               <ul className="space-y-4">
                 {[
                   ['x', 'Before', 'Guess who might be accepting, fax, wait, get rejected, start over.'],
-                  ['check', 'With ReferEasy', 'Confirm availability, match the criteria, attach the right form — send once.'],
+                  ['check', 'With ReferEasy', 'Confirm availability, match the criteria, attach the right form, send once.'],
                 ].map(([ic, t, d]) => (
                   <li key={t} className="flex gap-4 items-start">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ic === 'x' ? 'bg-white/10 text-white/50' : 'bg-white text-brand'}`}><Icon name={ic} className="w-4 h-4" /></div>
@@ -147,12 +137,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      <FeaturedStrip title="Featured specialists near you" subtitle="Sponsored providers, ranked by proximity." loc={loc} fallbackToNearest tint layout="grid6" />
+      <FeaturedStrip layout="hero-6" title="Featured specialists near you" subtitle="Sponsored providers investing in referrer visibility." loc={loc} fallbackToNearest tint sectionKey={1} onLoaded={trackShown} />
 
       {/* How it works */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-3">Three steps to a clean referral</h2>
-        <p className="text-sm text-gray-500 text-center mb-12 max-w-xl mx-auto">Built around the workflow your office already has — nothing to install, nothing to change.</p>
+        <p className="text-sm text-gray-500 text-center mb-12 max-w-xl mx-auto">Built around the workflow your office already has, nothing to install, nothing to change.</p>
         <div className="grid sm:grid-cols-3 gap-6">
           {[
             ['1', 'Search live availability', 'Filter by specialty, wait time, language and distance. Only see providers who can actually take your patient.'],
@@ -168,7 +158,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <FeaturedStrip title="Featured clinics & imaging" subtitle="Facilities investing in visibility to referring physicians." loc={loc} category={null} fallbackToNearest layout="grid3" />
+      <FeaturedStrip layout="row-3" title="Featured clinics & imaging" subtitle="Facilities investing in visibility to referring physicians." loc={loc} fallbackToNearest sectionKey={2} excludeIds={featuredShown} onLoaded={trackShown} />
 
       {/* Features */}
       <section className="bg-gray-50 border-y border-gray-200">
@@ -186,7 +176,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <FeaturedStrip title="Recently verified providers" subtitle="Fresh listings verified in the last 30 days." loc={loc} tint layout="grid3" />
+      <FeaturedStrip layout="row-3" title="Recently verified providers" subtitle="Fresh listings verified in the last 30 days." loc={loc} fallbackToNearest tint sectionKey={3} excludeIds={featuredShown} onLoaded={trackShown} />
 
       {/* Top-rated (organic) */}
       {featured.length > 0 && (
@@ -200,7 +190,7 @@ export default function HomePage() {
               <Link key={p.id} href={`/search?id=${p.id}`} className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md hover:border-brand/30 transition block">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <h3 className="font-semibold text-gray-900 text-sm leading-snug">{p.name}</h3>
-                  {p.verified && <VerifiedPill />}
+                  {p.verified && <span className="text-[10px] font-bold text-brand bg-brand/5 px-2 py-0.5 rounded-full border border-brand/15 shrink-0">✓ Verified</span>}
                 </div>
                 <p className="text-xs text-brand/70 font-medium mb-3">{p.type}</p>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -213,7 +203,7 @@ export default function HomePage() {
         </section>
       )}
 
-      <FeaturedStrip title="More providers you may consider" subtitle="Sponsored placement — geographic rotation." loc={loc} fallbackToNearest layout="grid3" />
+      <FeaturedStrip layout="row-3" title="More providers you may consider" subtitle="Sponsored placement, geographic rotation." loc={loc} fallbackToNearest sectionKey={4} excludeIds={featuredShown} onLoaded={trackShown} />
 
       {/* FAQ */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
@@ -238,7 +228,7 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-brand/85" />
           <div className="relative px-8 py-14 sm:px-14 text-center text-white">
             <h2 className="text-2xl sm:text-3xl font-bold mb-3">Are you a specialist or clinic?</h2>
-            <p className="text-white/80 text-sm sm:text-base max-w-xl mx-auto mb-8">Your listing may already be here. Claim it, verify it, and control your availability, criteria and forms — so the referrals you receive are the ones you want.</p>
+            <p className="text-white/80 text-sm sm:text-base max-w-xl mx-auto mb-8">Your listing may already be here. Claim it, verify it, and control your availability, criteria and forms, so the referrals you receive are the ones you want.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/signup" className="px-7 py-3.5 bg-white text-brand font-bold rounded-xl hover:bg-gray-100 transition text-sm">Claim your listing</Link>
               <Link href="/pricing" className="px-7 py-3.5 bg-white/10 border border-white/30 font-semibold rounded-xl hover:bg-white/20 transition text-sm">See pricing</Link>
