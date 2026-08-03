@@ -33,7 +33,11 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
 
       if (doctorSide !== true) {
         let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured').eq('data_status', 'complete')
-        if (category && !DOC_CATS.has(category)) q = q.eq('category', category)
+        // No category prop means "any non-doctor category" — without this exclusion, doctors
+        // leak into this branch too (duplicating them alongside the doctor branch below, one
+        // copy missing the linked-clinic address fallback the doctor branch applies).
+        if (category) q = q.eq('category', category)
+        else q = q.not('category', 'in', '(Specialist,Family Medicine)')
         q = q.eq(filterCol, true).limit(24)
         const { data } = await q
         if (data) results.push(...data.map(p => ({ ...p, _kind: 'provider' })))

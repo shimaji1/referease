@@ -158,7 +158,13 @@ export default function AdminPage() {
 
   useEffect(() => { if (authed) { load(); loadStats() } }, [authed, load, loadStats])
 
-  const withDr = (n) => { const t = (n || '').trim(); if (!t) return t; return /^dr\.?\s/i.test(t) ? t : 'Dr. ' + t }
+  const TITLES = ['Dr.', 'NP', 'PA', 'RN', 'RPN', 'Midwife', 'DC', 'OD', 'RD', 'PT', 'OT', 'Other']
+  const TITLE_PREFIX_RE = /^(Dr\.?|NP|PA|RN|RPN|Midwife|DC|OD|RD|PT|OT)\s+/i
+  const applyTitle = (currentName, title) => {
+    const bare = (currentName || '').replace(TITLE_PREFIX_RE, '').trim()
+    if (!title || title === 'Other') return bare
+    return `${title} ${bare}`.trim()
+  }
   // Handle extractor doctors that are either strings (legacy) or objects {name, specialty, gender}
   const mapExtractedDocs = (arr, fallbackType) => (arr || []).map(x => {
     const name = typeof x === 'string' ? x : (x.name || '')
@@ -170,7 +176,7 @@ export default function AdminPage() {
     return { name, specialty: spRow?.name || sp, specialty_code: spRow?.snomed_code || '', gender: g, accepting_referrals: null }
   })
 
-  const addDoctor = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', specialty: '', specialty_code: '', gender: '', accepting_referrals: null }])
+  const addDoctor = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', title: 'Dr.', specialty: '', specialty_code: '', gender: '', accepting_referrals: null }])
   const updateDoctor = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const removeDoctor = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
   const [doctorSearchQuery, setDoctorSearchQuery] = useState('')
@@ -361,10 +367,10 @@ export default function AdminPage() {
 
   const save = async () => {
     // keep the legacy providers.doctors[] string array in sync from the structured rows
-    const doctorNames = doctorRows.map(r => { const nm = withDr(r.name); return nm && r.specialty ? `${nm}, ${r.specialty}` : nm }).map(x => (x || '').trim()).filter(Boolean)
+    const doctorNames = doctorRows.map(r => { const nm = (r.name || '').trim(); return nm && r.specialty ? `${nm}, ${r.specialty}` : nm }).map(x => (x || '').trim()).filter(Boolean)
     if (form.type && form.type.trim() && !form.specialty_code) { await ensureSpecialty(form.type, form.category) }
     const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorNames, languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null, clinic_provider_id: linkedClinics[0]?.id || null }
-    delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id
+    delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id; delete rec.title
 
     // 1) upsert the listing (provider) and capture its id
     let providerId = editing
@@ -388,8 +394,8 @@ export default function AdminPage() {
     try {
       for (let i = 0; i < doctorRows.length; i++) {
         const r = doctorRows[i]
-        if (!r.name || !r.name.trim() || /^dr\.?\s*$/i.test(r.name.trim())) continue
-        const payload = { name: withDr(r.name), type: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist', hours: form.hours || null }
+        if (!r.name || !r.name.replace(TITLE_PREFIX_RE, '').trim()) continue
+        const payload = { name: r.name.trim(), type: r.specialty || null, specialty_code: r.specialty_code || null, gender: r.gender || null, accepting_referrals: r.accepting_referrals ?? null, category: /famil/i.test(r.specialty || '') ? 'Family Medicine' : 'Specialist', hours: form.hours || null }
         if (r.id) {
           const { error } = await supabase.from("providers").update(payload).eq("id", r.id)
           if (error) { warn = "Clinic saved, but updating a doctor failed: " + error.message; continue }
@@ -406,7 +412,7 @@ export default function AdminPage() {
           }
         } else {
           const dupe = await findDoctorByName(r.name)
-          if (dupe) { warn = `"${withDr(r.name)}" looks like it may already exist as "${dupe.name}" — search for them above and link instead of adding a duplicate.`; continue }
+          if (dupe) { warn = `"${r.name.trim()}" looks like it may already exist as "${dupe.name}" — search for them above and link instead of adding a duplicate.`; continue }
           const { error: docErr } = await supabase.from("providers").insert({ ...payload, clinic_provider_id: providerId, data_status: 'complete' })
           if (docErr) warn = "Clinic saved, but adding a doctor failed: " + docErr.message
         }
@@ -682,7 +688,17 @@ export default function AdminPage() {
             </div>
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
-              <div><label style={lbl}>Name *</label><input style={s} value={form.name} onChange={e => setForm({...form, name:e.target.value})} /></div>
+              <div>
+                <label style={lbl}>Name *</label>
+                <div style={['Specialist','Family Medicine'].includes(form.category) ? { display:"grid", gridTemplateColumns:"0.8fr 2fr", gap:"6px" } : undefined}>
+                  {['Specialist','Family Medicine'].includes(form.category) && (
+                    <select style={{ ...s, marginTop:0 }} value={form.title || 'Dr.'} onChange={e => setForm({ ...form, title: e.target.value, name: applyTitle(form.name, e.target.value) })}>
+                      {TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  )}
+                  <input style={{ ...s, marginTop:0 }} value={form.name} onChange={e => setForm({...form, name:e.target.value})} />
+                </div>
+              </div>
               <div><label style={lbl}>Specialty *</label><select style={s} value={form.specialty_code || ''} onChange={async e => { if (e.target.value === '__add__') { const sp = await addSpecialtyPrompt(form.category); if (sp) setForm(f => ({...f, specialty_code: sp.snomed_code, type: sp.name})); return } const spec = specialties.find(s => s.snomed_code === e.target.value); if (spec) setForm({...form, specialty_code: e.target.value, type: spec.name}); else setForm({...form, specialty_code: '', type: form.type}) }}><option value="">Select specialty...</option><option value="__add__">+ Add new specialty…</option>{(() => { const groups = {}; specialties.forEach(sp => { if (!groups[sp.category]) groups[sp.category] = []; groups[sp.category].push(sp) }); return Object.entries(groups).map(([cat, specs]) => <optgroup key={cat} label={cat}>{specs.map(sp => <option key={sp.snomed_code} value={sp.snomed_code}>{sp.name}</option>)}</optgroup>) })()}</select></div>
               <div><label style={lbl}>Custom Type Label</label><input style={s} value={form.type} onChange={e => setForm({...form, type:e.target.value})} placeholder="Or type a new specialty, it gets added to the list" /></div>
               <div><label style={lbl}>Category</label><select style={s} value={form.category} onChange={async e => { if (e.target.value === '__add__') { const c = await addCategoryPrompt(); if (c) setForm(f => ({...f, category: c})); return } setForm({...form, category:e.target.value}) }}>{ALL_CATS.map(c => <option key={c} value={c}>{c}</option>)}<option value="__add__">+ Add new category…</option></select></div>
@@ -725,9 +741,12 @@ export default function AdminPage() {
               )}
             </div>
             {doctorRows.map((r, i) => (
-              <div key={i} style={{ display:"grid", gridTemplateColumns:"1.2fr 1.2fr 0.7fr 0.9fr auto", gap:"6px", marginBottom:"6px", alignItems:"center" }}>
+              <div key={i} style={{ display:"grid", gridTemplateColumns:"0.7fr 1.2fr 1.2fr 0.7fr 0.9fr auto", gap:"6px", marginBottom:"6px", alignItems:"center" }}>
+                <select style={{ ...s, marginTop:0 }} value={r.title || 'Dr.'} onChange={e => updateDoctor(i, { title: e.target.value, name: applyTitle(r.name, e.target.value) })} disabled={!!r.id}>
+                  {TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
                 <div style={{ position:"relative" }}>
-                  <input style={{ ...s, marginTop:0 }} placeholder="Dr. Full Name" value={r.name} onChange={e => updateDoctor(i, { name: e.target.value })} disabled={!!r.id} />
+                  <input style={{ ...s, marginTop:0 }} placeholder="Full Name" value={r.name} onChange={e => updateDoctor(i, { name: e.target.value })} disabled={!!r.id} />
                   {r.id && <span style={{ position:"absolute", right:"6px", top:"50%", transform:"translateY(-50%)", fontSize:"9px", fontWeight:700, color:"#7c3aed", background:"#7c3aed20", border:"1px solid #7c3aed40", borderRadius:"999px", padding:"2px 6px" }}>LINKED</span>}
                 </div>
                 <select style={{ ...s, marginTop:0 }} value={r.specialty_code || ''} onChange={async e => { if (e.target.value === '__add__') { const sp = await addSpecialtyPrompt(form.category); if (sp) updateDoctor(i, { specialty_code: sp.snomed_code, specialty: sp.name }); return } const sp = specialties.find(x => x.snomed_code === e.target.value); updateDoctor(i, sp ? { specialty_code: sp.snomed_code, specialty: sp.name } : { specialty_code: '', specialty: '' }) }}>
