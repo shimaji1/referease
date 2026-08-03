@@ -12,6 +12,10 @@ const IMG = {
   cta: '/img/consult2.jpg',
 }
 
+// Stable reference (module scope, not recreated per render) — FeaturedStrip's fetch effect
+// depends on this array identity, so an inline literal here would refetch on every render.
+const CLINIC_CATEGORIES = ['Clinic', 'Physiotherapy', 'Rehab', 'Imaging']
+
 const paths = {
   search: 'M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z',
   clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
@@ -158,7 +162,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <FeaturedStrip layout="row-3" title="Featured clinics & imaging" subtitle="Facilities investing in visibility to referring physicians." loc={loc} sectionKey={2} excludeIds={featuredShown} onLoaded={trackShown} />
+      <FeaturedStrip layout="row-3" title="Featured clinics & imaging" subtitle="Facilities investing in visibility to referring physicians." loc={loc} categories={CLINIC_CATEGORIES} sectionKey={2} excludeIds={featuredShown} onLoaded={trackShown} />
 
       {/* Features */}
       <section className="bg-gray-50 border-y border-gray-200">

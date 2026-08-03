@@ -10,7 +10,7 @@ const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0;
 const km = (a, b, c, d) => { const R = 6371, r = Math.PI / 180, dLat = (c - a) * r, dLng = (d - b) * r; const A = Math.sin(dLat / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dLng / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(A), Math.sqrt(1 - A)) }
 
 // layout: 'hero-6' (3x2 grid, 6 items), 'row-3' (3x1 grid, 3 items), or 'scroll' (horizontal carousel, default)
-export default function FeaturedStrip({ category = null, title = 'Featured providers', subtitle = null, loc = null, tint = false, source = 'featured', layout = 'scroll', sectionKey = 0, excludeIds = null, onLoaded = null }) {
+export default function FeaturedStrip({ category = null, categories = null, title = 'Featured providers', subtitle = null, loc = null, tint = false, source = 'featured', layout = 'scroll', sectionKey = 0, excludeIds = null, onLoaded = null }) {
   const [pool, setPool] = useState(null)
   const [items, setItems] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -23,7 +23,7 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
     let alive = true
     pickedRef.current = false
     const load = async () => {
-      const doctorSide = category ? DOC_CATS.has(category) : null
+      const doctorSide = categories ? false : (category ? DOC_CATS.has(category) : null)
       const results = []
       // 'featured' sections show ONLY providers who are actually featured=true — never
       // backfilled with verified-but-not-featured listings. If there aren't enough, the
@@ -33,10 +33,11 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
 
       if (doctorSide !== true) {
         let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured').eq('data_status', 'complete')
-        // No category prop means "any non-doctor category" — without this exclusion, doctors
-        // leak into this branch too (duplicating them alongside the doctor branch below, one
-        // copy missing the linked-clinic address fallback the doctor branch applies).
-        if (category) q = q.eq('category', category)
+        // No category/categories prop means "any non-doctor category" — without this exclusion,
+        // doctors leak into this branch too (duplicating them alongside the doctor branch below,
+        // one copy missing the linked-clinic address fallback the doctor branch applies).
+        if (categories) q = q.in('category', categories)
+        else if (category) q = q.eq('category', category)
         else q = q.not('category', 'in', '(Specialist,Family Medicine)')
         q = q.eq(filterCol, true).limit(24)
         const { data } = await q
@@ -70,7 +71,7 @@ export default function FeaturedStrip({ category = null, title = 'Featured provi
     }
     load()
     return () => { alive = false }
-  }, [category, loc?.lat, loc?.lng, source])
+  }, [category, categories, loc?.lat, loc?.lng, source])
 
   const limit = layout === 'hero-6' || layout === 'grid6' ? 6 : layout === 'row-3' || layout === 'grid3' ? 3 : 12
   const excludeKey = useMemo(() => excludeIds ? [...excludeIds].sort().join(',') : '', [excludeIds])
