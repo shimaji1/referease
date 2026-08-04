@@ -6,6 +6,23 @@ export const TEMPLATES = [
   { key: 'text-card', label: 'Text Only', description: 'Clean colored card, no photo needed.' },
 ]
 
+export const FONT_OPTIONS = [
+  { key: 'sans', label: 'Sans', family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" },
+  { key: 'serif', label: 'Serif', family: "Georgia, 'Times New Roman', serif" },
+  { key: 'mono', label: 'Monospace', family: "'Courier New', Courier, monospace" },
+]
+
+export const SIZE_OPTIONS = [
+  { key: 'sm', label: 'Small' },
+  { key: 'md', label: 'Medium' },
+  { key: 'lg', label: 'Large' },
+]
+
+export const ALIGN_OPTIONS = ['left', 'center', 'right']
+
+const STYLE_FIELDS = { text_align: 'left', headline_size: 'lg', text_color: null, font: 'sans' }
+export const DEFAULT_STYLE = STYLE_FIELDS
+
 export async function fetchMyAnnouncement(providerId) {
   if (!supabase || !providerId) return null
   const { data } = await supabase.from('provider_announcements').select('*').eq('provider_id', providerId).maybeSingle()
@@ -25,6 +42,10 @@ export async function submitAnnouncement(providerId, fields) {
     image_path: fields.image_path || null,
     cta_label: fields.cta_label || null,
     cta_url: fields.cta_url || null,
+    text_align: fields.text_align || 'left',
+    headline_size: fields.headline_size || 'lg',
+    text_color: fields.text_color || null,
+    font: fields.font || 'sans',
     status: 'pending',
     admin_notes: null,
     updated_at: new Date().toISOString(),
@@ -35,7 +56,7 @@ export async function submitAnnouncement(providerId, fields) {
 export async function fetchApprovedAnnouncements(limit = 10) {
   if (!supabase) return []
   const { data } = await supabase.from('provider_announcements')
-    .select('id, template, headline, body, image_url, cta_label, cta_url, provider_id, providers(id, name)')
+    .select('id, template, headline, body, image_url, cta_label, cta_url, provider_id, text_align, headline_size, text_color, font, providers(id, name)')
     .eq('status', 'approved').order('sort_order').order('reviewed_at', { ascending: false }).limit(limit)
   return data || []
 }
@@ -64,6 +85,10 @@ export async function createAdminAnnouncement(fields) {
     cta_label: fields.cta_label || null,
     cta_url: fields.cta_url || null,
     sort_order: fields.sort_order ?? 0,
+    text_align: fields.text_align || 'left',
+    headline_size: fields.headline_size || 'lg',
+    text_color: fields.text_color || null,
+    font: fields.font || 'sans',
     status: 'approved',
     reviewed_at: new Date().toISOString(),
   })

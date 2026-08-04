@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { fetchApprovedAnnouncements } from '@/lib/announcements'
+import { fetchApprovedAnnouncements, FONT_OPTIONS } from '@/lib/announcements'
 
 const ROTATE_MS = 6000
 
@@ -13,18 +13,26 @@ const FALLBACK_SLIDE = {
   cta_label: 'List your practice', cta_url: '/pricing', providers: null,
 }
 
+const HEADLINE_SIZE_CLS = { sm: 'text-base sm:text-lg', md: 'text-lg sm:text-xl', lg: 'text-xl sm:text-2xl' }
+const ALIGN_CLS = { left: 'text-left items-start', center: 'text-center items-center', right: 'text-right items-end' }
+const fontFamily = (key) => FONT_OPTIONS.find(f => f.key === key)?.family
+
 function Slide({ item }) {
   const href = item.cta_url || (item.providers?.id ? `/search?id=${item.providers.id}` : '#')
   const ctaLabel = item.cta_label || 'Learn more'
+  const headlineSizeCls = HEADLINE_SIZE_CLS[item.headline_size] || HEADLINE_SIZE_CLS.lg
+  const alignCls = ALIGN_CLS[item.text_align] || ALIGN_CLS.left
+  const textStyle = { fontFamily: fontFamily(item.font) }
+  const headlineStyle = { ...textStyle, color: item.text_color || undefined }
 
   if (item.template === 'full-banner' && item.image_url) {
     return (
       <Link href={href} className="relative block w-full h-full rounded-2xl overflow-hidden group">
         <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-        <div className="relative h-full flex flex-col justify-end p-6 sm:p-8">
-          <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">{item.headline}</h3>
-          {item.body && <p className="text-sm text-white/85 mb-3 max-w-lg">{item.body}</p>}
+        <div className={`relative h-full flex flex-col justify-end p-6 sm:p-8 ${alignCls}`}>
+          <h3 className={`${headlineSizeCls} font-bold text-white mb-1`} style={headlineStyle}>{item.headline}</h3>
+          {item.body && <p className="text-sm text-white/85 mb-3 max-w-lg" style={textStyle}>{item.body}</p>}
           <span className="inline-flex items-center gap-1.5 text-sm font-bold text-brand bg-white w-fit px-4 py-2 rounded-lg group-hover:bg-amber-50 transition">{ctaLabel} →</span>
         </div>
       </Link>
@@ -33,9 +41,9 @@ function Slide({ item }) {
 
   if (item.template === 'text-card' || !item.image_url) {
     return (
-      <Link href={href} className="block w-full h-full rounded-2xl bg-gradient-to-br from-brand to-[#2c4f7c] p-6 sm:p-8 flex flex-col justify-center group">
-        <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">{item.headline}</h3>
-        {item.body && <p className="text-sm text-white/80 mb-4 max-w-lg">{item.body}</p>}
+      <Link href={href} className={`block w-full h-full rounded-2xl bg-gradient-to-br from-brand to-[#2c4f7c] p-6 sm:p-8 flex flex-col justify-center group ${alignCls}`}>
+        <h3 className={`${headlineSizeCls} font-bold text-white mb-2`} style={headlineStyle}>{item.headline}</h3>
+        {item.body && <p className="text-sm text-white/80 mb-4 max-w-lg" style={textStyle}>{item.body}</p>}
         <span className="inline-flex items-center gap-1.5 text-sm font-bold text-brand bg-white w-fit px-4 py-2 rounded-lg group-hover:bg-amber-50 transition">{ctaLabel} →</span>
       </Link>
     )
@@ -47,9 +55,9 @@ function Slide({ item }) {
       <div className="sm:w-2/5 h-40 sm:h-full shrink-0">
         <img src={item.image_url} alt="" className="w-full h-full object-cover" />
       </div>
-      <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
-        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1.5">{item.headline}</h3>
-        {item.body && <p className="text-sm text-gray-600 mb-3">{item.body}</p>}
+      <div className={`flex-1 p-6 flex flex-col justify-center min-w-0 ${alignCls}`}>
+        <h3 className={`${headlineSizeCls} font-bold text-gray-900 mb-1.5`} style={{ ...textStyle, color: item.text_color || undefined }}>{item.headline}</h3>
+        {item.body && <p className="text-sm text-gray-600 mb-3" style={textStyle}>{item.body}</p>}
         <span className="inline-flex items-center gap-1.5 text-sm font-bold text-brand w-fit group-hover:underline">{ctaLabel} →</span>
       </div>
     </Link>

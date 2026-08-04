@@ -10,7 +10,7 @@ import { fetchStaff, inviteStaff, revokeStaff } from '@/lib/staff'
 import ConfirmModal from '@/components/ConfirmModal'
 import { checkPassword } from '@/lib/password'
 import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
-import { fetchMyAnnouncement, submitAnnouncement, TEMPLATES } from '@/lib/announcements'
+import { fetchMyAnnouncement, submitAnnouncement, TEMPLATES, FONT_OPTIONS, SIZE_OPTIONS, ALIGN_OPTIONS } from '@/lib/announcements'
 
 const inp = "w-full px-4 py-2.5 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
 const card = "bg-white border border-gray-200 rounded-xl p-6"
@@ -257,7 +257,7 @@ function AnnouncementSection({ providers, user }) {
   const featured = providers.filter(p => p.owner_id === user.id && can(p, 'featured_slot'))
   const [selected, setSelected] = useState(featured[0]?.id || null)
   const [existing, setExisting] = useState(null)
-  const [form, setForm] = useState({ template: 'image-left', headline: '', body: '', image_url: '', image_path: '', cta_label: '', cta_url: '' })
+  const [form, setForm] = useState({ template: 'image-left', headline: '', body: '', image_url: '', image_path: '', cta_label: '', cta_url: '', text_align: 'left', headline_size: 'lg', text_color: '', font: 'sans' })
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
@@ -266,7 +266,7 @@ function AnnouncementSection({ providers, user }) {
     if (!selected) return
     const row = await fetchMyAnnouncement(selected)
     setExisting(row)
-    if (row) setForm({ template: row.template, headline: row.headline || '', body: row.body || '', image_url: row.image_url || '', image_path: row.image_path || '', cta_label: row.cta_label || '', cta_url: row.cta_url || '' })
+    if (row) setForm({ template: row.template, headline: row.headline || '', body: row.body || '', image_url: row.image_url || '', image_path: row.image_path || '', cta_label: row.cta_label || '', cta_url: row.cta_url || '', text_align: row.text_align || 'left', headline_size: row.headline_size || 'lg', text_color: row.text_color || '', font: row.font || 'sans' })
   }, [selected])
 
   useEffect(() => { load() }, [load])
@@ -343,6 +343,36 @@ function AnnouncementSection({ providers, user }) {
         <div>
           <label className={label}>Message</label>
           <textarea className={inp + ' min-h-[70px] resize-y'} value={form.body} onChange={e => set('body', e.target.value)} placeholder="Short supporting line" maxLength={160} />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label className={label}>Alignment</label>
+            <div className="flex gap-1">
+              {ALIGN_OPTIONS.map(a => (
+                <button key={a} type="button" onClick={() => set('text_align', a)}
+                  className={`flex-1 py-2 rounded-lg border text-xs font-semibold capitalize ${form.text_align === a ? 'border-brand bg-brand/5 text-brand' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>{a}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className={label}>Headline size</label>
+            <select className={inp} value={form.headline_size} onChange={e => set('headline_size', e.target.value)}>
+              {SIZE_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={label}>Font</label>
+            <select className={inp} value={form.font} onChange={e => set('font', e.target.value)}>
+              {FONT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={label}>Text color</label>
+            <div className="flex items-center gap-2">
+              <input type="color" value={form.text_color || '#ffffff'} onChange={e => set('text_color', e.target.value)} className="h-[42px] w-12 rounded-lg border border-gray-300 cursor-pointer shrink-0" />
+              {form.text_color && <button type="button" onClick={() => set('text_color', '')} className="text-[11px] text-gray-400 hover:text-gray-600">Reset</button>}
+            </div>
+          </div>
         </div>
         {form.template !== 'text-card' && (
           <div>
