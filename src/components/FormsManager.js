@@ -110,16 +110,21 @@ export default function FormsManager({ providerId = null, physicianId = null, ow
         <label className={t.label}>Form name</label>
         <input className={t.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. New Patient Referral Form" />
         <div className="flex items-center gap-3 mt-2 flex-wrap">
-          <label className={t.chooseBtn}>
+          <label className={t.chooseBtn} onClick={e => { if (atCap) { e.preventDefault(); setErr(`Your plan allows ${uploadCap} form${uploadCap === 1 ? '' : 's'}. Upgrade to add more.`) } }}>
             {file ? 'Change file' : '📎 Choose file'}
-            <input key={nonce} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => setFile(e.target.files?.[0] || null)} className="hidden" />
+            <input key={nonce} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => setFile(e.target.files?.[0] || null)} className="hidden" disabled={atCap} />
           </label>
           <span className={t.muted + ' truncate min-w-0'}>{file ? file.name : 'No file chosen'}</span>
           <button onClick={upload} disabled={busy || !file || !name.trim() || atCap} className={t.btn + ' ml-auto'}>{busy ? 'Uploading…' : atCap ? 'Limit reached' : 'Upload'}</button>
         </div>
         {(!name.trim() || !file) && <p className={t.muted + ' mt-2'}>Add a name and choose a file, then Upload.</p>}
       </div>
-      {err && <p className={t.errCls}>{err}</p>}
+      {err && (
+        <p className={t.errCls}>
+          {err}
+          {atCap && <> <Link href="/pricing" className={dark ? 'text-[#60a5fa] font-semibold hover:underline' : 'text-brand font-semibold hover:underline'}>Upgrade →</Link></>}
+        </p>
+      )}
     </div>
   )
 }

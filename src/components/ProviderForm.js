@@ -226,7 +226,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <label className={lbl}>Data Status</label>
             <select className={inp} value={form.data_status || 'complete'} onChange={e => set('data_status', e.target.value)}>
               <option value="complete">Complete, visible in public search</option>
-              <option value="partial">Partial, hidden until completed</option>
               <option value="incomplete">Incomplete, hidden until completed</option>
             </select>
             <p className="text-[11px] text-gray-500 mt-1">Only "Complete" listings appear in the public search.</p>
@@ -249,25 +248,6 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             <label className={lbl}>Notes to referring physicians</label>
             <textarea className={inp + " min-h-[80px] resize-y"} value={form.notes || ''} onChange={e => set('notes', e.target.value)} placeholder="Anything else referring doctors should know" />
           </div>
-        </div>
-      </section>
-
-      <section className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="text-sm font-bold text-gray-900 mb-4">Paid Referral Program</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={lbl}>Offers Paid Referrals</label>
-            <select className={inp} value={form.paid_referral ? 'true' : 'false'} onChange={e => set('paid_referral', e.target.value === 'true')}>
-              <option value="false">No</option>
-              <option value="true">Yes, Pays for referrals</option>
-            </select>
-          </div>
-          {form.paid_referral && (
-            <div>
-              <label className={lbl}>Program Details</label>
-              <input className={inp} value={form.paid_referral_details || ''} onChange={e => set('paid_referral_details', e.target.value || null)} placeholder="e.g. $50 per accepted referral" />
-            </div>
-          )}
         </div>
       </section>
 
