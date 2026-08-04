@@ -82,8 +82,23 @@ export function AuthProvider({ children }) {
     setProfile(null)
   }
 
+  // Changes the password for the currently signed-in user (no old-password check needed —
+  // Supabase's own session is the proof of identity here).
+  const updatePassword = async (newPassword) => {
+    if (!supabase) return { error: { message: 'Database not connected' } }
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    return { error }
+  }
+
+  const updateProfile = async (fields) => {
+    if (!supabase || !user) return { error: { message: 'Not signed in' } }
+    const { error } = await supabase.from('profiles').update(fields).eq('id', user.id)
+    if (!error) { const p = await loadProfile(user.id); setProfile(p) }
+    return { error }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, updatePassword, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )

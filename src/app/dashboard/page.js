@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { fetchLists, fetchListItems, createList, removeFromList, deleteList } from '@/lib/favourites'
+import { fetchStaffProviderIds } from '@/lib/staff'
 import { can } from '@/lib/plan'
 
 function ListsSection({ user }) {
@@ -147,7 +148,9 @@ function ProviderDashboard({ profile, user }) {
 
   const load = useCallback(async () => {
     if (!supabase) return
-    const { data } = await supabase.from('providers').select('*').eq('owner_id', user.id).order('name')
+    const staffIds = await fetchStaffProviderIds(user.id)
+    const orFilter = staffIds.length ? `owner_id.eq.${user.id},id.in.(${staffIds.join(',')})` : `owner_id.eq.${user.id}`
+    const { data } = await supabase.from('providers').select('*').or(orFilter).order('name')
     if (data) setProviders(data)
     setLoading(false)
   }, [user.id])
@@ -260,6 +263,7 @@ export default function DashboardPage() {
               <div className="text-[10px] text-gray-500 capitalize">{profile.role}</div>
             </div>
             <Link href="/search" className="text-xs font-medium text-gray-500 hover:text-brand px-3 py-1.5 border border-gray-200 rounded-lg transition">Search</Link>
+            <Link href="/dashboard/settings" className="text-xs font-medium text-gray-500 hover:text-brand px-3 py-1.5 border border-gray-200 rounded-lg transition">Settings</Link>
             <button onClick={() => { signOut(); router.push('/') }} className="text-xs font-medium text-gray-500 hover:text-red-600 px-3 py-1.5 border border-gray-200 rounded-lg transition">Sign Out</button>
           </div>
         </div>
