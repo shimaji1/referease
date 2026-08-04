@@ -24,12 +24,12 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
 }
 
-function StatCard({ label, value, change, icon }) {
+function StatCard({ label, value, change }) {
   const positive = change > 0
   const negative = change < 0
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
-      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">{icon} {label}</div>
+      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</div>
       <div className="text-3xl font-bold text-gray-900 mt-1">{value}</div>
       {change !== undefined && (
         <div className={`text-xs font-semibold mt-1 ${positive ? 'text-emerald-600' : negative ? 'text-red-500' : 'text-gray-400'}`}>
@@ -61,11 +61,11 @@ function OverviewTab({ summary, benchmark }) {
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-        <StatCard icon="👁" label="Views" value={summary.counts.view} change={summary.changes.view} />
-        <StatCard icon="🔎" label="Search Appearances" value={summary.counts.impression} change={summary.changes.impression} />
-        <StatCard icon="★" label="Favourited" value={summary.counts.favourite} change={summary.changes.favourite} />
-        <StatCard icon="📞" label="Contact Clicks" value={summary.contactClicks} change={summary.changes.contactClicks} />
-        <StatCard icon="📄" label="Form Downloads" value={summary.counts.form_download} change={summary.changes.form_download} />
+        <StatCard label="Views" value={summary.counts.view} change={summary.changes.view} />
+        <StatCard label="Search Appearances" value={summary.counts.impression} change={summary.changes.impression} />
+        <StatCard label="Favourited" value={summary.counts.favourite} change={summary.changes.favourite} />
+        <StatCard label="Contact Clicks" value={summary.contactClicks} change={summary.changes.contactClicks} />
+        <StatCard label="Form Downloads" value={summary.counts.form_download} change={summary.changes.form_download} />
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">

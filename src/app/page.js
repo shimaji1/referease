@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import FeaturedStrip from '@/components/FeaturedStrip'
+import AnnouncementCarousel from '@/components/AnnouncementCarousel'
 import useLocation from '@/hooks/useLocation'
 import TopNav from '@/components/TopNav'
 
@@ -140,6 +141,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <AnnouncementCarousel />
 
       <FeaturedStrip layout="hero-6" title="Featured specialists near you" subtitle="Sponsored providers investing in referrer visibility." loc={loc} tint sectionKey={1} onLoaded={trackShown} />
 

@@ -115,6 +115,8 @@ export default function AdminPage() {
   const [stats, setStats] = useState({})
   const [claims, setClaims] = useState([])
   const [pendingCount, setPendingCount] = useState(0)
+  const [announcements, setAnnouncements] = useState([])
+  const [pendingAnnouncementCount, setPendingAnnouncementCount] = useState(0)
   const [specialties, setSpecialties] = useState([])
   const [doctorRows, setDoctorRows] = useState([])   // [{id?, name, specialty, specialty_code, gender}]
   const [origDocIds, setOrigDocIds] = useState([])   // doctor ids present when editing (for reconcile)
@@ -467,6 +469,26 @@ export default function AdminPage() {
 
   useEffect(() => { if (authed) loadClaims() }, [authed, loadClaims])
 
+  const loadAnnouncements = useCallback(async () => {
+    if (!supabase) return
+    const { data } = await supabase.from("provider_announcements").select("*, providers(name)").order("created_at", { ascending: false })
+    if (data) {
+      setAnnouncements(data)
+      setPendingAnnouncementCount(data.filter(a => a.status === 'pending').length)
+    }
+  }, [])
+
+  const handleAnnouncement = async (row, action) => {
+    if (!supabase) return
+    let admin_notes = null
+    if (action === 'rejected') admin_notes = window.prompt('Note for the provider (optional):', '') || null
+    await supabase.from("provider_announcements").update({ status: action, admin_notes, reviewed_at: new Date().toISOString() }).eq("id", row.id)
+    setMsg(action === 'approved' ? 'Announcement approved, now live' : 'Announcement rejected')
+    loadAnnouncements()
+  }
+
+  useEffect(() => { if (authed) loadAnnouncements() }, [authed, loadAnnouncements])
+
   const edit = async (p) => {
     setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, wait_weeks: p.wait_weeks ?? "", email: p.email || "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
     setServicesText((p.services || []).join(', '))
@@ -538,7 +560,7 @@ export default function AdminPage() {
         else if (t === 'invites') { setTab('invites') }
         else if (t === 'templates') { setTab('templates') }
         else { setTab(t) }
-      }} counts={{ providers: providers.length, dupes: dupGroups.length, claims: pendingCount }} />
+      }} counts={{ providers: providers.length, dupes: dupGroups.length, claims: pendingCount, announcements: pendingAnnouncementCount }} />
       <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column" }}>
       <div style={{ padding:"14px 24px", borderBottom:"1px solid #e2e8f0", display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff" }}>
         <h1 style={{ margin:0, fontSize:"16px", fontWeight:600, color:"#334155" }}>Admin</h1>
@@ -913,6 +935,44 @@ export default function AdminPage() {
                           </>
                         ) : (
                           <span style={{ padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:c.status==='approved'?"#05966920":"#dc262620", color:c.status==='approved'?"#059669":"#dc2626", border:`1px solid ${c.status==='approved'?"#05966940":"#dc262640"}`, textTransform:"capitalize" }}>{c.status}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === "announcements" && (
+          <>
+            <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"12px" }}>Homepage Announcements</h2>
+            {announcements.length === 0 ? (
+              <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"30px", textAlign:"center", color:"#64748b", fontSize:"13px" }}>No submissions yet</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+                {announcements.map(a => (
+                  <div key={a.id} style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"12px 14px" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"12px" }}>
+                      <div style={{ flex:1, display:"flex", gap:"12px" }}>
+                        {a.image_url && <img src={a.image_url} alt="" style={{ width:"56px", height:"56px", borderRadius:"6px", objectFit:"cover", flexShrink:0 }} />}
+                        <div>
+                          <div style={{ fontSize:"13px", fontWeight:600 }}>{a.providers?.name || 'Unknown listing'}</div>
+                          <div style={{ fontSize:"11px", color:"#64748b", marginTop:"2px" }}>{a.template} · "{a.headline}"</div>
+                          {a.body && <div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"2px" }}>{a.body}</div>}
+                          {(a.cta_label || a.cta_url) && <div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"2px" }}>Button: {a.cta_label} → {a.cta_url}</div>}
+                          <div style={{ fontSize:"10px", color:"#94a3b8", marginTop:"4px" }}>{new Date(a.created_at).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:"4px", alignItems:"center", flexShrink:0 }}>
+                        {a.status === 'pending' ? (
+                          <>
+                            <button onClick={() => handleAnnouncement(a, 'approved')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#05966920", color:"#059669", border:"1px solid #05966940" }}>✓ Approve</button>
+                            <button onClick={() => handleAnnouncement(a, 'rejected')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕ Reject</button>
+                          </>
+                        ) : (
+                          <span style={{ padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:a.status==='approved'?"#05966920":"#dc262620", color:a.status==='approved'?"#059669":"#dc2626", border:`1px solid ${a.status==='approved'?"#05966940":"#dc262640"}`, textTransform:"capitalize" }}>{a.status}</span>
                         )}
                       </div>
                     </div>
