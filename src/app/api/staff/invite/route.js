@@ -31,13 +31,24 @@ export async function POST(request) {
   }
 
   const token = crypto.randomUUID()
-  const { error: insErr } = await supabase.from('provider_staff').insert({
-    provider_id, email: cleanEmail, invite_token: token, invited_by,
-  })
-  if (insErr) {
-    if (insErr.code === '23505') return NextResponse.json({ error: 'That email already has a pending or active invite for this listing.' }, { status: 409 })
-    return NextResponse.json({ error: insErr.message }, { status: 400 })
+
+  // A revoked row for this (provider, email) pair sticks around for history and blocks a
+  // plain insert via the unique constraint — reactivate it with a fresh token instead of
+  // treating "previously removed" the same as "already invited right now".
+  const { data: existing } = await supabase.from('provider_staff')
+    .select('id, status').eq('provider_id', provider_id).eq('email', cleanEmail).maybeSingle()
+
+  if (existing && existing.status !== 'revoked') {
+    return NextResponse.json({ error: 'That email already has a pending or active invite for this listing.' }, { status: 409 })
   }
+
+  const { error: writeErr } = existing
+    ? await supabase.from('provider_staff').update({
+        status: 'pending', invite_token: token, invited_by, user_id: null, accepted_at: null,
+      }).eq('id', existing.id)
+    : await supabase.from('provider_staff').insert({ provider_id, email: cleanEmail, invite_token: token, invited_by })
+
+  if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 400 })
 
   const resendKey = process.env.RESEND_API_KEY
   if (resendKey) {
