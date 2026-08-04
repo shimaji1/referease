@@ -97,18 +97,22 @@ function PasswordSection({ updatePassword }) {
   )
 }
 
-function BillingSection({ providers, profile }) {
-  const [requesting, setRequesting] = useState(null)
+function BillingSection({ providers, setProviders, profile, user }) {
+  const [starting, setStarting] = useState(null)
   const [msg, setMsg] = useState('')
 
-  const requestUpgrade = async (provider, plan) => {
-    setRequesting(provider.id); setMsg('')
-    const res = await fetch('/api/plan/upgrade-request', {
+  // Same self-serve 60-day trial the pricing page's "Start free trial" button uses — no
+  // manual follow-up needed, it activates immediately.
+  const startTrial = async (provider, plan) => {
+    setStarting(provider.id); setMsg('')
+    const res = await fetch('/api/plan/start-trial', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: profile.email, name: profile.full_name, provider_id: provider.id, requested_plan: plan, message: `Requested from Settings for listing "${provider.name}"` }),
+      body: JSON.stringify({ provider_id: provider.id, plan, user_email: user.email }),
     }).then(r => r.json()).catch(e => ({ error: e.message }))
-    setRequesting(null)
-    setMsg(res.error ? 'Error: ' + res.error : 'Request sent — we\'ll follow up by email.')
+    setStarting(null)
+    if (res.error) { setMsg('Error: ' + res.error); return }
+    setMsg(`${plan === 'featured' ? 'Featured' : 'Verified'} activated — free for 60 days!`)
+    setProviders(prev => prev.map(p => p.id === provider.id ? { ...p, plan, trial_ends_at: res.trial_ends_at, plan_granted_by_admin: false } : p))
   }
 
   if (!providers.length) return (
@@ -119,6 +123,7 @@ function BillingSection({ providers, profile }) {
     <div className="space-y-4">
       {providers.map(p => {
         const status = getPlanStatus(p)
+        const canTrial = status.tier !== 'featured' && status.kind !== 'trial' && status.kind !== 'granted'
         return (
           <div key={p.id} className={card}>
             <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -127,10 +132,10 @@ function BillingSection({ providers, profile }) {
                 <p className="text-xs text-gray-500 mt-0.5">Current plan: <span className="font-semibold text-gray-700">{status.label}</span></p>
               </div>
               <div className="flex gap-2">
-                {status.tier !== 'featured' && (
-                  <button onClick={() => requestUpgrade(p, status.tier === 'listed' ? 'verified' : 'featured')} disabled={requesting === p.id}
+                {canTrial && (
+                  <button onClick={() => startTrial(p, status.tier === 'listed' ? 'verified' : 'featured')} disabled={starting === p.id}
                     className="px-4 py-2 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-dark transition disabled:opacity-50">
-                    {requesting === p.id ? 'Sending…' : `Request upgrade to ${status.tier === 'listed' ? 'Verified' : 'Featured'}`}
+                    {starting === p.id ? 'Activating…' : `Start free trial: ${status.tier === 'listed' ? 'Verified' : 'Featured'}`}
                   </button>
                 )}
                 <Link href="/pricing" className="px-4 py-2 bg-white text-brand text-xs font-semibold rounded-lg border border-brand/20 hover:bg-brand/5 transition">See plans</Link>
@@ -327,7 +332,7 @@ export default function SettingsPage() {
           <div>
             {tab === 'account' && <AccountSection profile={profile} updateProfile={updateProfile} />}
             {tab === 'password' && <PasswordSection updatePassword={updatePassword} />}
-            {tab === 'billing' && isProvider && <BillingSection providers={providers} profile={profile} />}
+            {tab === 'billing' && isProvider && <BillingSection providers={providers} setProviders={setProviders} profile={profile} user={user} />}
             {tab === 'staff' && isProvider && <StaffSection providers={providers} user={user} />}
             {tab === 'danger' && <DangerZone user={user} profile={profile} />}
           </div>
