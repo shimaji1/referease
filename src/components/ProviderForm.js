@@ -16,13 +16,6 @@ const CATS = [
 const DAYS = ['mon','tue','wed','thu','fri','sat','sun']
 const DAY_LABELS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 const DOC_CATS_SET = new Set(['Family Medicine', 'Specialist'])
-const TITLES = ['Dr.', 'NP', 'PA', 'RN', 'RPN', 'Midwife', 'DC', 'OD', 'RD', 'PT', 'OT', 'Other']
-const TITLE_PREFIX_RE = /^(Dr\.?|NP|PA|RN|RPN|Midwife|DC|OD|RD|PT|OT)\s+/i
-const applyTitle = (currentName, title) => {
-  const bare = (currentName || '').replace(TITLE_PREFIX_RE, '').trim()
-  if (!title || title === 'Other') return bare
-  return `${title} ${bare}`.trim()
-}
 
 function parseList(value) {
   if (!value) return []
@@ -43,7 +36,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
   const [form, setForm] = useState(initial || empty)
   const [specialties, setSpecialties] = useState([])
   const [doctorRows, setDoctorRows] = useState(initial?._doctors || [])
-  const addDoctorRow = () => setDoctorRows(rows => [...rows, { name: 'Dr. ', title: 'Dr.', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '', accepting_referrals: null }])
+  const addDoctorRow = () => setDoctorRows(rows => [...rows, { name: '', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '', accepting_referrals: null }])
   const updDoctorRow = (i, patch) => setDoctorRows(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const rmDoctorRow = (i) => setDoctorRows(rows => rows.filter((_, idx) => idx !== i))
   const [doctorSearchQuery, setDoctorSearchQuery] = useState('')
@@ -117,7 +110,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
 
   const handleSubmit = () => {
     if (!form.name || !form.type) return
-    const validDocs = doctorRows.filter(r => r.name && r.name.replace(TITLE_PREFIX_RE, '').trim()).map(r => ({ ...r, name: r.name.trim() }))
+    const validDocs = doctorRows.filter(r => r.name && r.name.trim()).map(r => ({ ...r, name: r.name.trim() }))
     const data = {
       ...form,
       services: parseList(servicesText),
@@ -130,7 +123,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
       _doctors: validDocs,
       _locations: linkedClinics,
     }
-    delete data.id; delete data.created_at; delete data.updated_at; delete data.owner_id; delete data.title
+    delete data.id; delete data.created_at; delete data.updated_at; delete data.owner_id
     onSubmit(data)
   }
 
@@ -141,14 +134,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <label className={lbl}>{DOC_CATS_SET.has(form.category) ? 'Full Name *' : 'Practice / Clinic Name *'}</label>
-            <div className={DOC_CATS_SET.has(form.category) ? 'grid grid-cols-[0.9fr_2fr] gap-2' : ''}>
-              {DOC_CATS_SET.has(form.category) && (
-                <select className={inp} value={form.title || 'Dr.'} onChange={e => { set('title', e.target.value); set('name', applyTitle(form.name, e.target.value)) }}>
-                  {TITLES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              )}
-              <input className={inp} value={form.name} onChange={e => set('name', e.target.value)} placeholder={DOC_CATS_SET.has(form.category) ? 'Full Name' : 'e.g. York Dermatology Clinic'} />
-            </div>
+            <input className={inp} value={form.name} onChange={e => set('name', e.target.value)} placeholder={DOC_CATS_SET.has(form.category) ? 'Dr. Jane Smith (include title: Dr., NP, PA, etc.)' : 'e.g. York Dermatology Clinic'} />
           </div>
           <div>
             <label className={lbl}>Specialty (SNOMED CT) *</label>
@@ -309,12 +295,9 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
               )}
             </div>
             {doctorRows.map((r, i) => (
-              <div key={i} className="grid grid-cols-1 sm:grid-cols-[0.7fr_1.2fr_1.2fr_0.7fr_0.9fr_auto] gap-2 mb-2 items-center">
-                <select className={inp} value={r.title || 'Dr.'} onChange={e => updDoctorRow(i, { title: e.target.value, name: applyTitle(r.name, e.target.value) })} disabled={!!r.id}>
-                  {TITLES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+              <div key={i} className="grid grid-cols-1 sm:grid-cols-[1.2fr_1.2fr_0.7fr_0.9fr_auto] gap-2 mb-2 items-center">
                 <div className="relative">
-                  <input className={inp} placeholder="Full Name" value={r.name} onChange={e => updDoctorRow(i, { name: e.target.value })} disabled={!!r.id} />
+                  <input className={inp} placeholder="Dr. Full Name" value={r.name} onChange={e => updDoctorRow(i, { name: e.target.value })} disabled={!!r.id} />
                   {r.id && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-brand bg-brand/10 border border-brand/20 rounded-full px-1.5 py-0.5">LINKED</span>}
                 </div>
                 <select className={inp} value={r.specialty_code || ''} onChange={e => { const sp = specialties.find(x => x.snomed_code === e.target.value); updDoctorRow(i, sp ? { specialty_code: sp.snomed_code, specialty: sp.name } : { specialty_code: '', specialty: '' }) }}>
