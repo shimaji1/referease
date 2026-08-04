@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useEffect, useCallback } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { useRouter } from 'next/navigation'
 import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
@@ -12,6 +12,7 @@ import useLocation from '@/hooks/useLocation'
 import { useAuth } from '@/context/AuthContext'
 import ListPickerModal from '@/components/ListPickerModal'
 import { fetchLists, fetchSavedProviderIds, addToList, removeFromAllLists } from '@/lib/favourites'
+import { trackEvent } from '@/lib/analytics'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -254,16 +255,18 @@ function Detail({ p, onBack, isFav, onFav }) {
     return () => { alive = false }
   }, [p?.id, p?.clinic_provider_id])
 
-  // Basic view count (Verified+ plans see this in their dashboard). Fire-and-forget,
-  // one increment per listing view — failures are silent, never block the page.
+  // Basic view count (Verified+ plans see this in their dashboard) plus a timestamped
+  // event (Featured's full analytics dashboard). Fire-and-forget, never blocks the page.
   useEffect(() => {
     if (!supabase || !p?.id) return
     supabase.rpc('increment_view_count', { pid: p.id }).then(() => {})
+    trackEvent(p.id, 'view')
   }, [p?.id])
   return (
     <div className="animate-fade-in">
       <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back to results</button>
       <ProfileView
+        providerId={p.id}
         name={p.name}
         subtitle={`${p.type}${p.category ? ` · ${p.category}` : ''}`}
         specialty={p.type}
@@ -448,6 +451,7 @@ export default function SearchPage() {
       if (favs.includes(id)) { saveFavs(favs.filter(f => f !== id)); return }
       if (favDocs.includes(id)) { saveFavDocs(favDocs.filter(f => f !== id)); return }
       saveFavs([...favs, id])
+      trackEvent(id, 'favourite')
       return
     }
     if (savedIds.has(id)) {
@@ -457,7 +461,7 @@ export default function SearchPage() {
     }
     if (myLists.length === 0) {
       const ok = await addToList(user.id, id)
-      if (ok) { setSavedIds(prev => new Set(prev).add(id)); fetchLists(user.id).then(setMyLists) }
+      if (ok) { setSavedIds(prev => new Set(prev).add(id)); fetchLists(user.id).then(setMyLists); trackEvent(id, 'favourite') }
       return
     }
     setPickerFor({ id, name: nameForId(id) })
@@ -597,6 +601,21 @@ export default function SearchPage() {
   const pageItems = combined.slice(start, endIdx)
   const pagedDoctors = pageItems.filter(x => x._t === 'doc')
   const pagedProviders = pageItems.filter(x => x._t === 'prov')
+
+  // Search impressions for Featured's analytics dashboard — "how many times did I show up
+  // on page 1" is the one measurement the pricing page promises but has no other source for.
+  // Dedupe per session so re-renders/re-sorts of the same result set don't spam events.
+  const impressionsFiredRef = useRef(new Set())
+  const page1FeaturedKey = page === 1 ? pageItems.filter(i => i.featured).map(i => `${i._t}:${i.id}`).join(',') : ''
+  useEffect(() => {
+    if (page !== 1 || !page1FeaturedKey) return
+    page1FeaturedKey.split(',').forEach(key => {
+      if (impressionsFiredRef.current.has(key)) return
+      impressionsFiredRef.current.add(key)
+      const [, id] = key.split(':')
+      trackEvent(Number(id), 'impression')
+    })
+  }, [page, page1FeaturedKey])
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center text-gray-400">
@@ -801,6 +820,7 @@ export default function SearchPage() {
           onSaved={(listId, newList) => {
             setSavedIds(prev => new Set(prev).add(pickerFor.id))
             if (newList) setMyLists(prev => [...prev, newList])
+            trackEvent(pickerFor.id, 'favourite')
             setPickerFor(null)
           }}
         />

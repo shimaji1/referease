@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import ProfileHeader from './ProfileHeader'
+import { trackEvent } from '@/lib/analytics'
 
 // ============================================================================
 // ONE profile body for every category — clinics, doctors, imaging, labs.
@@ -25,9 +26,9 @@ export function Card({ title, children }) {
   )
 }
 
-export function Row({ l, v, href }) {
+export function Row({ l, v, href, onClick }) {
   const val = href
-    ? <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand font-semibold text-right break-words hover:underline">{v}</a>
+    ? <a href={href} target="_blank" rel="noopener noreferrer" onClick={onClick} className="text-brand font-semibold text-right break-words hover:underline">{v}</a>
     : <span className="text-gray-900 font-medium text-right break-words">{v}</span>
   return <div className="flex justify-between py-1.5 text-sm gap-2 border-b border-gray-50 last:border-0"><span className="text-gray-400 shrink-0">{l}</span>{val}</div>
 }
@@ -46,6 +47,7 @@ function HoursRows({ hours }) {
 }
 
 export default function ProfileView({
+  providerId = null,                // for click tracking (Featured's analytics dashboard)
   name, subtitle, verified, verifiedAt, action, tiles = [], headerFooter = null,
   banner = null,                    // e.g. claim banner — renders under the header
   languages = null,                 // top-level languages fallback (used for the Location card)
@@ -112,7 +114,7 @@ export default function ProfileView({
           {forms && forms.length > 0 && (
             <Card title="Forms">
               {forms.map(f => (
-                <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between py-2 text-sm border-b border-gray-50 last:border-0 group">
+                <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent(providerId, 'form_download')} className="flex items-center justify-between py-2 text-sm border-b border-gray-50 last:border-0 group">
                   <span className="text-gray-900 group-hover:text-brand font-medium">📄 {f.name}</span>
                   <span className="text-brand font-semibold group-hover:underline shrink-0">Download</span>
                 </a>
@@ -136,11 +138,11 @@ export default function ProfileView({
         <div className="flex flex-col gap-3">
           {hasContact && (
             <Card title="Contact & Location">
-              {c.address && <Row l="Address" v={c.address} href={`https://maps.google.com/?q=${encodeURIComponent(c.address)}`} />}
-              {c.phone && <Row l="Phone" v={c.phone} href={`tel:${c.phone}`} />}
-              {c.fax && <Row l="Fax" v={c.fax} />}
-              {c.email && <Row l="Email" v={c.email} href={`mailto:${c.email}`} />}
-              {c.website && <Row l="Website" v={String(c.website).replace(/^https?:\/\//, '')} href={String(c.website).startsWith('http') ? c.website : `https://${c.website}`} />}
+              {c.address && <Row l="Address" v={c.address} href={`https://maps.google.com/?q=${encodeURIComponent(c.address)}`} onClick={() => trackEvent(providerId, 'click_address')} />}
+              {c.phone && <Row l="Phone" v={c.phone} href={`tel:${c.phone}`} onClick={() => trackEvent(providerId, 'click_phone')} />}
+              {c.fax && <Row l="Fax" v={c.fax} onClick={() => trackEvent(providerId, 'click_fax')} />}
+              {c.email && <Row l="Email" v={c.email} href={`mailto:${c.email}`} onClick={() => trackEvent(providerId, 'click_email')} />}
+              {c.website && <Row l="Website" v={String(c.website).replace(/^https?:\/\//, '')} href={String(c.website).startsWith('http') ? c.website : `https://${c.website}`} onClick={() => trackEvent(providerId, 'click_website')} />}
               {c.languages && c.languages.length > 0 && <Row l="Languages" v={c.languages.join(', ')} />}
             </Card>
           )}
