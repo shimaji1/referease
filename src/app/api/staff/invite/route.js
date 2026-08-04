@@ -51,15 +51,27 @@ export async function POST(request) {
           to: [cleanEmail],
           subject: `You've been invited to join ${provider.name} on ReferEasy`,
           html: `
-            <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
-              <h2 style="color:#1e3a5f;margin-bottom:4px">You're invited</h2>
-              <p style="color:#666;font-size:14px">You've been given staff access to manage <strong>${provider.name}</strong>'s listing on ReferEasy.</p>
-              <a href="${acceptUrl}" style="display:inline-block;background:#1e3a5f;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;margin:16px 0">Accept invite →</a>
-              <p style="color:#999;font-size:12px">If you weren't expecting this, you can ignore this email.</p>
-              <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0">
-              <p style="color:#aaa;font-size:11px">ReferEasy, Ontario Healthcare Referral Platform</p>
-            </div>
-          `,
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;padding:0;background:#ffffff">
+  <div style="background:#1e3a5f;padding:22px 32px">
+    <a href="${BASE}" style="text-decoration:none;display:inline-flex;align-items:center;gap:10px;color:#ffffff">
+      <img src="${BASE}/img/icon.png" alt="R" width="32" height="32" style="border-radius:8px;display:block" />
+      <span style="font-weight:700;font-size:20px">Refer<span style="color:#93c5fd">Easy</span></span>
+    </a>
+  </div>
+  <div style="padding:32px">
+    <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 14px;line-height:1.3">You've been invited to ${provider.name}</h1>
+    <p style="color:#334155;font-size:15px;line-height:1.65;margin:0 0 16px">You've been given staff access to manage <strong>${provider.name}</strong>'s listing on ReferEasy — availability, referral criteria, forms, and more.</p>
+    <p style="color:#334155;font-size:15px;line-height:1.65;margin:0 0 16px">You'll set up your own login, separate from anyone else on the team.</p>
+    <div style="text-align:center;margin:28px 0">
+      <a href="${acceptUrl}" style="display:inline-block;background:#1e3a5f;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:0.02em">Accept invite →</a>
+    </div>
+    <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 16px">If you weren't expecting this, you can safely ignore this email — no account will be created.</p>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0 18px">
+    <p style="color:#94a3b8;font-size:11px;line-height:1.6;margin:0">
+      ReferEasy · Ontario's live physician-to-physician referral platform · <a href="${BASE}" style="color:#94a3b8">refereasy.ca</a>
+    </p>
+  </div>
+</div>`,
         }),
       })
     } catch (e) {

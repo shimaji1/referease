@@ -7,6 +7,8 @@ import { supabase } from '@/lib/supabase'
 import ProviderForm from '@/components/ProviderForm'
 import Link from 'next/link'
 import FormsManager from '@/components/FormsManager'
+import ConfirmModal from '@/components/ConfirmModal'
+import AlertModal from '@/components/AlertModal'
 
 export default function EditProviderPage({ params }) {
   const { id } = use(params)
@@ -15,6 +17,9 @@ export default function EditProviderPage({ params }) {
   const [provider, setProvider] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [alertMsg, setAlertMsg] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!supabase || !id) return
@@ -87,7 +92,7 @@ export default function EditProviderPage({ params }) {
     delete data._locations
     data.clinic_provider_id = locations[0]?.id || null
     const { error } = await supabase.from('providers').update(data).eq('id', id)
-    if (error) { setSaving(false); alert('Error: ' + error.message); return }
+    if (error) { setSaving(false); setAlertMsg('Error: ' + error.message); return }
     const clinicId = parseInt(id)
     // reconcile this listing's own secondary linked locations (everything past the primary)
     await supabase.from('doctor_locations').delete().eq('doctor_provider_id', clinicId)
@@ -123,14 +128,15 @@ export default function EditProviderPage({ params }) {
       await supabase.from('doctor_locations').delete().eq('doctor_provider_id', rid).eq('clinic_provider_id', clinicId)
     }
     setSaving(false)
-    if (warn) { alert(warn); return }
+    if (warn) { setAlertMsg(warn); return }
     router.push('/dashboard')
   }
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this listing? This cannot be undone.')) return
     if (!supabase) return
+    setDeleting(true)
     await supabase.from('providers').delete().eq('id', id)
+    setDeleting(false)
     router.push('/dashboard')
   }
 
@@ -151,7 +157,7 @@ export default function EditProviderPage({ params }) {
             <h1 className="text-xl font-bold text-gray-900">Edit Listing</h1>
             <p className="text-sm text-gray-500 mt-0.5">{provider.name}</p>
           </div>
-          <button onClick={handleDelete} className="text-xs font-medium text-red-500 hover:text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition">Delete Listing</button>
+          <button onClick={() => setConfirmDelete(true)} className="text-xs font-medium text-red-500 hover:text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition">Delete Listing</button>
         </div>
         <ProviderForm initial={provider} onSubmit={handleSubmit} loading={saving} submitLabel="Save Changes" />
 
@@ -161,6 +167,18 @@ export default function EditProviderPage({ params }) {
           <FormsManager providerId={id} ownerId={user.id} provider={provider} />
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmDelete}
+        title="Delete this listing?"
+        message="This removes it permanently from search and can't be undone."
+        confirmLabel="Delete"
+        danger
+        busy={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
+      <AlertModal open={!!alertMsg} message={alertMsg} onClose={() => setAlertMsg(null)} />
     </div>
   )
 }

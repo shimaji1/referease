@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { lookupInviteByToken, acceptInvite } from '@/lib/staff'
+import { checkPassword } from '@/lib/password'
+import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
 
 function AcceptContent() {
   const { user, signUp, signIn } = useAuth()
@@ -36,7 +38,7 @@ function AcceptContent() {
   const handleSignup = async () => {
     setError('')
     if (!fullName.trim() || !password) { setError('Fill in your name and a password'); return }
-    if (password.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (!checkPassword(password).valid) { setError('Password needs 8+ characters, a capital letter, a number, and a symbol.'); return }
     setLoading(true)
     const { data, error: err } = await signUp(invite.email, password, fullName.trim(), 'provider', {})
     if (err) { setLoading(false); setError(err.message); return }
@@ -116,7 +118,8 @@ function AcceptContent() {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Password *</label>
-                        <input className={inp} type="password" placeholder="Minimum 6 characters" value={password} onChange={e => setPassword(e.target.value)} />
+                        <input className={inp} type="password" placeholder="Create a password" value={password} onChange={e => setPassword(e.target.value)} />
+                        <PasswordStrengthMeter password={password} />
                       </div>
                       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
                       <button onClick={handleSignup} disabled={loading} className="w-full py-3 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50 text-sm">

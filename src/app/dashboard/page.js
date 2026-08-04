@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchLists, fetchListItems, createList, removeFromList, deleteList } from '@/lib/favourites'
 import { fetchStaffProviderIds } from '@/lib/staff'
 import { can } from '@/lib/plan'
+import ConfirmModal from '@/components/ConfirmModal'
 
 function ListsSection({ user }) {
   const [lists, setLists] = useState([])
@@ -16,6 +17,7 @@ function ListsSection({ user }) {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
+  const [pendingDelete, setPendingDelete] = useState(null) // { id, name }
 
   const load = useCallback(async () => {
     const ls = await fetchLists(user.id)
@@ -38,9 +40,9 @@ function ListsSection({ user }) {
     load()
   }
 
-  const handleDeleteList = async (listId, name) => {
-    if (typeof window !== 'undefined' && !window.confirm(`Delete the list "${name}"? This removes it and its saved items.`)) return
-    await deleteList(listId)
+  const handleDeleteList = async () => {
+    await deleteList(pendingDelete.id)
+    setPendingDelete(null)
     load()
   }
 
@@ -78,7 +80,7 @@ function ListsSection({ user }) {
               <div key={l.id} className="bg-white border border-gray-200 rounded-xl p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-bold text-gray-900">{l.name} <span className="text-gray-400 font-normal">({items.length})</span></h3>
-                  {!l.is_default && <button onClick={() => handleDeleteList(l.id, l.name)} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete list</button>}
+                  {!l.is_default && <button onClick={() => setPendingDelete({ id: l.id, name: l.name })} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete list</button>}
                 </div>
                 {items.length === 0 ? (
                   <p className="text-xs text-gray-400">Nothing saved here yet.</p>
@@ -105,6 +107,15 @@ function ListsSection({ user }) {
           })}
         </div>
       )}
+      <ConfirmModal
+        open={!!pendingDelete}
+        title="Delete this list?"
+        message={pendingDelete ? `Delete "${pendingDelete.name}"? This removes it and its saved items.` : ''}
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDeleteList}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

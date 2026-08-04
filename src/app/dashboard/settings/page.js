@@ -7,6 +7,9 @@ import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { getPlanStatus, limit as planLimit } from '@/lib/plan'
 import { fetchStaff, inviteStaff, revokeStaff } from '@/lib/staff'
+import ConfirmModal from '@/components/ConfirmModal'
+import { checkPassword } from '@/lib/password'
+import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
 
 const inp = "w-full px-4 py-2.5 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
 const card = "bg-white border border-gray-200 rounded-xl p-6"
@@ -61,7 +64,7 @@ function PasswordSection({ updatePassword }) {
 
   const save = async () => {
     setMsg('')
-    if (password.length < 6) { setMsg('Error: Password must be at least 6 characters'); return }
+    if (!checkPassword(password).valid) { setMsg('Error: Password needs 8+ characters, a capital letter, a number, and a symbol.'); return }
     if (password !== confirm) { setMsg('Error: Passwords do not match'); return }
     setSaving(true)
     const { error } = await updatePassword(password)
@@ -76,7 +79,8 @@ function PasswordSection({ updatePassword }) {
       <div className="space-y-3 max-w-md">
         <div>
           <label className={label}>New Password</label>
-          <input className={inp} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Minimum 6 characters" />
+          <input className={inp} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Create a new password" />
+          <PasswordStrengthMeter password={password} />
         </div>
         <div>
           <label className={label}>Confirm New Password</label>
@@ -148,6 +152,7 @@ function StaffSection({ providers, user }) {
   const [email, setEmail] = useState('')
   const [inviting, setInviting] = useState(false)
   const [msg, setMsg] = useState('')
+  const [pendingRevoke, setPendingRevoke] = useState(null)
 
   const provider = owned.find(p => p.id === selected)
   const cap = provider ? planLimit(provider, 'max_staff') : 0
@@ -170,9 +175,10 @@ function StaffSection({ providers, user }) {
     setEmail(''); setMsg('Invite sent!'); load()
   }
 
-  const revoke = async (row) => {
-    if (typeof window !== 'undefined' && !window.confirm(`Remove ${row.email}'s access?`)) return
-    await revokeStaff(row.id); load()
+  const revoke = async () => {
+    await revokeStaff(pendingRevoke.id)
+    setPendingRevoke(null)
+    load()
   }
 
   if (!owned.length) return (
@@ -216,12 +222,21 @@ function StaffSection({ providers, user }) {
               <span className="text-sm text-gray-900 truncate">{s.email}</span>
               <div className="flex items-center gap-2 shrink-0">
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border capitalize ${statusPill[s.status]}`}>{s.status}</span>
-                <button onClick={() => revoke(s)} className="text-xs font-semibold text-red-600 hover:underline">Remove</button>
+                <button onClick={() => setPendingRevoke(s)} className="text-xs font-semibold text-red-600 hover:underline">Remove</button>
               </div>
             </div>
           ))}
         </div>
       )}
+      <ConfirmModal
+        open={!!pendingRevoke}
+        title="Remove staff access?"
+        message={pendingRevoke ? `Remove ${pendingRevoke.email}'s access to this listing?` : ''}
+        confirmLabel="Remove"
+        danger
+        onConfirm={revoke}
+        onCancel={() => setPendingRevoke(null)}
+      />
     </div>
   )
 }
@@ -229,12 +244,13 @@ function StaffSection({ providers, user }) {
 function DangerZone({ user, profile }) {
   const [requested, setRequested] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
   const requestDeletion = async () => {
-    if (typeof window !== 'undefined' && !window.confirm('Request account deletion? Our team will follow up to confirm and complete this — it is not instant.')) return
     setBusy(true)
     const { error } = await supabase.from('profiles').update({ deletion_requested_at: new Date().toISOString() }).eq('id', user.id)
     setBusy(false)
+    setConfirming(false)
     if (!error) setRequested(true)
   }
 
@@ -245,10 +261,20 @@ function DangerZone({ user, profile }) {
       {requested || profile.deletion_requested_at ? (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 inline-block">Deletion requested — our team will follow up by email to confirm.</p>
       ) : (
-        <button onClick={requestDeletion} disabled={busy} className="px-5 py-2.5 bg-red-50 text-red-600 text-sm font-semibold rounded-xl border border-red-200 hover:bg-red-100 transition disabled:opacity-50">
+        <button onClick={() => setConfirming(true)} disabled={busy} className="px-5 py-2.5 bg-red-50 text-red-600 text-sm font-semibold rounded-xl border border-red-200 hover:bg-red-100 transition disabled:opacity-50">
           {busy ? 'Requesting…' : 'Request Account Deletion'}
         </button>
       )}
+      <ConfirmModal
+        open={confirming}
+        title="Request account deletion?"
+        message="Our team will follow up by email to confirm and complete this — it's not instant."
+        confirmLabel="Request deletion"
+        danger
+        busy={busy}
+        onConfirm={requestDeletion}
+        onCancel={() => setConfirming(false)}
+      />
     </div>
   )
 }

@@ -4,6 +4,8 @@ import Logo from '@/components/Logo'
 import { useAuth } from '@/context/AuthContext'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { checkPassword } from '@/lib/password'
+import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
 
 export default function SignUpPage() {
   const { signUp } = useAuth()
@@ -19,7 +21,7 @@ export default function SignUpPage() {
   const handleSubmit = async () => {
     setError('')
     if (!form.email || !form.password || !form.fullName) { setError('Please fill in all required fields'); return }
-    if (form.password.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (!checkPassword(form.password).valid) { setError('Password needs 8+ characters, a capital letter, a number, and a symbol.'); return }
     setLoading(true)
     const { error: err } = await signUp(form.email, form.password, form.fullName, role, {
       phone: form.phone, cpso_number: form.cpso, clinic_name: form.clinic,
@@ -92,7 +94,8 @@ export default function SignUpPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Password *</label>
-                  <input className={inp} type="password" placeholder="Minimum 6 characters" value={form.password} onChange={e => set('password', e.target.value)} />
+                  <input className={inp} type="password" placeholder="Create a password" value={form.password} onChange={e => set('password', e.target.value)} />
+                  <PasswordStrengthMeter password={form.password} />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phone</label>

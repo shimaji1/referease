@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import ProviderForm from '@/components/ProviderForm'
 import Link from 'next/link'
+import AlertModal from '@/components/AlertModal'
 
 export default function NewProviderPage() {
   const { user, profile, loading: authLoading } = useAuth()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
+  const [alertMsg, setAlertMsg] = useState(null)
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>
   if (!user || profile?.role !== 'provider') { router.push('/dashboard'); return null }
@@ -30,7 +32,7 @@ export default function NewProviderPage() {
     delete data._doctors
     delete data._locations
     const { data: created, error } = await supabase.from('providers').insert({ ...data, owner_id: user.id, clinic_provider_id: locations[0]?.id || null }).select().single()
-    if (error || !created) { setSaving(false); alert('Error: ' + (error?.message || 'could not save')); return }
+    if (error || !created) { setSaving(false); setAlertMsg('Error: ' + (error?.message || 'could not save')); return }
     for (const loc of locations.slice(1)) {
       await supabase.from('doctor_locations').insert({ doctor_provider_id: created.id, clinic_provider_id: loc.id })
     }
@@ -52,7 +54,7 @@ export default function NewProviderPage() {
       }
     }
     setSaving(false)
-    if (warn) { alert(warn); return }
+    if (warn) { setAlertMsg(warn); return }
     router.push('/dashboard')
   }
 
@@ -69,6 +71,7 @@ export default function NewProviderPage() {
         <p className="text-sm text-gray-500 mb-6">Add your practice or clinic to ReferEasy so physicians can find and refer patients to you.</p>
         <ProviderForm onSubmit={handleSubmit} loading={saving} submitLabel="Create Listing" />
       </div>
+      <AlertModal open={!!alertMsg} message={alertMsg} onClose={() => setAlertMsg(null)} />
     </div>
   )
 }

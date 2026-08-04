@@ -122,6 +122,8 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
       rating: form.rating ? parseFloat(form.rating) : null,
       reviews: parseInt(form.reviews) || 0,
       wait_weeks: form.wait_weeks !== '' && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null,
+      lat: form.lat !== '' && form.lat != null ? parseFloat(form.lat) : null,
+      lng: form.lng !== '' && form.lng != null ? parseFloat(form.lng) : null,
       email: form.email || null,
       _doctors: validDocs,
       _locations: linkedClinics,
