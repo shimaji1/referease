@@ -5,6 +5,14 @@ import { fetchApprovedAnnouncements } from '@/lib/announcements'
 
 const ROTATE_MS = 6000
 
+// Shown when there's nothing approved yet, so the section still reserves its spot on the
+// homepage instead of the layout jumping around as slides get added/removed.
+const FALLBACK_SLIDE = {
+  id: 'fallback', template: 'text-card',
+  headline: 'Get seen by referring physicians', body: 'Featured listings get a rotating spot right here on the homepage.',
+  cta_label: 'List your practice', cta_url: '/pricing', providers: null,
+}
+
 function Slide({ item }) {
   const href = item.cta_url || (item.providers?.id ? `/search?id=${item.providers.id}` : '#')
   const ctaLabel = item.cta_label || 'Learn more'
@@ -62,21 +70,21 @@ export default function AnnouncementCarousel() {
     return () => clearInterval(timerRef.current)
   }, [items.length, paused])
 
-  if (items.length === 0) return null
+  const slides = items.length ? items : [FALLBACK_SLIDE]
 
   return (
     <section className="py-10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative h-56 sm:h-48" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-          {items.map((item, i) => (
+          {slides.map((item, i) => (
             <div key={item.id} className="absolute inset-0 transition-opacity duration-500" style={{ opacity: i === index ? 1 : 0, pointerEvents: i === index ? 'auto' : 'none' }}>
               <Slide item={item} />
             </div>
           ))}
         </div>
-        {items.length > 1 && (
+        {slides.length > 1 && (
           <div className="flex justify-center gap-1.5 mt-4">
-            {items.map((item, i) => (
+            {slides.map((item, i) => (
               <button key={item.id} onClick={() => setIndex(i)} aria-label={`Go to slide ${i + 1}`}
                 className={`h-1.5 rounded-full transition-all ${i === index ? 'w-6 bg-brand' : 'w-1.5 bg-gray-300'}`} />
             ))}

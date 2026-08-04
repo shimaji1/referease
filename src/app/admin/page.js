@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import FormsManager from "@/components/FormsManager"
 import AdminSidebar from '@/components/AdminSidebar'
 import { getPlanStatus } from '@/lib/plan'
+import { TEMPLATES as ANNOUNCEMENT_TEMPLATES, fetchAllAnnouncements, createAdminAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/lib/announcements'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -115,7 +116,6 @@ export default function AdminPage() {
   const [stats, setStats] = useState({})
   const [claims, setClaims] = useState([])
   const [pendingCount, setPendingCount] = useState(0)
-  const [announcements, setAnnouncements] = useState([])
   const [pendingAnnouncementCount, setPendingAnnouncementCount] = useState(0)
   const [specialties, setSpecialties] = useState([])
   const [doctorRows, setDoctorRows] = useState([])   // [{id?, name, specialty, specialty_code, gender}]
@@ -469,25 +469,14 @@ export default function AdminPage() {
 
   useEffect(() => { if (authed) loadClaims() }, [authed, loadClaims])
 
-  const loadAnnouncements = useCallback(async () => {
+  // Full list + CRUD lives in AnnouncementsTab; this is just the sidebar badge count.
+  const loadAnnouncementCount = useCallback(async () => {
     if (!supabase) return
-    const { data } = await supabase.from("provider_announcements").select("*, providers(name)").order("created_at", { ascending: false })
-    if (data) {
-      setAnnouncements(data)
-      setPendingAnnouncementCount(data.filter(a => a.status === 'pending').length)
-    }
+    const { count } = await supabase.from("provider_announcements").select("id", { count: 'exact', head: true }).eq("status", "pending")
+    setPendingAnnouncementCount(count || 0)
   }, [])
 
-  const handleAnnouncement = async (row, action) => {
-    if (!supabase) return
-    let admin_notes = null
-    if (action === 'rejected') admin_notes = window.prompt('Note for the provider (optional):', '') || null
-    await supabase.from("provider_announcements").update({ status: action, admin_notes, reviewed_at: new Date().toISOString() }).eq("id", row.id)
-    setMsg(action === 'approved' ? 'Announcement approved, now live' : 'Announcement rejected')
-    loadAnnouncements()
-  }
-
-  useEffect(() => { if (authed) loadAnnouncements() }, [authed, loadAnnouncements])
+  useEffect(() => { if (authed) loadAnnouncementCount() }, [authed, loadAnnouncementCount])
 
   const edit = async (p) => {
     setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, wait_weeks: p.wait_weeks ?? "", email: p.email || "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
@@ -945,49 +934,200 @@ export default function AdminPage() {
           </>
         )}
 
-        {tab === "announcements" && (
-          <>
-            <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"12px" }}>Homepage Announcements</h2>
-            {announcements.length === 0 ? (
-              <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"30px", textAlign:"center", color:"#64748b", fontSize:"13px" }}>No submissions yet</div>
-            ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
-                {announcements.map(a => (
-                  <div key={a.id} style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"12px 14px" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"12px" }}>
-                      <div style={{ flex:1, display:"flex", gap:"12px" }}>
-                        {a.image_url && <img src={a.image_url} alt="" style={{ width:"56px", height:"56px", borderRadius:"6px", objectFit:"cover", flexShrink:0 }} />}
-                        <div>
-                          <div style={{ fontSize:"13px", fontWeight:600 }}>{a.providers?.name || 'Unknown listing'}</div>
-                          <div style={{ fontSize:"11px", color:"#64748b", marginTop:"2px" }}>{a.template} · "{a.headline}"</div>
-                          {a.body && <div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"2px" }}>{a.body}</div>}
-                          {(a.cta_label || a.cta_url) && <div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"2px" }}>Button: {a.cta_label} → {a.cta_url}</div>}
-                          <div style={{ fontSize:"10px", color:"#94a3b8", marginTop:"4px" }}>{new Date(a.created_at).toLocaleDateString()}</div>
-                        </div>
-                      </div>
-                      <div style={{ display:"flex", gap:"4px", alignItems:"center", flexShrink:0 }}>
-                        {a.status === 'pending' ? (
-                          <>
-                            <button onClick={() => handleAnnouncement(a, 'approved')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#05966920", color:"#059669", border:"1px solid #05966940" }}>✓ Approve</button>
-                            <button onClick={() => handleAnnouncement(a, 'rejected')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕ Reject</button>
-                          </>
-                        ) : (
-                          <span style={{ padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:a.status==='approved'?"#05966920":"#dc262620", color:a.status==='approved'?"#059669":"#dc2626", border:`1px solid ${a.status==='approved'?"#05966940":"#dc262640"}`, textTransform:"capitalize" }}>{a.status}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+        {tab === "announcements" && <AnnouncementsTab setMsg={setMsg} onCountChange={setPendingAnnouncementCount} />}
       </div>
       </div>
     </div>
   )
 }
 
+
+// ─── Homepage Announcements tab: approve/reject provider submissions, plus create/edit/
+// delete admin-authored slides directly (not tied to any provider) ───
+const emptyAnnouncement = () => ({ id: null, provider_id: null, template: 'text-card', headline: '', body: '', image_url: '', image_path: '', cta_label: '', cta_url: '', sort_order: 0 })
+
+function AnnouncementsTab({ setMsg, onCountChange }) {
+  const s = { width:"100%", padding:"8px 10px", fontSize:"13px", background:"#ffffff", border:"1px solid #d1d5db", borderRadius:"6px", color:"#111827", outline:"none", marginTop:"4px" }
+  const lbl = { fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", display:"block", marginTop:"12px" }
+
+  const [rows, setRows] = useState([])
+  const [form, setForm] = useState(emptyAnnouncement())
+  const [uploading, setUploading] = useState(false)
+  const [providerQuery, setProviderQuery] = useState('')
+  const [providerResults, setProviderResults] = useState([])
+  const [linkedProvider, setLinkedProvider] = useState(null)
+
+  const load = useCallback(async () => {
+    const data = await fetchAllAnnouncements()
+    setRows(data)
+    onCountChange(data.filter(a => a.status === 'pending').length)
+  }, [onCountChange])
+
+  useEffect(() => { load() }, [load])
+
+  const searchProviders = async (q) => {
+    setProviderQuery(q)
+    if (!supabase || q.trim().length < 2) { setProviderResults([]); return }
+    const { data } = await supabase.from('providers').select('id, name').ilike('name', `%${q.trim()}%`).limit(8)
+    setProviderResults(data || [])
+  }
+
+  const uploadImage = async (file) => {
+    if (!file || !supabase) return
+    setUploading(true)
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `announcements/admin-${Date.now()}-${safe}`
+    const { error: upErr } = await supabase.storage.from('forms').upload(path, file)
+    if (upErr) { setMsg('Error: ' + upErr.message); setUploading(false); return }
+    const { data: pub } = supabase.storage.from('forms').getPublicUrl(path)
+    setForm(f => ({ ...f, image_url: pub?.publicUrl || '', image_path: path }))
+    setUploading(false)
+  }
+
+  const startEdit = (row) => {
+    setForm({ id: row.id, provider_id: row.provider_id, template: row.template, headline: row.headline || '', body: row.body || '', image_url: row.image_url || '', image_path: row.image_path || '', cta_label: row.cta_label || '', cta_url: row.cta_url || '', sort_order: row.sort_order || 0 })
+    setLinkedProvider(row.providers || null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const resetForm = () => { setForm(emptyAnnouncement()); setLinkedProvider(null); setProviderQuery(''); setProviderResults([]) }
+
+  const save = async () => {
+    if (!form.headline.trim()) { setMsg('Add a headline first'); return }
+    const fields = { provider_id: linkedProvider?.id || null, template: form.template, headline: form.headline, body: form.body, image_url: form.image_url, image_path: form.image_path, cta_label: form.cta_label, cta_url: form.cta_url, sort_order: parseInt(form.sort_order) || 0 }
+    const res = form.id
+      ? await updateAnnouncement(form.id, fields)
+      : await createAdminAnnouncement(fields)
+    if (res.error) { setMsg('Error: ' + res.error); return }
+    setMsg(form.id ? 'Announcement updated' : 'Announcement created and live')
+    resetForm()
+    load()
+  }
+
+  const remove = async (row) => {
+    if (!window.confirm(`Delete "${row.headline}"? This can't be undone.`)) return
+    await deleteAnnouncement(row.id)
+    setMsg('Announcement deleted')
+    if (form.id === row.id) resetForm()
+    load()
+  }
+
+  const review = async (row, action) => {
+    if (!supabase) return
+    let admin_notes = null
+    if (action === 'rejected') admin_notes = window.prompt('Note for the provider (optional):', '') || null
+    await supabase.from("provider_announcements").update({ status: action, admin_notes, reviewed_at: new Date().toISOString() }).eq("id", row.id)
+    setMsg(action === 'approved' ? 'Announcement approved, now live' : 'Announcement rejected')
+    load()
+  }
+
+  const statusStyle = { pending: { bg:"#f59e0b20", color:"#b45309" }, approved: { bg:"#05966920", color:"#059669" }, rejected: { bg:"#dc262620", color:"#dc2626" } }
+
+  return (
+    <>
+      <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"4px" }}>Homepage Announcements</h2>
+      <p style={{ fontSize:"12px", color:"#64748b", marginBottom:"16px" }}>Review provider submissions below, or create your own platform-authored slide — those go live immediately, no review needed.</p>
+
+      <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"16px", marginBottom:"20px" }}>
+        <div style={{ fontSize:"13px", fontWeight:700 }}>{form.id ? 'Edit slide' : '+ New admin slide'}</div>
+
+        <label style={lbl}>Template</label>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"8px", marginTop:"4px" }}>
+          {ANNOUNCEMENT_TEMPLATES.map(t => (
+            <button key={t.key} onClick={() => setForm(f => ({ ...f, template: t.key }))} style={{ all:"unset", cursor:"pointer", textAlign:"left", padding:"8px 10px", borderRadius:"6px", border: form.template === t.key ? "1px solid #1e3a5f" : "1px solid #e2e8f0", background: form.template === t.key ? "#1e3a5f10" : "#fff" }}>
+              <div style={{ fontSize:"12px", fontWeight:700 }}>{t.label}</div>
+              <div style={{ fontSize:"10px", color:"#64748b", marginTop:"2px" }}>{t.description}</div>
+            </button>
+          ))}
+        </div>
+
+        <label style={lbl}>Headline *</label>
+        <input style={s} value={form.headline} onChange={e => setForm(f => ({ ...f, headline: e.target.value }))} placeholder="Now accepting new patients" maxLength={60} />
+
+        <label style={lbl}>Message</label>
+        <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} placeholder="Short supporting line" maxLength={160} />
+
+        {form.template !== 'text-card' && (
+          <>
+            <label style={lbl}>Image</label>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px", marginTop:"4px" }}>
+              <label style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#e2e8f0", color:"#475569" }}>
+                {uploading ? 'Uploading…' : form.image_url ? 'Change image' : '📎 Choose image'}
+                <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={e => uploadImage(e.target.files?.[0])} style={{ display:"none" }} disabled={uploading} />
+              </label>
+              {form.image_url && <img src={form.image_url} alt="" style={{ width:"36px", height:"36px", borderRadius:"6px", objectFit:"cover" }} />}
+            </div>
+          </>
+        )}
+
+        <div style={{ position:"relative" }}>
+          <label style={lbl}>Link to a listing (optional)</label>
+          {linkedProvider ? (
+            <div style={{ ...s, marginTop:"4px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span>{linkedProvider.name}</span>
+              <button onClick={() => setLinkedProvider(null)} style={{ all:"unset", cursor:"pointer", color:"#dc2626", fontSize:"12px", fontWeight:600 }}>✕</button>
+            </div>
+          ) : (
+            <>
+              <input style={s} value={providerQuery} onChange={e => searchProviders(e.target.value)} placeholder="🔎 Search clinics/doctors, or leave blank for a platform slide…" />
+              {providerResults.length > 0 && (
+                <div style={{ position:"absolute", zIndex:30, left:0, right:0, top:"100%", marginTop:"4px", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:"8px", maxHeight:"180px", overflowY:"auto" }}>
+                  {providerResults.map(p => (
+                    <button key={p.id} onClick={() => { setLinkedProvider(p); setProviderQuery(''); setProviderResults([]) }} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", boxSizing:"border-box", padding:"8px 12px", borderBottom:"1px solid #e2e8f0", fontSize:"12px" }}>{p.name}</button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 100px", gap:"10px" }}>
+          <div><label style={lbl}>Button text</label><input style={s} value={form.cta_label} onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))} placeholder="Book now" /></div>
+          <div><label style={lbl}>Button link</label><input style={s} value={form.cta_url} onChange={e => setForm(f => ({ ...f, cta_url: e.target.value }))} placeholder="/search?id=... or a full URL" /></div>
+          <div><label style={lbl}>Order</label><input style={s} type="number" value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: e.target.value }))} /></div>
+        </div>
+
+        <div style={{ display:"flex", gap:"8px", marginTop:"14px" }}>
+          <button onClick={save} disabled={uploading} style={{ all:"unset", cursor:"pointer", padding:"9px 18px", borderRadius:"6px", fontSize:"12px", fontWeight:700, background:"#1e3a5f", color:"#fff" }}>{form.id ? 'Save changes' : 'Create & publish'}</button>
+          {form.id && <button onClick={resetForm} style={{ all:"unset", cursor:"pointer", padding:"9px 18px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#e2e8f0", color:"#475569" }}>Cancel edit</button>}
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"30px", textAlign:"center", color:"#64748b", fontSize:"13px" }}>No announcements yet</div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+          {rows.map(a => (
+            <div key={a.id} style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"12px 14px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"12px" }}>
+                <div style={{ flex:1, display:"flex", gap:"12px" }}>
+                  {a.image_url && <img src={a.image_url} alt="" style={{ width:"56px", height:"56px", borderRadius:"6px", objectFit:"cover", flexShrink:0 }} />}
+                  <div>
+                    <div style={{ fontSize:"13px", fontWeight:600 }}>{a.providers?.name || 'Platform slide (no listing)'}</div>
+                    <div style={{ fontSize:"11px", color:"#64748b", marginTop:"2px" }}>{a.template} · "{a.headline}"</div>
+                    {a.body && <div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"2px" }}>{a.body}</div>}
+                    <div style={{ fontSize:"10px", color:"#94a3b8", marginTop:"4px" }}>{new Date(a.created_at).toLocaleDateString()} · order {a.sort_order ?? 0}</div>
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:"4px", alignItems:"center", flexShrink:0, flexWrap:"wrap", justifyContent:"flex-end" }}>
+                  {a.status === 'pending' && (
+                    <>
+                      <button onClick={() => review(a, 'approved')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#05966920", color:"#059669", border:"1px solid #05966940" }}>✓ Approve</button>
+                      <button onClick={() => review(a, 'rejected')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕ Reject</button>
+                    </>
+                  )}
+                  <span style={{ padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:statusStyle[a.status].bg, color:statusStyle[a.status].color, textTransform:"capitalize" }}>{a.status}</span>
+                  <button onClick={() => startEdit(a)} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#2563eb", border:"1px solid #3b82f640" }}>Edit</button>
+                  <button onClick={() => remove(a)} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Delete</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
 
 // ─── Invite Campaigns tab ───
 function InvitesTab({ providers, setMsg }) {
