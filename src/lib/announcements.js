@@ -12,16 +12,35 @@ export const FONT_OPTIONS = [
   { key: 'mono', label: 'Monospace', family: "'Courier New', Courier, monospace" },
 ]
 
-export const SIZE_OPTIONS = [
-  { key: 'sm', label: 'Small' },
-  { key: 'md', label: 'Medium' },
-  { key: 'lg', label: 'Large' },
-]
-
 export const ALIGN_OPTIONS = ['left', 'center', 'right']
+export const IMAGE_SIZE_OPTIONS = ['sm', 'md', 'lg']
+export const FONT_SIZE_MIN = 7
+export const FONT_SIZE_MAX = 100
 
-const STYLE_FIELDS = { text_align: 'left', headline_size: 'lg', text_color: null, font: 'sans' }
-export const DEFAULT_STYLE = STYLE_FIELDS
+// Per-section style, stored as one JSONB blob (`style` column) so new sections don't
+// require a schema migration every time. Content (text/images) stays in its own columns.
+export const DEFAULT_STYLE = {
+  headline: { size: 26, color: '', font: 'sans', align: 'left' },
+  subheadline: { size: 16, color: '', font: 'sans', align: 'left' },
+  body: { size: 14, color: '', font: 'sans', align: 'left' },
+  logo: { size: 40, align: 'left' },
+  button: { size: 15, bg: '', color: '', align: 'left' },
+  image: { size: 'md' },
+}
+
+// Old rows may have style: null, or be missing keys added after they were created —
+// fill in defaults per-section rather than replacing the whole object.
+export function mergeStyle(raw) {
+  const s = raw || {}
+  return {
+    headline: { ...DEFAULT_STYLE.headline, ...(s.headline || {}) },
+    subheadline: { ...DEFAULT_STYLE.subheadline, ...(s.subheadline || {}) },
+    body: { ...DEFAULT_STYLE.body, ...(s.body || {}) },
+    logo: { ...DEFAULT_STYLE.logo, ...(s.logo || {}) },
+    button: { ...DEFAULT_STYLE.button, ...(s.button || {}) },
+    image: { ...DEFAULT_STYLE.image, ...(s.image || {}) },
+  }
+}
 
 export async function fetchMyAnnouncement(providerId) {
   if (!supabase || !providerId) return null
@@ -37,15 +56,15 @@ export async function submitAnnouncement(providerId, fields) {
     provider_id: providerId,
     template: fields.template,
     headline: fields.headline || null,
+    subheadline: fields.subheadline || null,
     body: fields.body || null,
     image_url: fields.image_url || null,
     image_path: fields.image_path || null,
+    logo_url: fields.logo_url || null,
+    logo_path: fields.logo_path || null,
     cta_label: fields.cta_label || null,
     cta_url: fields.cta_url || null,
-    text_align: fields.text_align || 'left',
-    headline_size: fields.headline_size || 'lg',
-    text_color: fields.text_color || null,
-    font: fields.font || 'sans',
+    style: fields.style || DEFAULT_STYLE,
     status: 'pending',
     admin_notes: null,
     updated_at: new Date().toISOString(),
@@ -56,7 +75,7 @@ export async function submitAnnouncement(providerId, fields) {
 export async function fetchApprovedAnnouncements(limit = 10) {
   if (!supabase) return []
   const { data } = await supabase.from('provider_announcements')
-    .select('id, template, headline, body, image_url, cta_label, cta_url, provider_id, text_align, headline_size, text_color, font, providers(id, name)')
+    .select('id, template, headline, subheadline, body, image_url, logo_url, cta_label, cta_url, provider_id, style, providers(id, name)')
     .eq('status', 'approved').order('sort_order').order('reviewed_at', { ascending: false }).limit(limit)
   return data || []
 }
@@ -79,16 +98,16 @@ export async function createAdminAnnouncement(fields) {
     provider_id: fields.provider_id || null,
     template: fields.template,
     headline: fields.headline || null,
+    subheadline: fields.subheadline || null,
     body: fields.body || null,
     image_url: fields.image_url || null,
     image_path: fields.image_path || null,
+    logo_url: fields.logo_url || null,
+    logo_path: fields.logo_path || null,
     cta_label: fields.cta_label || null,
     cta_url: fields.cta_url || null,
     sort_order: fields.sort_order ?? 0,
-    text_align: fields.text_align || 'left',
-    headline_size: fields.headline_size || 'lg',
-    text_color: fields.text_color || null,
-    font: fields.font || 'sans',
+    style: fields.style || DEFAULT_STYLE,
     status: 'approved',
     reviewed_at: new Date().toISOString(),
   })

@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabase"
 import FormsManager from "@/components/FormsManager"
 import AdminSidebar from '@/components/AdminSidebar'
 import { getPlanStatus } from '@/lib/plan'
-import { TEMPLATES as ANNOUNCEMENT_TEMPLATES, FONT_OPTIONS as ANNOUNCEMENT_FONTS, SIZE_OPTIONS as ANNOUNCEMENT_SIZES, ALIGN_OPTIONS as ANNOUNCEMENT_ALIGNS, fetchAllAnnouncements, createAdminAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/lib/announcements'
+import { TEMPLATES as ANNOUNCEMENT_TEMPLATES, DEFAULT_STYLE as ANNOUNCEMENT_DEFAULT_STYLE, mergeStyle as mergeAnnouncementStyle, fetchAllAnnouncements, createAdminAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/lib/announcements'
+import AnnouncementStyleEditor from '@/components/AnnouncementStyleEditor'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -944,7 +945,7 @@ export default function AdminPage() {
 
 // ─── Homepage Announcements tab: approve/reject provider submissions, plus create/edit/
 // delete admin-authored slides directly (not tied to any provider) ───
-const emptyAnnouncement = () => ({ id: null, provider_id: null, template: 'text-card', headline: '', body: '', image_url: '', image_path: '', cta_label: '', cta_url: '', sort_order: 0, text_align: 'left', headline_size: 'lg', text_color: '', font: 'sans' })
+const emptyAnnouncement = () => ({ id: null, provider_id: null, template: 'text-card', headline: '', subheadline: '', body: '', image_url: '', image_path: '', logo_url: '', logo_path: '', cta_label: '', cta_url: '', sort_order: 0, style: ANNOUNCEMENT_DEFAULT_STYLE })
 
 function AnnouncementsTab({ setMsg, onCountChange }) {
   const s = { width:"100%", padding:"8px 10px", fontSize:"13px", background:"#ffffff", border:"1px solid #d1d5db", borderRadius:"6px", color:"#111827", outline:"none", marginTop:"4px" }
@@ -953,6 +954,7 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
   const [rows, setRows] = useState([])
   const [form, setForm] = useState(emptyAnnouncement())
   const [uploading, setUploading] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const [providerQuery, setProviderQuery] = useState('')
   const [providerResults, setProviderResults] = useState([])
   const [linkedProvider, setLinkedProvider] = useState(null)
@@ -984,8 +986,20 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
     setUploading(false)
   }
 
+  const uploadLogo = async (file) => {
+    if (!file || !supabase) return
+    setUploadingLogo(true)
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `announcements/logo-admin-${Date.now()}-${safe}`
+    const { error: upErr } = await supabase.storage.from('forms').upload(path, file)
+    if (upErr) { setMsg('Error: ' + upErr.message); setUploadingLogo(false); return }
+    const { data: pub } = supabase.storage.from('forms').getPublicUrl(path)
+    setForm(f => ({ ...f, logo_url: pub?.publicUrl || '', logo_path: path }))
+    setUploadingLogo(false)
+  }
+
   const startEdit = (row) => {
-    setForm({ id: row.id, provider_id: row.provider_id, template: row.template, headline: row.headline || '', body: row.body || '', image_url: row.image_url || '', image_path: row.image_path || '', cta_label: row.cta_label || '', cta_url: row.cta_url || '', sort_order: row.sort_order || 0, text_align: row.text_align || 'left', headline_size: row.headline_size || 'lg', text_color: row.text_color || '', font: row.font || 'sans' })
+    setForm({ id: row.id, provider_id: row.provider_id, template: row.template, headline: row.headline || '', subheadline: row.subheadline || '', body: row.body || '', image_url: row.image_url || '', image_path: row.image_path || '', logo_url: row.logo_url || '', logo_path: row.logo_path || '', cta_label: row.cta_label || '', cta_url: row.cta_url || '', sort_order: row.sort_order || 0, style: mergeAnnouncementStyle(row.style) })
     setLinkedProvider(row.providers || null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -994,7 +1008,7 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
 
   const save = async () => {
     if (!form.headline.trim()) { setMsg('Add a headline first'); return }
-    const fields = { provider_id: linkedProvider?.id || null, template: form.template, headline: form.headline, body: form.body, image_url: form.image_url, image_path: form.image_path, cta_label: form.cta_label, cta_url: form.cta_url, sort_order: parseInt(form.sort_order) || 0, text_align: form.text_align, headline_size: form.headline_size, text_color: form.text_color || null, font: form.font }
+    const fields = { provider_id: linkedProvider?.id || null, template: form.template, headline: form.headline, subheadline: form.subheadline, body: form.body, image_url: form.image_url, image_path: form.image_path, logo_url: form.logo_url, logo_path: form.logo_path, cta_label: form.cta_label, cta_url: form.cta_url, sort_order: parseInt(form.sort_order) || 0, style: form.style }
     const res = form.id
       ? await updateAnnouncement(form.id, fields)
       : await createAdminAnnouncement(fields)
@@ -1041,45 +1055,28 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
           ))}
         </div>
 
-        <label style={lbl}>Headline *</label>
+        <label style={lbl}>Headline (H1) *</label>
         <input style={s} value={form.headline} onChange={e => setForm(f => ({ ...f, headline: e.target.value }))} placeholder="Now accepting new patients" maxLength={60} />
 
-        <label style={lbl}>Message</label>
+        <label style={lbl}>Subheading (H2)</label>
+        <input style={s} value={form.subheadline} onChange={e => setForm(f => ({ ...f, subheadline: e.target.value }))} placeholder="Optional secondary line" maxLength={80} />
+
+        <label style={lbl}>Paragraph</label>
         <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} placeholder="Short supporting line" maxLength={160} />
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"10px" }}>
-          <div>
-            <label style={lbl}>Alignment</label>
-            <div style={{ display:"flex", gap:"4px", marginTop:"4px" }}>
-              {ANNOUNCEMENT_ALIGNS.map(a => (
-                <button key={a} onClick={() => setForm(f => ({ ...f, text_align: a }))} style={{ all:"unset", cursor:"pointer", flex:1, textAlign:"center", padding:"7px 0", fontSize:"11px", fontWeight:600, textTransform:"capitalize", borderRadius:"6px", border: form.text_align === a ? "1px solid #1e3a5f" : "1px solid #e2e8f0", background: form.text_align === a ? "#1e3a5f10" : "#fff", color: form.text_align === a ? "#1e3a5f" : "#64748b" }}>{a}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label style={lbl}>Headline size</label>
-            <select style={s} value={form.headline_size} onChange={e => setForm(f => ({ ...f, headline_size: e.target.value }))}>
-              {ANNOUNCEMENT_SIZES.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={lbl}>Font</label>
-            <select style={s} value={form.font} onChange={e => setForm(f => ({ ...f, font: e.target.value }))}>
-              {ANNOUNCEMENT_FONTS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={lbl}>Text color</label>
-            <div style={{ display:"flex", alignItems:"center", gap:"6px", marginTop:"4px" }}>
-              <input type="color" value={form.text_color || '#ffffff'} onChange={e => setForm(f => ({ ...f, text_color: e.target.value }))} style={{ height:"32px", width:"40px", borderRadius:"6px", border:"1px solid #d1d5db", cursor:"pointer" }} />
-              {form.text_color && <button onClick={() => setForm(f => ({ ...f, text_color: '' }))} style={{ all:"unset", cursor:"pointer", fontSize:"10px", color:"#94a3b8" }}>Reset</button>}
-            </div>
-          </div>
+        <label style={lbl}>Logo</label>
+        <div style={{ display:"flex", alignItems:"center", gap:"10px", marginTop:"4px" }}>
+          <label style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#e2e8f0", color:"#475569" }}>
+            {uploadingLogo ? 'Uploading…' : form.logo_url ? 'Change logo' : '📎 Choose logo'}
+            <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={e => uploadLogo(e.target.files?.[0])} style={{ display:"none" }} disabled={uploadingLogo} />
+          </label>
+          {form.logo_url && <img src={form.logo_url} alt="" style={{ width:"36px", height:"36px", borderRadius:"6px", objectFit:"contain", background:"#fff", border:"1px solid #e2e8f0" }} />}
+          {form.logo_url && <button onClick={() => setForm(f => ({ ...f, logo_url: '', logo_path: '' }))} style={{ all:"unset", cursor:"pointer", fontSize:"10px", color:"#94a3b8" }}>Remove</button>}
         </div>
 
         {form.template !== 'text-card' && (
           <>
-            <label style={lbl}>Image</label>
+            <label style={lbl}>Picture</label>
             <div style={{ display:"flex", alignItems:"center", gap:"10px", marginTop:"4px" }}>
               <label style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#e2e8f0", color:"#475569" }}>
                 {uploading ? 'Uploading…' : form.image_url ? 'Change image' : '📎 Choose image'}
@@ -1115,6 +1112,13 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
           <div><label style={lbl}>Button text</label><input style={s} value={form.cta_label} onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))} placeholder="Book now" /></div>
           <div><label style={lbl}>Button link</label><input style={s} value={form.cta_url} onChange={e => setForm(f => ({ ...f, cta_url: e.target.value }))} placeholder="/search?id=... or a full URL" /></div>
           <div><label style={lbl}>Order</label><input style={s} type="number" value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: e.target.value }))} /></div>
+        </div>
+
+        <div style={{ marginTop:"14px", paddingTop:"12px", borderTop:"1px solid #f1f5f9" }}>
+          <label style={{ ...lbl, marginTop:0 }}>Styling</label>
+          <div style={{ marginTop:"6px" }}>
+            <AnnouncementStyleEditor style={form.style} onChange={v => setForm(f => ({ ...f, style: v }))} showImage={form.template !== 'text-card'} />
+          </div>
         </div>
 
         <div style={{ display:"flex", gap:"8px", marginTop:"14px" }}>

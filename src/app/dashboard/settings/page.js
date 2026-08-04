@@ -10,7 +10,8 @@ import { fetchStaff, inviteStaff, revokeStaff } from '@/lib/staff'
 import ConfirmModal from '@/components/ConfirmModal'
 import { checkPassword } from '@/lib/password'
 import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
-import { fetchMyAnnouncement, submitAnnouncement, TEMPLATES, FONT_OPTIONS, SIZE_OPTIONS, ALIGN_OPTIONS } from '@/lib/announcements'
+import { fetchMyAnnouncement, submitAnnouncement, TEMPLATES, DEFAULT_STYLE, mergeStyle } from '@/lib/announcements'
+import AnnouncementStyleEditor from '@/components/AnnouncementStyleEditor'
 
 const inp = "w-full px-4 py-2.5 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
 const card = "bg-white border border-gray-200 rounded-xl p-6"
@@ -257,8 +258,9 @@ function AnnouncementSection({ providers, user }) {
   const featured = providers.filter(p => p.owner_id === user.id && can(p, 'featured_slot'))
   const [selected, setSelected] = useState(featured[0]?.id || null)
   const [existing, setExisting] = useState(null)
-  const [form, setForm] = useState({ template: 'image-left', headline: '', body: '', image_url: '', image_path: '', cta_label: '', cta_url: '', text_align: 'left', headline_size: 'lg', text_color: '', font: 'sans' })
+  const [form, setForm] = useState({ template: 'image-left', headline: '', subheadline: '', body: '', image_url: '', image_path: '', logo_url: '', logo_path: '', cta_label: '', cta_url: '', style: DEFAULT_STYLE })
   const [uploading, setUploading] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
 
@@ -266,7 +268,7 @@ function AnnouncementSection({ providers, user }) {
     if (!selected) return
     const row = await fetchMyAnnouncement(selected)
     setExisting(row)
-    if (row) setForm({ template: row.template, headline: row.headline || '', body: row.body || '', image_url: row.image_url || '', image_path: row.image_path || '', cta_label: row.cta_label || '', cta_url: row.cta_url || '', text_align: row.text_align || 'left', headline_size: row.headline_size || 'lg', text_color: row.text_color || '', font: row.font || 'sans' })
+    if (row) setForm({ template: row.template, headline: row.headline || '', subheadline: row.subheadline || '', body: row.body || '', image_url: row.image_url || '', image_path: row.image_path || '', logo_url: row.logo_url || '', logo_path: row.logo_path || '', cta_label: row.cta_label || '', cta_url: row.cta_url || '', style: mergeStyle(row.style) })
   }, [selected])
 
   useEffect(() => { load() }, [load])
@@ -283,6 +285,18 @@ function AnnouncementSection({ providers, user }) {
     const { data: pub } = supabase.storage.from('forms').getPublicUrl(path)
     set('image_url', pub?.publicUrl || ''); set('image_path', path)
     setUploading(false)
+  }
+
+  const uploadLogo = async (file) => {
+    if (!file || !supabase) return
+    setUploadingLogo(true)
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `announcements/logo-${selected}-${Date.now()}-${safe}`
+    const { error: upErr } = await supabase.storage.from('forms').upload(path, file)
+    if (upErr) { setMsg('Error: ' + upErr.message); setUploadingLogo(false); return }
+    const { data: pub } = supabase.storage.from('forms').getPublicUrl(path)
+    set('logo_url', pub?.publicUrl || ''); set('logo_path', path)
+    setUploadingLogo(false)
   }
 
   const submit = async () => {
@@ -337,46 +351,31 @@ function AnnouncementSection({ providers, user }) {
           </div>
         </div>
         <div>
-          <label className={label}>Headline *</label>
+          <label className={label}>Headline (H1) *</label>
           <input className={inp} value={form.headline} onChange={e => set('headline', e.target.value)} placeholder="Now accepting new patients" maxLength={60} />
         </div>
         <div>
-          <label className={label}>Message</label>
+          <label className={label}>Subheading (H2)</label>
+          <input className={inp} value={form.subheadline} onChange={e => set('subheadline', e.target.value)} placeholder="Optional secondary line" maxLength={80} />
+        </div>
+        <div>
+          <label className={label}>Paragraph</label>
           <textarea className={inp + ' min-h-[70px] resize-y'} value={form.body} onChange={e => set('body', e.target.value)} placeholder="Short supporting line" maxLength={160} />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div>
-            <label className={label}>Alignment</label>
-            <div className="flex gap-1">
-              {ALIGN_OPTIONS.map(a => (
-                <button key={a} type="button" onClick={() => set('text_align', a)}
-                  className={`flex-1 py-2 rounded-lg border text-xs font-semibold capitalize ${form.text_align === a ? 'border-brand bg-brand/5 text-brand' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>{a}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className={label}>Headline size</label>
-            <select className={inp} value={form.headline_size} onChange={e => set('headline_size', e.target.value)}>
-              {SIZE_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={label}>Font</label>
-            <select className={inp} value={form.font} onChange={e => set('font', e.target.value)}>
-              {FONT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={label}>Text color</label>
-            <div className="flex items-center gap-2">
-              <input type="color" value={form.text_color || '#ffffff'} onChange={e => set('text_color', e.target.value)} className="h-[42px] w-12 rounded-lg border border-gray-300 cursor-pointer shrink-0" />
-              {form.text_color && <button type="button" onClick={() => set('text_color', '')} className="text-[11px] text-gray-400 hover:text-gray-600">Reset</button>}
-            </div>
+        <div>
+          <label className={label}>Logo</label>
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 border border-gray-300 cursor-pointer hover:bg-gray-200 transition">
+              {uploadingLogo ? 'Uploading…' : form.logo_url ? 'Change logo' : '📎 Choose logo'}
+              <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={e => uploadLogo(e.target.files?.[0])} className="hidden" disabled={uploadingLogo} />
+            </label>
+            {form.logo_url && <img src={form.logo_url} alt="" className="h-10 w-10 rounded-lg object-contain border border-gray-200 bg-white" />}
+            {form.logo_url && <button type="button" onClick={() => { set('logo_url', ''); set('logo_path', '') }} className="text-[11px] text-gray-400 hover:text-gray-600">Remove</button>}
           </div>
         </div>
         {form.template !== 'text-card' && (
           <div>
-            <label className={label}>Image</label>
+            <label className={label}>Picture</label>
             <div className="flex items-center gap-3">
               <label className="inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 border border-gray-300 cursor-pointer hover:bg-gray-200 transition">
                 {uploading ? 'Uploading…' : form.image_url ? 'Change image' : '📎 Choose image'}
@@ -395,6 +394,11 @@ function AnnouncementSection({ providers, user }) {
             <label className={label}>Button link</label>
             <input className={inp} value={form.cta_url} onChange={e => set('cta_url', e.target.value)} placeholder="/search?id=..." />
           </div>
+        </div>
+
+        <div className="pt-2 border-t border-gray-100">
+          <label className={label}>Styling</label>
+          <AnnouncementStyleEditor style={form.style} onChange={v => set('style', v)} showImage={form.template !== 'text-card'} />
         </div>
       </div>
 
