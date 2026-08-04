@@ -88,7 +88,7 @@ export default function PricingPage() {
     // Find the user's first provider listing
     if (!supabase) return
     setBusy(plan)
-    const { data: providers } = await supabase.from('providers').select('id').eq('claimed_by', user.email).limit(1)
+    const { data: providers } = await supabase.from('providers').select('id').eq('owner_id', user.id).limit(1)
     if (!providers || providers.length === 0) {
       setBusy(null)
       setMsg('You need to claim or create a listing before starting a trial.')
@@ -99,7 +99,7 @@ export default function PricingPage() {
     const res = await fetch('/api/plan/start-trial', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider_id: providerId, plan, user_email: user.email }),
+      body: JSON.stringify({ provider_id: providerId, plan, user_id: user.id, user_email: user.email }),
     }).then(r => r.json()).catch(e => ({ error: e.message }))
     setBusy(null)
     if (res.error) { setMsg('Error: ' + res.error); return }

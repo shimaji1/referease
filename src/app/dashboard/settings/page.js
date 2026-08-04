@@ -107,7 +107,7 @@ function BillingSection({ providers, setProviders, profile, user }) {
     setStarting(provider.id); setMsg('')
     const res = await fetch('/api/plan/start-trial', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider_id: provider.id, plan, user_email: user.email }),
+      body: JSON.stringify({ provider_id: provider.id, plan, user_id: user.id, user_email: user.email }),
     }).then(r => r.json()).catch(e => ({ error: e.message }))
     setStarting(null)
     if (res.error) { setMsg('Error: ' + res.error); return }
