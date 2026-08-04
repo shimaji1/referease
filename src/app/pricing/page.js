@@ -151,14 +151,14 @@ export default function PricingPage() {
                 <button
                   onClick={() => startTrial(tier.key)}
                   disabled={busy === tier.key}
-                  className={`w-full py-3 rounded-xl text-sm font-bold transition ${tier.highlight ? 'bg-white text-brand hover:bg-amber-50' : 'bg-brand text-white hover:bg-brand-dark'} ${busy === tier.key ? 'opacity-60 cursor-wait' : ''}`}
+                  className={`w-full py-3 rounded-xl text-sm font-bold transition border ${tier.highlight ? 'bg-white text-brand border-white hover:bg-amber-50' : 'bg-brand text-white border-brand hover:bg-brand-dark'} ${busy === tier.key ? 'opacity-60 cursor-wait' : ''}`}
                 >
                   {busy === tier.key ? 'Starting…' : tier.cta}
                 </button>
               ) : (
                 <Link href={user ? '/dashboard/provider/new' : '/signup'} className="w-full py-3 rounded-xl text-sm font-bold transition bg-white text-brand border border-brand hover:bg-brand/5 text-center block">{tier.cta}</Link>
               )}
-              <p className={`text-[11px] mt-3 text-center ${tier.highlight ? 'text-white/60' : 'text-gray-400'}`}>
+              <p className={`text-[11px] mt-3 text-center leading-4 min-h-[32px] ${tier.highlight ? 'text-white/60' : 'text-gray-400'}`}>
                 {tier.trial ? 'Downgrades to free if not kept, data always preserved' : 'Upgrade anytime as you grow'}
               </p>
             </div>
