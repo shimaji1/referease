@@ -29,6 +29,68 @@ const CENTER = { lat: 43.810, lng: -79.430 }
 // results without overriding e.g. distance ordering within the same tier.
 function tierWeight(p) { return p.featured ? 2 : p.verified ? 1 : 0 }
 function byTier(a, b) { return tierWeight(b) - tierWeight(a) }
+// One comparator shared by the clinics list, the doctors list, and the merged/combined feed —
+// using the same function everywhere is what guarantees tier order survives the merge instead
+// of doctors-then-clinics concatenation silently overriding it.
+function safeDist(x) { return (x.lat && x.lng) ? distKm(CENTER.lat, CENTER.lng, x.lat, x.lng) : 99999 }
+
+// Lay/profession-title terms that don't reduce cleanly via the generic suffix rules below —
+// "cardiologist" already stems to "cardiolog" which is a substring of "Cardiology", but
+// "ent"/"gp"/"obgyn" etc. need an explicit mapping to the specialty text they actually mean.
+const SPECIALTY_SYNONYMS = {
+  ent: ['otolaryngology', 'ear nose throat'],
+  gp: ['family medicine', 'general practice'],
+  obgyn: ['obstetrics', 'gynecology', 'gynaecology'],
+  'ob-gyn': ['obstetrics', 'gynecology', 'gynaecology'],
+  eye: ['ophthalmology', 'optometry'],
+  skin: ['dermatology'],
+  heart: ['cardiology', 'cardiac'],
+  lung: ['pulmonary', 'respirology', 'respiratory'],
+  lungs: ['pulmonary', 'respirology', 'respiratory'],
+  kidney: ['nephrology'],
+  brain: ['neurology'],
+  bones: ['orthopedic', 'orthopaedic'],
+  joint: ['orthopedic', 'orthopaedic'],
+  foot: ['podiatry', 'chiropody'],
+  feet: ['podiatry', 'chiropody'],
+  kids: ['pediatrics', 'paediatrics'],
+  child: ['pediatrics', 'paediatrics'],
+  baby: ['pediatrics', 'paediatrics'],
+  cancer: ['oncology'],
+  mental: ['psychiatry', 'psychology', 'mental health'],
+  therapy: ['psychotherapy', 'physiotherapy'],
+}
+
+// A search word gets checked against the listing text as typed AND as these expanded forms —
+// this is what lets "cardiologist" find a listing whose specialty just says "Cardiology".
+function expandWord(w) {
+  const forms = new Set([w])
+  if (SPECIALTY_SYNONYMS[w]) SPECIALTY_SYNONYMS[w].forEach(s => forms.add(s))
+  if (w.length > 4 && w.endsWith('ist')) forms.add(w.slice(0, -3))   // cardiologist -> cardiolog(y)
+  if (w.length > 4 && w.endsWith('ian')) forms.add(w.slice(0, -3))   // obstetrician -> obstetric(s)
+  return [...forms]
+}
+function matchesQuery(hay, words) {
+  return words.every(w => expandWord(w).some(f => hay.includes(f)))
+}
+// Pulls "near me"/"nearby" and a gender qualifier out of the raw query so they can be applied
+// as real filters instead of literal text that would never match anything.
+function parseSearchQuery(raw) {
+  let q = (raw || '').toLowerCase()
+  const wantsNearMe = /\bnear\s*me\b|\bnearby\b/.test(q)
+  q = q.replace(/\bnear\s*me\b|\bnearby\b/g, ' ')
+  let genderWanted = null
+  if (/\b(female|woman|women)\b/.test(q)) { genderWanted = 'female'; q = q.replace(/\b(female|woman|women)\b/g, ' ') }
+  else if (/\b(male|man|men)\b/.test(q)) { genderWanted = 'male'; q = q.replace(/\b(male|man|men)\b/g, ' ') }
+  return { words: q.split(/\s+/).filter(Boolean), wantsNearMe, genderWanted }
+}
+function sortCompare(sort) {
+  if (sort === 'rating') return (a, b) => byTier(a, b) || (Number(b.rating) || 0) - (Number(a.rating) || 0)
+  if (sort === 'wait') return (a, b) => byTier(a, b) || (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999)
+  if (sort === 'reviews') return (a, b) => byTier(a, b) || (b.reviews || 0) - (a.reviews || 0)
+  if (sort === 'distance') return (a, b) => byTier(a, b) || safeDist(a) - safeDist(b)
+  return (a, b) => byTier(a, b) || (a.name || '').localeCompare(b.name || '')
+}
 
 // A lot of imported services[] entries are actually one comma-joined blob ("General Diagnostic
 // X-Ray, General & Obstetrical Ultrasound, Bone Mineral Density (BMD)") stored as a single array
@@ -264,6 +326,13 @@ export default function SearchPage() {
   const [md, setMd] = useState("")
   const [sort, setSort] = useState("name")
   const { loc, requestGeo, setPostal, clear: clearLoc } = useLocation()
+  const parsedQuery = useMemo(() => parseSearchQuery(search), [search])
+  // "near me" in the search box asks for location + distance sort, same as clicking "Use my location".
+  useEffect(() => {
+    if (!parsedQuery.wantsNearMe) return
+    if (!loc) requestGeo()
+    setSort('distance')
+  }, [parsedQuery.wantsNearMe, loc, requestGeo])
   const [postalInput, setPostalInput] = useState('')
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 20
@@ -467,14 +536,10 @@ export default function SearchPage() {
     if (mw) r = r.filter(p => p.wait_weeks !== null && p.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(p => p.rating && Number(p.rating) >= parseFloat(mr))
     if (md) r = r.filter(p => distKm(CENTER.lat,CENTER.lng,p.lat,p.lng) <= parseFloat(md))
-    if (search.trim()) { const words = search.toLowerCase().split(/\s+/).filter(Boolean); r = r.filter(p => { const hay = [p.name, p.type, p.address||"", ...(p.services||[]), ...(p.doctors||[])].join(" ").toLowerCase(); return words.every(w => hay.includes(w)) }) }
-    if (sort==="name") r=[...r].sort((a,b)=>byTier(a,b) || a.name.localeCompare(b.name))
-    if (sort==="rating") r=[...r].sort((a,b)=>byTier(a,b) || (Number(b.rating)||0)-(Number(a.rating)||0))
-    if (sort==="wait") r=[...r].sort((a,b)=>byTier(a,b) || (a.wait_weeks??999)-(b.wait_weeks??999))
-    if (sort==="reviews") r=[...r].sort((a,b)=>byTier(a,b) || (b.reviews||0)-(a.reviews||0))
-    if (sort==="distance") r=[...r].sort((a,b)=>byTier(a,b) || distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng))
+    if (parsedQuery.words.length) { r = r.filter(p => { const hay = [p.name, p.type, p.address||"", ...(p.services||[]), ...(p.doctors||[])].join(" ").toLowerCase(); return matchesQuery(hay, parsedQuery.words) }) }
+    r = [...r].sort(sortCompare(sort))
     return r
-  }, [search,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,favDocs,savedIds,user,providers,provSpecialty])
+  }, [parsedQuery,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,favDocs,savedIds,user,providers,provSpecialty])
 
   // ---- Doctors as first-class results ----
   const specCatMap = useMemo(() => {
@@ -490,7 +555,7 @@ export default function SearchPage() {
     return {
       id: doc.id, name: doc.name, specialty: codeToName[doc.specialty_code] || doc.specialty, specialty_code: doc.specialty_code,
       accepting_referrals: doc.accepting_referrals, accepting_new_patients: doc.accepting_new_patients,
-      wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, reviews: doc.reviews, verified: doc.verified, featured: doc.featured,
+      wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, reviews: doc.reviews, verified: doc.verified, featured: doc.featured, gender: doc.gender,
       category: doc.category || specCatMap[doc.specialty_code] || (/famil/i.test(doc.specialty || '') ? 'Family Medicine' : 'Specialist'),
       clinicName: c?.name || null, lat: c?.lat, lng: c?.lng, hours: doc.hours || c?.hours, services: c?.services || [],
       address: doc.address || c?.address || null, phone: doc.phone || c?.phone || null, fax: doc.fax || c?.fax || null,
@@ -511,16 +576,11 @@ export default function SearchPage() {
     if (mw) r = r.filter(d => d.wait_weeks !== null && d.wait_weeks !== undefined && d.wait_weeks <= parseInt(mw))
     if (mr) r = r.filter(d => d.rating && Number(d.rating) >= parseFloat(mr))
     if (md) r = r.filter(d => d.lat && d.lng && distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) <= parseFloat(md))
-    if (search.trim()) { const words = search.toLowerCase().split(/\s+/).filter(Boolean); r = r.filter(d => { const hay = [d.name||"", d.specialty||"", d.clinicName||""].join(" ").toLowerCase(); return words.every(w => hay.includes(w)) }) }
-    const far = (d) => (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) : 99999
-    if (sort === "name") r = [...r].sort((a,b) => byTier(a,b) || a.name.localeCompare(b.name))
-    else if (sort === "wait") r = [...r].sort((a,b) => byTier(a,b) || (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999))
-    else if (sort === "distance") r = [...r].sort((a,b) => byTier(a,b) || far(a) - far(b))
-    else if (sort === "rating") r = [...r].sort((a,b) => byTier(a,b) || (Number(b.rating)||0) - (Number(a.rating)||0))
-    else if (sort === "reviews") r = [...r].sort((a,b) => byTier(a,b) || (b.reviews||0) - (a.reviews||0))
-    else r = [...r].sort((a,b) => byTier(a,b))
+    if (parsedQuery.genderWanted) r = r.filter(d => d.gender === parsedQuery.genderWanted)
+    if (parsedQuery.words.length) { r = r.filter(d => { const hay = [d.name||"", d.specialty||"", d.clinicName||""].join(" ").toLowerCase(); return matchesQuery(hay, parsedQuery.words) }) }
+    r = [...r].sort(sortCompare(sort))
     return r
-  }, [doctorCards,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,search,sort,showFavs,favDocs,favs,savedIds,user])
+  }, [doctorCards,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,parsedQuery,sort,showFavs,favDocs,favs,savedIds,user])
 
   const clearF = () => { setSpec(""); setSvc(""); setLang(""); setAcc(false); setOn(false); setWe(false); setEv(false); setMw(""); setMr(""); setMd("") }
   const sel_s = "px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-lg text-gray-700 outline-none cursor-pointer flex-1 min-w-0 max-w-[180px] focus:border-brand focus:ring-1 focus:ring-brand/20"
@@ -530,7 +590,10 @@ export default function SearchPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
   const start = (page - 1) * PAGE_SIZE
   const endIdx = start + PAGE_SIZE
-  const combined = [...filteredDoctors.map(d => ({ ...d, _t: 'doc' })), ...filtered.map(p => ({ ...p, _t: 'prov' }))]
+  // Each list is already sorted correctly on its own, but concatenating doctors-then-clinics
+  // would silently override that (every doctor lands before every clinic regardless of tier) —
+  // re-sort the merged feed with the same comparator so tier order actually holds across both.
+  const combined = [...filteredDoctors.map(d => ({ ...d, _t: 'doc' })), ...filtered.map(p => ({ ...p, _t: 'prov' }))].sort(sortCompare(sort))
   const pageItems = combined.slice(start, endIdx)
   const pagedDoctors = pageItems.filter(x => x._t === 'doc')
   const pagedProviders = pageItems.filter(x => x._t === 'prov')
