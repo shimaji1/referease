@@ -125,9 +125,13 @@ export default function PricingPage() {
               {tier.highlight && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-brand text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">Most popular</div>
               )}
-              {tier.trial && (
+              {tier.trial ? (
                 <div className={`mb-4 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg text-center ${tier.highlight ? 'bg-white/15 text-amber-200 border border-white/20' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                   60 days free · No credit card
+                </div>
+              ) : (
+                <div className="mb-4 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg text-center bg-gray-50 text-gray-500 border border-gray-200">
+                  Free forever · No credit card
                 </div>
               )}
               <h2 className={`text-2xl font-bold ${tier.highlight ? 'text-white' : 'text-gray-900'}`}>{tier.name}</h2>
