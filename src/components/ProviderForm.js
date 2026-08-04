@@ -73,6 +73,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
   const [servicesText, setServicesText] = useState(joinList(initial?.services))
   const [doctorsText, setDoctorsText] = useState(joinList(initial?.doctors))
   const [languagesText, setLanguagesText] = useState(joinList(initial?.languages || ['English']))
+  const [referralTypesText, setReferralTypesText] = useState(joinList(initial?.referral_types))
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
   useEffect(() => {
@@ -117,6 +118,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
       services: parseList(servicesText),
       doctors: validDocs.length > 0 ? validDocs.map(r => r.specialty ? `${r.name}, ${r.specialty}` : r.name) : parseList(doctorsText),
       languages: parseList(languagesText),
+      referral_types: parseList(referralTypesText),
       rating: form.rating ? parseFloat(form.rating) : null,
       reviews: parseInt(form.reviews) || 0,
       wait_weeks: form.wait_weeks !== '' && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null,
@@ -242,7 +244,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
           </div>
           <div>
             <label className={lbl}>Referral Types (comma-separated)</label>
-            <input className={inp} value={(form.referral_types || []).join(', ')} onChange={e => set('referral_types', e.target.value.split(',').map(x => x.trim()).filter(Boolean))} placeholder="Consultation, Procedure, Follow-up" />
+            <input className={inp} value={referralTypesText} onChange={e => setReferralTypesText(e.target.value)} placeholder="Consultation, Procedure, Follow-up" />
           </div>
           <div>
             <label className={lbl}>Notes to referring physicians</label>

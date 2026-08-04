@@ -99,6 +99,7 @@ export default function AdminPage() {
   const [servicesText, setServicesText] = useState("")
   const [doctorsText, setDoctorsText] = useState("")
   const [languagesText, setLanguagesText] = useState("English")
+  const [referralTypesText, setReferralTypesText] = useState("")
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [catFilter, setCatFilter] = useState("")
@@ -363,7 +364,7 @@ export default function AdminPage() {
     // keep the legacy providers.doctors[] string array in sync from the structured rows
     const doctorNames = doctorRows.map(r => { const nm = (r.name || '').trim(); return nm && r.specialty ? `${nm}, ${r.specialty}` : nm }).map(x => (x || '').trim()).filter(Boolean)
     if (form.type && form.type.trim() && !form.specialty_code) { await ensureSpecialty(form.type, form.category) }
-    const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorNames, languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null, clinic_provider_id: linkedClinics[0]?.id || null }
+    const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorNames, languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), referral_types: referralTypesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null, clinic_provider_id: linkedClinics[0]?.id || null }
     delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id
 
     // 1) upsert the listing (provider) and capture its id
@@ -423,7 +424,7 @@ export default function AdminPage() {
     }
 
     setMsg(warn || (editing ? "Updated!" : "Added!"))
-    setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]); setLinkedClinics([]); setTab("list"); load(); loadStats()
+    setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setReferralTypesText(""); setDoctorRows([]); setOrigDocIds([]); setLinkedClinics([]); setTab("list"); load(); loadStats()
   }
 
   const del = async (id) => {
@@ -467,6 +468,7 @@ export default function AdminPage() {
     setServicesText((p.services || []).join(', '))
     setDoctorsText((p.doctors || []).join(', '))
     setLanguagesText((p.languages || ['English']).join(', '))
+    setReferralTypesText((p.referral_types || []).join(', '))
     // load doctors linked to this clinic — primary (clinic_provider_id) plus anyone who has
     // this clinic as a secondary location (doctor_locations), so a doctor split across two
     // clinics shows up when editing either one, not just their primary.
@@ -526,7 +528,7 @@ export default function AdminPage() {
     <div style={{ fontFamily:"Inter, sans-serif", background:"#f8fafc", color:"#111827", minHeight:"100vh", display:"flex" }}>
       <AdminSidebar tab={tab} setTab={(t) => {
         if (t === 'list') { setTab('list'); setEditing(null); setForm(empty()) }
-        else if (t === 'edit') { setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setDoctorRows([]); setOrigDocIds([]); setLinkedClinics([]); setTab('edit') }
+        else if (t === 'edit') { setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setReferralTypesText(""); setDoctorRows([]); setOrigDocIds([]); setLinkedClinics([]); setTab('edit') }
         else if (t === 'dupes') { setTab('dupes'); if (dupGroups.length === 0) scanDupes() }
         else if (t === 'site') { setTab('site'); if (!siteP) loadSite() }
         else if (t === 'invites') { setTab('invites') }
@@ -716,7 +718,7 @@ export default function AdminPage() {
             <label style={lbl}>Requirements</label>
             <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={form.requirements || ""} onChange={e => setForm({...form, requirements:e.target.value})} placeholder="Requisition, imaging, etc." />
             <label style={lbl}>Referral Types (comma-separated)</label>
-            <input style={s} value={(form.referral_types || []).join(', ')} onChange={e => setForm({...form, referral_types: e.target.value.split(',').map(x=>x.trim()).filter(Boolean)})} placeholder="Consultation, Procedure, Follow-up" />
+            <input style={s} value={referralTypesText} onChange={e => setReferralTypesText(e.target.value)} placeholder="Consultation, Procedure, Follow-up" />
             <label style={lbl}>Services (comma-separated)</label>
             <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={servicesText} onChange={e => setServicesText(e.target.value)} placeholder="ECG, Stress Test, Holter Monitor" />
             <label style={lbl}>Notes</label>
