@@ -89,7 +89,7 @@ const CAPABILITIES = {
     'search_priority':     100,
     'form_uploads':        999,      // effectively unlimited
     'max_locations':       999,
-    'max_staff':           999,
+    'max_staff':           10,
     'analytics_basic':     true,
     'analytics_full':      true,
     'monthly_report':      true,

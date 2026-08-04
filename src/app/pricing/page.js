@@ -58,12 +58,11 @@ const TIERS = [
       'Priority in "near me" results',
       'Featured badge',
       'Full analytics dashboard',
-      'Monthly performance email',
-      'Follower announcements',
+      'Monthly email to update wait time & accepting status',
+      'Access to announcements section',
       'Unlimited referral forms',
       'Unlimited locations',
-      'Unlimited staff accounts',
-      'Onboarding call',
+      '10 staff accounts',
       'Same-day support',
       'Editorial blog spotlight',
     ],
@@ -159,9 +158,9 @@ export default function PricingPage() {
               ) : (
                 <Link href={user ? '/dashboard/provider/new' : '/signup'} className="w-full py-3 rounded-xl text-sm font-bold transition bg-white text-brand border border-brand hover:bg-brand/5 text-center block">{tier.cta}</Link>
               )}
-              {tier.trial && (
-                <p className={`text-[11px] mt-3 text-center ${tier.highlight ? 'text-white/60' : 'text-gray-400'}`}>Downgrades to free if not kept, data always preserved</p>
-              )}
+              <p className={`text-[11px] mt-3 text-center ${tier.highlight ? 'text-white/60' : 'text-gray-400'}`}>
+                {tier.trial ? 'Downgrades to free if not kept, data always preserved' : 'Upgrade anytime as you grow'}
+              </p>
             </div>
           ))}
         </div>
