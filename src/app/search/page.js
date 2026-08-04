@@ -185,6 +185,13 @@ function Detail({ p, onBack, isFav, onFav }) {
     })
     return () => { alive = false }
   }, [p?.id, p?.clinic_provider_id])
+
+  // Basic view count (Verified+ plans see this in their dashboard). Fire-and-forget,
+  // one increment per listing view — failures are silent, never block the page.
+  useEffect(() => {
+    if (!supabase || !p?.id) return
+    supabase.rpc('increment_view_count', { pid: p.id }).then(() => {})
+  }, [p?.id])
   return (
     <div className="animate-fade-in">
       <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back to results</button>
@@ -194,6 +201,7 @@ function Detail({ p, onBack, isFav, onFav }) {
         specialty={p.type}
         subSpecialty={p.sub_specialty}
         verified={p.verified}
+        verifiedAt={p.verified_at}
         action={<button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
         tiles={[
           { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },

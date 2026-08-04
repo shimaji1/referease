@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { fetchLists, fetchListItems, createList, removeFromList, deleteList } from '@/lib/favourites'
+import { can } from '@/lib/plan'
 
 function ListsSection({ user }) {
   const [lists, setLists] = useState([])
@@ -225,6 +226,9 @@ function ProviderDashboard({ profile, user }) {
                 {p.rating && <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">★ {Number(p.rating).toFixed(1)}</span>}
                 <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${p.data_status === 'complete' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-amber-700 bg-amber-50 border-amber-200'}`}>{p.data_status === 'complete' ? 'Listed publicly' : 'Not listed — incomplete'}</span>
                 <span className="text-[10px] text-gray-400 px-2.5 py-1">{(p.services || []).length} services · {(p.doctors || []).length} doctors</span>
+                {can(p, 'analytics_basic')
+                  ? <span className="text-[10px] font-semibold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-200">👁 {p.view_count || 0} view{p.view_count === 1 ? '' : 's'}</span>
+                  : <Link href="/pricing" className="text-[10px] font-semibold text-brand bg-brand/5 px-2.5 py-1 rounded-full border border-brand/10 hover:bg-brand/10 transition">Upgrade to see views →</Link>}
               </div>
             </div>
           ))}

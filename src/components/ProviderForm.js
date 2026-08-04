@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { limit as planLimit } from '@/lib/plan'
 
 const CATS = [
   { key: 'Family Medicine', label: 'Family Medicine' },
@@ -53,7 +54,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
   }
   // Link this listing itself to other clinics/locations (works for any category — a doctor, a lab,
   // an imaging centre, anyone can be based at, or additionally listed under, another provider).
-  const MAX_LINKED_CLINICS = 4
+  const MAX_LINKED_CLINICS = planLimit(initial, 'max_locations') || 1
   const [linkedClinics, setLinkedClinics] = useState(initial?._locations || [])
   const [clinicLinkQuery, setClinicLinkQuery] = useState('')
   const [clinicLinkResults, setClinicLinkResults] = useState([])
@@ -320,7 +321,10 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
 
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Link to a Clinic</h3>
-        <p className="text-xs text-gray-500 mb-3">Anyone — a doctor, a lab, an imaging centre — can be based at, or additionally listed under, another clinic. Search to link, up to {MAX_LINKED_CLINICS} locations. Not linked to anyone? Just use the address above.</p>
+        <p className="text-xs text-gray-500 mb-3">Anyone — a doctor, a lab, an imaging centre — can be based at, or additionally listed under, another clinic. Search to link, up to {MAX_LINKED_CLINICS} location{MAX_LINKED_CLINICS === 1 ? '' : 's'}. Not linked to anyone? Just use the address above.</p>
+        {linkedClinics.length >= MAX_LINKED_CLINICS && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">Your plan allows {MAX_LINKED_CLINICS} location{MAX_LINKED_CLINICS === 1 ? '' : 's'}. <Link href="/pricing" className="font-semibold underline">Upgrade for more →</Link></p>
+        )}
         <div className="relative mb-3">
           <input className={inp} value={clinicLinkQuery} onChange={e => searchLinkableClinics(e.target.value)} placeholder={linkedClinics.length >= MAX_LINKED_CLINICS ? `Location limit reached (${MAX_LINKED_CLINICS})` : "🔎 Search clinics/providers to link…"} disabled={linkedClinics.length >= MAX_LINKED_CLINICS} />
           {clinicLinkResults.length > 0 && (

@@ -46,7 +46,7 @@ function HoursRows({ hours }) {
 }
 
 export default function ProfileView({
-  name, subtitle, verified, action, tiles = [], headerFooter = null,
+  name, subtitle, verified, verifiedAt, action, tiles = [], headerFooter = null,
   banner = null,                    // e.g. claim banner — renders under the header
   languages = null,                 // top-level languages fallback (used for the Location card)
   specialty = null,                 // main specialty label
@@ -70,7 +70,7 @@ export default function ProfileView({
 
   return (
     <div className="animate-fade-in">
-      <ProfileHeader name={name} subtitle={subtitle} verified={verified} action={action} tiles={tiles} footer={headerFooter} />
+      <ProfileHeader name={name} subtitle={subtitle} verified={verified} verifiedAt={verifiedAt} action={action} tiles={tiles} footer={headerFooter} />
 
       {banner}
 

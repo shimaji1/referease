@@ -42,6 +42,7 @@ function PlanDropdown({ provider, onChange }) {
       if (provider.verified_granted_by_admin) {
         payload.verified = false
         payload.verified_granted_by_admin = false
+        payload.verified_at = null
       }
     } else if (nextPlan === 'featured') {
       payload.plan_granted_by_admin = true
@@ -51,7 +52,7 @@ function PlanDropdown({ provider, onChange }) {
       payload.featured = true
       // Admin promotion always vouches for verified status. Idempotent.
       payload.verified = true
-      if (!provider.verified) payload.verified_granted_by_admin = true
+      if (!provider.verified) { payload.verified_granted_by_admin = true; payload.verified_at = new Date().toISOString() }
     } else {
       // Verified plan
       payload.plan_granted_by_admin = true
@@ -61,7 +62,7 @@ function PlanDropdown({ provider, onChange }) {
       payload.featured = false
       // Admin promotion always vouches for verified status. Idempotent.
       payload.verified = true
-      if (!provider.verified) payload.verified_granted_by_admin = true
+      if (!provider.verified) { payload.verified_granted_by_admin = true; payload.verified_at = new Date().toISOString() }
     }
     const { error } = await supabase.from('providers').update(payload).eq('id', provider.id)
     if (error) {
