@@ -20,10 +20,23 @@ export default function EditProviderPage({ params }) {
     if (!supabase || !id) return
     supabase.from('providers').select('*').eq('id', id).single().then(async ({ data }) => {
       if (data) {
+        // Doctors linked to this clinic — primary (clinic_provider_id) plus anyone who has this
+        // clinic as a secondary location (doctor_locations), so a doctor split across two
+        // clinics shows up when editing either one, not just their primary.
         let docRows = []
         try {
-          const { data: docs } = await supabase.from('providers').select('id, name, type, specialty_code, accepting_referrals').eq('clinic_provider_id', id).in('category', ['Specialist', 'Family Medicine'])
-          docRows = (docs || []).map(d => ({ id: d.id, name: d.name || '', specialty: d.type || '', specialty_code: d.specialty_code || '', accepting_referrals: d.accepting_referrals !== false }))
+          const [{ data: primaryDocs }, { data: secondaryLinks }] = await Promise.all([
+            supabase.from('providers').select('id, name, type, specialty_code, accepting_referrals').eq('clinic_provider_id', id).in('category', ['Specialist', 'Family Medicine']),
+            supabase.from('doctor_locations').select('doctor_provider_id').eq('clinic_provider_id', id),
+          ])
+          const primary = primaryDocs || []
+          const secondaryIds = (secondaryLinks || []).map(l => l.doctor_provider_id).filter(did => !primary.some(d => d.id === did))
+          let secondary = []
+          if (secondaryIds.length) {
+            const { data: docs } = await supabase.from('providers').select('id, name, type, specialty_code, accepting_referrals').in('id', secondaryIds)
+            secondary = docs || []
+          }
+          docRows = [...primary, ...secondary].map(d => ({ id: d.id, name: d.name || '', specialty: d.type || '', specialty_code: d.specialty_code || '', accepting_referrals: d.accepting_referrals !== false }))
         } catch {}
         // This listing's own linked clinics: primary via clinic_provider_id, up to 3 more via doctor_locations
         let locationRows = []

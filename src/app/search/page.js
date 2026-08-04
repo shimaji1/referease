@@ -151,8 +151,22 @@ function Detail({ p, onBack, isFav, onFav }) {
   useEffect(() => {
     let alive = true
     if (!supabase || !p?.id) return () => { alive = false }
-    supabase.from('providers').select('id, name, type, category').eq('clinic_provider_id', p.id).then(({ data }) => {
-      if (alive) setDocs((data || []).map(d => ({ id: d.id, name: d.name, specialty: d.type || d.category })))
+    // Physicians at this clinic: primary link (clinic_provider_id) plus anyone who has this
+    // clinic as a secondary location (doctor_locations) — a doctor split across two clinics
+    // must show up on BOTH clinics' pages, not just their primary one.
+    Promise.all([
+      supabase.from('providers').select('id, name, type, category').eq('clinic_provider_id', p.id),
+      supabase.from('doctor_locations').select('doctor_provider_id').eq('clinic_provider_id', p.id),
+    ]).then(async ([primaryRes, secondaryRes]) => {
+      if (!alive) return
+      const primary = primaryRes.data || []
+      const secondaryIds = (secondaryRes.data || []).map(l => l.doctor_provider_id).filter(id => !primary.some(d => d.id === id))
+      let secondary = []
+      if (secondaryIds.length) {
+        const { data } = await supabase.from('providers').select('id, name, type, category').in('id', secondaryIds)
+        secondary = data || []
+      }
+      if (alive) setDocs([...primary, ...secondary].map(d => ({ id: d.id, name: d.name, specialty: d.type || d.category })))
     })
     supabase.from('listing_forms').select('*').eq('provider_id', p.id).then(({ data }) => {
       if (alive) setPforms(data || [])

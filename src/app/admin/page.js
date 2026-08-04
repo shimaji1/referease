@@ -466,11 +466,23 @@ export default function AdminPage() {
     setServicesText((p.services || []).join(', '))
     setDoctorsText((p.doctors || []).join(', '))
     setLanguagesText((p.languages || ['English']).join(', '))
-    // load doctors whose primary clinic is this one (doctor-first model)
+    // load doctors linked to this clinic — primary (clinic_provider_id) plus anyone who has
+    // this clinic as a secondary location (doctor_locations), so a doctor split across two
+    // clinics shows up when editing either one, not just their primary.
     let rows = []
     try {
-      const { data: docs } = await supabase.from('providers').select('id, name, type, specialty_code, gender, accepting_referrals').eq('clinic_provider_id', p.id).in('category', ['Specialist', 'Family Medicine'])
-      rows = (docs || []).map(d => ({ id: d.id, name: d.name || '', specialty: d.type || '', specialty_code: d.specialty_code || '', gender: d.gender || '', accepting_referrals: d.accepting_referrals }))
+      const [{ data: primaryDocs }, { data: secondaryLinks }] = await Promise.all([
+        supabase.from('providers').select('id, name, type, specialty_code, gender, accepting_referrals').eq('clinic_provider_id', p.id).in('category', ['Specialist', 'Family Medicine']),
+        supabase.from('doctor_locations').select('doctor_provider_id').eq('clinic_provider_id', p.id),
+      ])
+      const primary = primaryDocs || []
+      const secondaryIds = (secondaryLinks || []).map(l => l.doctor_provider_id).filter(id => !primary.some(d => d.id === id))
+      let secondary = []
+      if (secondaryIds.length) {
+        const { data } = await supabase.from('providers').select('id, name, type, specialty_code, gender, accepting_referrals').in('id', secondaryIds)
+        secondary = data || []
+      }
+      rows = [...primary, ...secondary].map(d => ({ id: d.id, name: d.name || '', specialty: d.type || '', specialty_code: d.specialty_code || '', gender: d.gender || '', accepting_referrals: d.accepting_referrals }))
     } catch {}
     // fallback: if no linked doctors yet but legacy string names exist, seed rows so admin can convert them (saving creates real doctor profiles)
     if (rows.length === 0 && (p.doctors || []).length > 0) {
