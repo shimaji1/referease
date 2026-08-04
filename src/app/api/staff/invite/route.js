@@ -64,9 +64,8 @@ export async function POST(request) {
           html: `
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;padding:0;background:#ffffff">
   <div style="background:#1e3a5f;padding:22px 32px">
-    <a href="${BASE}" style="text-decoration:none;display:inline-flex;align-items:center;gap:10px;color:#ffffff">
-      <img src="${BASE}/img/icon.png" alt="R" width="32" height="32" style="border-radius:8px;display:block" />
-      <span style="font-weight:700;font-size:20px">Refer<span style="color:#93c5fd">Easy</span></span>
+    <a href="${BASE}" style="text-decoration:none;display:inline-block">
+      <img src="${BASE}/img/logo.png" alt="ReferEasy" height="32" style="display:block" />
     </a>
   </div>
   <div style="padding:32px">
