@@ -52,7 +52,9 @@ function PlanDropdown({ provider, onChange }) {
       payload.featured = true
       // Admin promotion always vouches for verified status. Idempotent.
       payload.verified = true
-      if (!provider.verified) { payload.verified_granted_by_admin = true; payload.verified_at = new Date().toISOString() }
+      if (!provider.verified) payload.verified_granted_by_admin = true
+      // Backfills the date for older rows that were verified before this field existed.
+      if (!provider.verified_at) payload.verified_at = new Date().toISOString()
     } else {
       // Verified plan
       payload.plan_granted_by_admin = true
@@ -62,7 +64,9 @@ function PlanDropdown({ provider, onChange }) {
       payload.featured = false
       // Admin promotion always vouches for verified status. Idempotent.
       payload.verified = true
-      if (!provider.verified) { payload.verified_granted_by_admin = true; payload.verified_at = new Date().toISOString() }
+      if (!provider.verified) payload.verified_granted_by_admin = true
+      // Backfills the date for older rows that were verified before this field existed.
+      if (!provider.verified_at) payload.verified_at = new Date().toISOString()
     }
     const { error } = await supabase.from('providers').update(payload).eq('id', provider.id)
     if (error) {

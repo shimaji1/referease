@@ -23,6 +23,12 @@ function isOpenWeekends(h) { if (!h) return false; return !!(h.sat || h.sun) }
 function isOpenEvenings(h) { if (!h) return false; return Object.values(h).some(s => { if (!s) return false; return s.split("-")[1] > "18:00" }) }
 function distKm(a,b,c,d) { const R=6371,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)) }
 const CENTER = { lat: 43.810, lng: -79.430 }
+// Plan-tier ranking boost (matches the pricing page: Featured = top priority, Verified =
+// mid priority, Listed = no boost). Applied as the primary sort key ahead of whatever
+// secondary sort the user picked, so Verified/Featured always float above equal-tier Listed
+// results without overriding e.g. distance ordering within the same tier.
+function tierWeight(p) { return p.featured ? 2 : p.verified ? 1 : 0 }
+function byTier(a, b) { return tierWeight(b) - tierWeight(a) }
 
 // A lot of imported services[] entries are actually one comma-joined blob ("General Diagnostic
 // X-Ray, General & Obstetrical Ultrasound, Bone Mineral Density (BMD)") stored as a single array
@@ -462,11 +468,11 @@ export default function SearchPage() {
     if (mr) r = r.filter(p => p.rating && Number(p.rating) >= parseFloat(mr))
     if (md) r = r.filter(p => distKm(CENTER.lat,CENTER.lng,p.lat,p.lng) <= parseFloat(md))
     if (search.trim()) { const words = search.toLowerCase().split(/\s+/).filter(Boolean); r = r.filter(p => { const hay = [p.name, p.type, p.address||"", ...(p.services||[]), ...(p.doctors||[])].join(" ").toLowerCase(); return words.every(w => hay.includes(w)) }) }
-    if (sort==="name") r=[...r].sort((a,b)=>a.name.localeCompare(b.name))
-    if (sort==="rating") r=[...r].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))
-    if (sort==="wait") r=[...r].sort((a,b)=>(a.wait_weeks??999)-(b.wait_weeks??999))
-    if (sort==="reviews") r=[...r].sort((a,b)=>(b.reviews||0)-(a.reviews||0))
-    if (sort==="distance") r=[...r].sort((a,b)=>distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng))
+    if (sort==="name") r=[...r].sort((a,b)=>byTier(a,b) || a.name.localeCompare(b.name))
+    if (sort==="rating") r=[...r].sort((a,b)=>byTier(a,b) || (Number(b.rating)||0)-(Number(a.rating)||0))
+    if (sort==="wait") r=[...r].sort((a,b)=>byTier(a,b) || (a.wait_weeks??999)-(b.wait_weeks??999))
+    if (sort==="reviews") r=[...r].sort((a,b)=>byTier(a,b) || (b.reviews||0)-(a.reviews||0))
+    if (sort==="distance") r=[...r].sort((a,b)=>byTier(a,b) || distKm(CENTER.lat,CENTER.lng,a.lat,a.lng)-distKm(CENTER.lat,CENTER.lng,b.lat,b.lng))
     return r
   }, [search,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,sort,showFavs,favs,favDocs,savedIds,user,providers,provSpecialty])
 
@@ -484,7 +490,7 @@ export default function SearchPage() {
     return {
       id: doc.id, name: doc.name, specialty: codeToName[doc.specialty_code] || doc.specialty, specialty_code: doc.specialty_code,
       accepting_referrals: doc.accepting_referrals, accepting_new_patients: doc.accepting_new_patients,
-      wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, reviews: doc.reviews, verified: doc.verified,
+      wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, reviews: doc.reviews, verified: doc.verified, featured: doc.featured,
       category: doc.category || specCatMap[doc.specialty_code] || (/famil/i.test(doc.specialty || '') ? 'Family Medicine' : 'Specialist'),
       clinicName: c?.name || null, lat: c?.lat, lng: c?.lng, hours: doc.hours || c?.hours, services: c?.services || [],
       address: doc.address || c?.address || null, phone: doc.phone || c?.phone || null, fax: doc.fax || c?.fax || null,
@@ -507,9 +513,12 @@ export default function SearchPage() {
     if (md) r = r.filter(d => d.lat && d.lng && distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) <= parseFloat(md))
     if (search.trim()) { const words = search.toLowerCase().split(/\s+/).filter(Boolean); r = r.filter(d => { const hay = [d.name||"", d.specialty||"", d.clinicName||""].join(" ").toLowerCase(); return words.every(w => hay.includes(w)) }) }
     const far = (d) => (d.lat && d.lng) ? distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) : 99999
-    if (sort === "name") r = [...r].sort((a,b) => a.name.localeCompare(b.name))
-    else if (sort === "wait") r = [...r].sort((a,b) => (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999))
-    else if (sort === "distance") r = [...r].sort((a,b) => far(a) - far(b))
+    if (sort === "name") r = [...r].sort((a,b) => byTier(a,b) || a.name.localeCompare(b.name))
+    else if (sort === "wait") r = [...r].sort((a,b) => byTier(a,b) || (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999))
+    else if (sort === "distance") r = [...r].sort((a,b) => byTier(a,b) || far(a) - far(b))
+    else if (sort === "rating") r = [...r].sort((a,b) => byTier(a,b) || (Number(b.rating)||0) - (Number(a.rating)||0))
+    else if (sort === "reviews") r = [...r].sort((a,b) => byTier(a,b) || (b.reviews||0) - (a.reviews||0))
+    else r = [...r].sort((a,b) => byTier(a,b))
     return r
   }, [doctorCards,cat,spec,svc,lang,acc,on,we,ev,mw,mr,md,search,sort,showFavs,favDocs,favs,savedIds,user])
 
