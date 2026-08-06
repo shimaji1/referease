@@ -24,7 +24,8 @@ export async function POST(request) {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: 'ReferEasy <hello@refereasy.ca>',
+          from: 'ReferEasy <info@refereasy.ca>',
+          reply_to: 'info.refereasy@gmail.com',
           to: [it.email],
           subject,
           html,

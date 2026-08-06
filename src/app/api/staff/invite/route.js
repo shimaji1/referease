@@ -58,7 +58,8 @@ export async function POST(request) {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: 'ReferEasy <hello@refereasy.ca>',
+          from: 'ReferEasy <info@refereasy.ca>',
+          reply_to: 'info.refereasy@gmail.com',
           to: [cleanEmail],
           subject: `You've been invited to join ${provider.name} on ReferEasy`,
           html: `
@@ -78,6 +79,7 @@ export async function POST(request) {
     <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 16px">If you weren't expecting this, you can safely ignore this email — no account will be created.</p>
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0 18px">
     <p style="color:#94a3b8;font-size:11px;line-height:1.6;margin:0">
+      This is an automated message — please don't reply to this email.<br>
       ReferEasy · Ontario's live physician-to-physician referral platform · <a href="${BASE}" style="color:#94a3b8">refereasy.ca</a>
     </p>
   </div>

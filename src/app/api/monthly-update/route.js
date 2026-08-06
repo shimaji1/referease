@@ -59,7 +59,8 @@ async function handle(request) {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: 'ReferEasy <hello@refereasy.ca>',
+          from: 'ReferEasy <info@refereasy.ca>',
+          reply_to: 'info.refereasy@gmail.com',
           to: [provider.email],
           subject: `Quick update: is ${provider.name} still accepting referrals?`,
           html: `
@@ -78,6 +79,7 @@ async function handle(request) {
     <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 16px">This link works for ${TOKEN_VALID_DAYS} days and doesn't require signing in. If nothing's changed, no action needed.</p>
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0 18px">
     <p style="color:#94a3b8;font-size:11px;line-height:1.6;margin:0">
+      This is an automated message — please don't reply to this email.<br>
       ReferEasy · Ontario's live physician-to-physician referral platform · <a href="${BASE}" style="color:#94a3b8">refereasy.ca</a>
     </p>
   </div>

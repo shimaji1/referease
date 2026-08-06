@@ -13,6 +13,7 @@ const wrap = (bodyHtml) => `
     ${bodyHtml}
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0 18px">
     <p style="color:#94a3b8;font-size:11px;line-height:1.6;margin:0">
+      This is an automated message — please don't reply to this email.<br>
       ReferEasy · Ontario's live physician-to-physician referral platform · <a href="${BASE}" style="color:#94a3b8">refereasy.ca</a><br>
       You're receiving this because your practice is listed at refereasy.ca or you were referred by a colleague. If this isn't relevant, no action needed.
     </p>
@@ -121,7 +122,7 @@ const TEMPLATES = {
       "Multi-location support",
     ])}
     ${custom(customMessage)}
-    ${p("Want to keep going? Reply to this email and we'll set up your paid plan directly.")}
+    ${p("Want to keep going? Pick up right where you left off, it only takes a minute.")}
     ${btn('Keep my plan →', `${BASE}/pricing`)}
     ${p(`<span style="color:#64748b;font-size:13px">Your listing stays live either way, only the paid features disappear on downgrade.</span>`)}
   `),
@@ -131,7 +132,7 @@ const TEMPLATES = {
     ${p(`Hi${name ? ' ' + name : ''}, your ${tier === 'featured' ? 'Featured' : 'Verified'} trial ends <strong>${endDate}</strong>. Seven days from now.`)}
     ${p("You've been on the plan for over 50 days. Referring physicians in your area have been seeing your enhanced listing that entire time. Losing those features means dropping back to the standard Listed appearance.")}
     ${custom(customMessage)}
-    ${p("Ready to keep your plan? A quick reply to this email is all it takes, we'll handle the rest.")}
+    ${p("Ready to keep your plan? It takes about a minute.")}
     ${btn('Keep my plan →', `${BASE}/pricing`)}
   `),
 
@@ -142,7 +143,7 @@ const TEMPLATES = {
       ? "Once the trial ends, you'll drop out of the featured slots on the homepage, category pages, and near-me results. Your listing stays live, but at standard placement."
       : "Once the trial ends, your ✓ Verified badge, custom referral forms, and How-to-Refer instructions will be hidden. Your listing stays live at standard placement.")}
     ${custom(customMessage)}
-    ${p("If you'd like to keep your current plan, reply to this email today, takes 2 minutes to sort out.")}
+    ${p("If you'd like to keep your current plan, it takes about 2 minutes to sort out.")}
     ${btn('Keep my plan →', `${BASE}/pricing`)}
   `),
 
@@ -151,8 +152,8 @@ const TEMPLATES = {
     ${p(`Hi${name ? ' ' + name : ''}, this is the last reminder. Your ${tier === 'featured' ? 'Featured' : 'Verified'} plan expires <strong>tonight at midnight ET</strong> and downgrades to Listed (free) tomorrow morning.`)}
     ${p("Your listing stays live. Your data is preserved. But your paid features will be hidden until you keep your plan.")}
     ${custom(customMessage)}
-    ${btn('Keep my plan, reply today →', `${BASE}/pricing`)}
-    ${p(`<span style="color:#64748b;font-size:13px">Just hit reply. We'll sort it out today.</span>`)}
+    ${btn('Keep my plan →', `${BASE}/pricing`)}
+    ${p(`<span style="color:#64748b;font-size:13px">Takes about a minute, and your plan continues without interruption.</span>`)}
   `),
 
 }
