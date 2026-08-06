@@ -72,6 +72,12 @@ async function handleReminders(request) {
   let sent = 0
   const errors = []
 
+  // Paused: site isn't ready for providers to receive these yet. Trial downgrades above
+  // still run (that's account state, not an email). Flip PAUSE_EMAILS off once ready.
+  if (process.env.PAUSE_EMAILS !== 'false') {
+    return NextResponse.json({ ok: true, paused: true, downgraded, note: 'Reminder emails are paused (PAUSE_EMAILS)' })
+  }
+
   if (!resendKey && toSend.length > 0) {
     return NextResponse.json({
       downgraded,

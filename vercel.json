@@ -1,12 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/trials/check-reminders",
-      "schedule": "0 11 * * *"
-    },
-    {
-      "path": "/api/monthly-update",
-      "schedule": "0 12 * * *"
-    }
-  ]
+  "crons": []
 }

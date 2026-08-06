@@ -12,6 +12,12 @@ const TOKEN_VALID_DAYS = 14
 // Emails Featured providers whose info hasn't been prompted in 30+ days, with a
 // token link to /update-info — no login required, so it's a 60-second job for them.
 async function handle(request) {
+  // Paused: site isn't ready for providers to receive these yet. Flip PAUSE_EMAILS off
+  // (or delete this block) once we're ready to resume.
+  if (process.env.PAUSE_EMAILS !== 'false') {
+    return NextResponse.json({ ok: true, paused: true, note: 'Monthly update emails are paused (PAUSE_EMAILS)' })
+  }
+
   const url = new URL(request.url)
   const isVercelCron = request.headers.get('x-vercel-cron') === '1'
   const providedSecret = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || url.searchParams.get('secret')
