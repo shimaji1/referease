@@ -47,7 +47,7 @@ const orgLd = {
   logo: `${BASE}/img/logo.png`,
   description: 'Ontario\'s live physician-to-physician referral platform.',
   areaServed: { '@type': 'Place', name: 'Ontario, Canada' },
-  contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email: 'hello@refereasy.ca', areaServed: 'CA', availableLanguage: ['English', 'French'] },
+  contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email: 'info.refereasy@gmail.com', areaServed: 'CA', availableLanguage: ['English', 'French'] },
 }
 
 const websiteLd = {

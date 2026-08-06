@@ -37,7 +37,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li><Link href="/blog" className="text-gray-600 hover:text-brand transition">Blog</Link></li>
               <li><Link href="/#faq" className="text-gray-600 hover:text-brand transition">FAQ</Link></li>
-              <li><a href="mailto:hello@refereasy.ca" className="text-gray-600 hover:text-brand transition">Contact</a></li>
+              <li><a href="mailto:info.refereasy@gmail.com" className="text-gray-600 hover:text-brand transition">Contact</a></li>
             </ul>
           </div>
 
