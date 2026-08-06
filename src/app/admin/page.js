@@ -6,6 +6,7 @@ import AdminSidebar from '@/components/AdminSidebar'
 import { getPlanStatus } from '@/lib/plan'
 import { TEMPLATES as ANNOUNCEMENT_TEMPLATES, DEFAULT_STYLE as ANNOUNCEMENT_DEFAULT_STYLE, mergeStyle as mergeAnnouncementStyle, fetchAllAnnouncements, createAdminAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/lib/announcements'
 import AnnouncementStyleEditor from '@/components/AnnouncementStyleEditor'
+import AnnouncementSlide from '@/components/AnnouncementSlide'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -1044,6 +1045,11 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
 
       <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"16px", marginBottom:"20px" }}>
         <div style={{ fontSize:"13px", fontWeight:700 }}>{form.id ? 'Edit slide' : '+ New admin slide'}</div>
+
+        <label style={lbl}>Live preview</label>
+        <div style={{ position:"relative", height:"220px", borderRadius:"16px", overflow:"hidden", marginTop:"4px", pointerEvents:"none" }}>
+          <AnnouncementSlide item={{ ...form, providers: linkedProvider }} />
+        </div>
 
         <label style={lbl}>Template</label>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"8px", marginTop:"4px" }}>

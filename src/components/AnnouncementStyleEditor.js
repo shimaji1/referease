@@ -1,20 +1,36 @@
 'use client'
-import { FONT_OPTIONS, ALIGN_OPTIONS, IMAGE_SIZE_OPTIONS, FONT_SIZE_MIN, FONT_SIZE_MAX } from '@/lib/announcements'
+import { FONT_OPTIONS, ALIGN_OPTIONS, VALIGN_OPTIONS, IMAGE_SIZE_OPTIONS, FONT_SIZE_MIN, FONT_SIZE_MAX } from '@/lib/announcements'
 
 const box = "border border-gray-200 rounded-lg p-3 space-y-2"
 const title = "text-[11px] font-bold text-gray-700"
 const fieldLabel = "text-[10px] text-gray-400 block mb-1"
 const inp = "w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md outline-none focus:border-brand"
 
-function AlignPicker({ value, onChange }) {
+function PillPicker({ options, value, onChange }) {
   return (
     <div className="flex gap-1">
-      {ALIGN_OPTIONS.map(a => (
+      {options.map(a => (
         <button key={a} type="button" onClick={() => onChange(a)}
           className={`flex-1 py-1.5 rounded-md border text-[11px] font-semibold capitalize transition ${value === a ? 'border-brand bg-brand/5 text-brand' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
           {a}
         </button>
       ))}
+    </div>
+  )
+}
+
+function AlignPicker({ value, onChange }) {
+  return <PillPicker options={ALIGN_OPTIONS} value={value} onChange={onChange} />
+}
+
+function StyleToggles({ value, onChange }) {
+  const toggle = (k) => onChange({ ...value, [k]: !value[k] })
+  const btn = (active) => `w-8 h-8 rounded-md border text-xs font-bold transition ${active ? 'border-brand bg-brand/5 text-brand' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`
+  return (
+    <div className="flex gap-1">
+      <button type="button" onClick={() => toggle('bold')} className={btn(value.bold)} style={{ fontWeight: 700 }}>B</button>
+      <button type="button" onClick={() => toggle('italic')} className={btn(value.italic)} style={{ fontStyle: 'italic' }}>I</button>
+      <button type="button" onClick={() => toggle('underline')} className={btn(value.underline)} style={{ textDecoration: 'underline' }}>U</button>
     </div>
   )
 }
@@ -57,6 +73,10 @@ function TextSection({ label, value, onChange }) {
           <AlignPicker value={value.align} onChange={v => set('align', v)} />
         </div>
       </div>
+      <div>
+        <label className={fieldLabel}>Style</label>
+        <StyleToggles value={value} onChange={onChange} />
+      </div>
     </div>
   )
 }
@@ -68,6 +88,14 @@ export default function AnnouncementStyleEditor({ style, onChange, showImage }) 
 
   return (
     <div className="space-y-3">
+      <div className={box}>
+        <div className={title}>Content position</div>
+        <div>
+          <label className={fieldLabel}>Vertical (up / down)</label>
+          <PillPicker options={VALIGN_OPTIONS} value={style.layout.v} onChange={v => setSection('layout', { ...style.layout, v })} />
+        </div>
+      </div>
+
       <TextSection label="Headline (H1)" value={style.headline} onChange={v => setSection('headline', v)} />
       <TextSection label="Subheading (H2)" value={style.subheadline} onChange={v => setSection('subheadline', v)} />
       <TextSection label="Paragraph" value={style.body} onChange={v => setSection('body', v)} />

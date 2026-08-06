@@ -12,6 +12,7 @@ import { checkPassword } from '@/lib/password'
 import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
 import { fetchMyAnnouncement, submitAnnouncement, TEMPLATES, DEFAULT_STYLE, mergeStyle } from '@/lib/announcements'
 import AnnouncementStyleEditor from '@/components/AnnouncementStyleEditor'
+import AnnouncementSlide from '@/components/AnnouncementSlide'
 
 const inp = "w-full px-4 py-2.5 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
 const card = "bg-white border border-gray-200 rounded-xl p-6"
@@ -320,6 +321,13 @@ function AnnouncementSection({ providers, user }) {
     <div className={card}>
       <h2 className="text-sm font-bold text-gray-900 mb-1">Homepage Announcement</h2>
       <p className="text-xs text-gray-500 mb-4">One rotating spot in the homepage carousel. Submissions go through a quick review before going live.</p>
+
+      <div className="mb-4">
+        <label className={label}>Live preview</label>
+        <div className="relative h-56 rounded-2xl overflow-hidden pointer-events-none">
+          <AnnouncementSlide item={{ ...form, providers: null }} />
+        </div>
+      </div>
 
       {featured.length > 1 && (
         <div className="mb-4">

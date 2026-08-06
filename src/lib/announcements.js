@@ -10,22 +10,30 @@ export const FONT_OPTIONS = [
   { key: 'sans', label: 'Sans', family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" },
   { key: 'serif', label: 'Serif', family: "Georgia, 'Times New Roman', serif" },
   { key: 'mono', label: 'Monospace', family: "'Courier New', Courier, monospace" },
+  { key: 'rounded', label: 'Rounded', family: "ui-rounded, 'SF Pro Rounded', 'Segoe UI', sans-serif" },
+  { key: 'display', label: 'Display', family: "'Arial Black', Impact, sans-serif" },
+  { key: 'elegant', label: 'Elegant', family: "Palatino, 'Palatino Linotype', 'Book Antiqua', serif" },
+  { key: 'condensed', label: 'Condensed', family: "'Arial Narrow', 'Helvetica Neue Condensed', sans-serif" },
 ]
 
 export const ALIGN_OPTIONS = ['left', 'center', 'right']
+export const VALIGN_OPTIONS = ['top', 'middle', 'bottom']
 export const IMAGE_SIZE_OPTIONS = ['sm', 'md', 'lg']
 export const FONT_SIZE_MIN = 7
 export const FONT_SIZE_MAX = 100
 
+const TEXT_SECTION_DEFAULT = { size: 16, color: '', font: 'sans', align: 'left', bold: false, italic: false, underline: false }
+
 // Per-section style, stored as one JSONB blob (`style` column) so new sections don't
 // require a schema migration every time. Content (text/images) stays in its own columns.
 export const DEFAULT_STYLE = {
-  headline: { size: 26, color: '', font: 'sans', align: 'left' },
-  subheadline: { size: 16, color: '', font: 'sans', align: 'left' },
-  body: { size: 14, color: '', font: 'sans', align: 'left' },
+  headline: { ...TEXT_SECTION_DEFAULT, size: 26, bold: true },
+  subheadline: { ...TEXT_SECTION_DEFAULT, size: 16, bold: true },
+  body: { ...TEXT_SECTION_DEFAULT, size: 14 },
   logo: { size: 40, align: 'left' },
   button: { size: 15, bg: '', color: '', align: 'left' },
   image: { size: 'md' },
+  layout: { v: 'middle' },
 }
 
 // Old rows may have style: null, or be missing keys added after they were created —
@@ -39,6 +47,7 @@ export function mergeStyle(raw) {
     logo: { ...DEFAULT_STYLE.logo, ...(s.logo || {}) },
     button: { ...DEFAULT_STYLE.button, ...(s.button || {}) },
     image: { ...DEFAULT_STYLE.image, ...(s.image || {}) },
+    layout: { ...DEFAULT_STYLE.layout, ...(s.layout || {}) },
   }
 }
 
