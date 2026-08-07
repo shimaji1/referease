@@ -13,6 +13,8 @@ import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
 import { fetchMyAnnouncement, submitAnnouncement, TEMPLATES, DEFAULT_STYLE, mergeStyle } from '@/lib/announcements'
 import AnnouncementStyleEditor from '@/components/AnnouncementStyleEditor'
 import AnnouncementSlide from '@/components/AnnouncementSlide'
+import SquareCheckoutModal from '@/components/SquareCheckoutModal'
+import SquareUpdateCardModal from '@/components/SquareUpdateCardModal'
 
 const inp = "w-full px-4 py-2.5 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
 const card = "bg-white border border-gray-200 rounded-xl p-6"
@@ -100,22 +102,158 @@ function PasswordSection({ updatePassword }) {
   )
 }
 
-function BillingSection({ providers, setProviders, profile, user }) {
-  const [starting, setStarting] = useState(null)
+const CARD_BRAND_LABEL = { VISA: 'Visa', MASTERCARD: 'Mastercard', AMERICAN_EXPRESS: 'Amex', DISCOVER: 'Discover', DISCOVER_DINERS: 'Diners', JCB: 'JCB', UNIONPAY: 'UnionPay', INTERAC: 'Interac' }
+const SUB_STATUS_LABEL = { ACTIVE: 'Active', PENDING: 'Pending', CANCELED: 'Canceled', DEACTIVATED: 'Deactivated', PAUSED: 'Paused' }
+const INVOICE_STATUS_STYLE = {
+  PAID: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  UNPAID: 'text-amber-700 bg-amber-50 border-amber-200',
+  FAILED: 'text-red-700 bg-red-50 border-red-200',
+  SCHEDULED: 'text-gray-500 bg-gray-100 border-gray-200',
+}
+
+function BillingCard({ provider, user, onChanged }) {
+  const status = getPlanStatus(provider)
+  const canTrial = status.tier !== 'featured' && status.kind !== 'trial' && status.kind !== 'granted'
+  const [billing, setBilling] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [checkoutPlan, setCheckoutPlan] = useState(null)
+  const [showUpdateCard, setShowUpdateCard] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
 
-  // Same self-serve 60-day trial the pricing page's "Start free trial" button uses — no
-  // manual follow-up needed, it activates immediately.
-  const startTrial = async (provider, plan) => {
-    setStarting(provider.id); setMsg('')
-    const res = await fetch('/api/plan/start-trial', {
+  const load = useCallback(async () => {
+    setLoading(true)
+    const res = await fetch(`/api/billing/status?provider_id=${provider.id}&user_id=${user.id}`).then(r => r.json()).catch(e => ({ error: e.message }))
+    setBilling(res.error ? null : res)
+    setLoading(false)
+  }, [provider.id, user.id])
+
+  useEffect(() => { load() }, [load])
+
+  const cancelSubscription = async () => {
+    setBusy(true)
+    const res = await fetch('/api/billing/cancel', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider_id: provider.id, plan, user_id: user.id, user_email: user.email }),
+      body: JSON.stringify({ provider_id: provider.id, user_id: user.id }),
     }).then(r => r.json()).catch(e => ({ error: e.message }))
-    setStarting(null)
+    setBusy(false)
+    setConfirmCancel(false)
     if (res.error) { setMsg('Error: ' + res.error); return }
-    setMsg(`${plan === 'featured' ? 'Featured' : 'Verified'} activated — free for 60 days!`)
-    setProviders(prev => prev.map(p => p.id === provider.id ? { ...p, plan, trial_ends_at: res.trial_ends_at, plan_granted_by_admin: false } : p))
+    setMsg('Subscription canceled — stays active through the end of the current billing period.')
+    load()
+  }
+
+  return (
+    <div className={card}>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-sm font-bold text-gray-900">{provider.name}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Current plan: <span className="font-semibold text-gray-700">{status.label}</span></p>
+        </div>
+        <div className="flex gap-2">
+          {canTrial && (
+            <button onClick={() => setCheckoutPlan(status.tier === 'listed' ? 'verified' : 'featured')}
+              className="px-4 py-2 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-dark transition">
+              Start free trial: {status.tier === 'listed' ? 'Verified' : 'Featured'}
+            </button>
+          )}
+          <Link href="/pricing" className="px-4 py-2 bg-white text-brand text-xs font-semibold rounded-lg border border-brand/20 hover:bg-brand/5 transition">See plans</Link>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-gray-400 mt-4">Loading billing details…</p>
+      ) : billing?.hasSubscription ? (
+        <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div>
+              <div className={label}>Subscription</div>
+              <div className="text-sm font-semibold text-gray-800">{SUB_STATUS_LABEL[billing.status] || billing.status}</div>
+            </div>
+            <div>
+              <div className={label}>Next charge</div>
+              <div className="text-sm font-semibold text-gray-800">
+                {billing.nextChargeDate
+                  ? new Date(billing.nextChargeDate + 'T00:00:00').toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+                  : provider.trial_ends_at
+                    ? new Date(provider.trial_ends_at).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+                    : '—'}
+              </div>
+              {!billing.nextChargeDate && provider.trial_ends_at && <div className="text-[11px] text-gray-400">Estimated — trial end date</div>}
+            </div>
+            <div>
+              <div className={label}>Card on file</div>
+              <div className="text-sm font-semibold text-gray-800">
+                {billing.card ? `${CARD_BRAND_LABEL[billing.card.brand] || billing.card.brand} •••• ${billing.card.last4}` : 'None'}
+              </div>
+              {billing.card && <div className="text-[11px] text-gray-400">Expires {String(billing.card.expMonth).padStart(2, '0')}/{billing.card.expYear}</div>}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={() => setShowUpdateCard(true)} className="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Update card</button>
+            {billing.status === 'ACTIVE' && (
+              <button onClick={() => setConfirmCancel(true)} className="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition">Cancel subscription</button>
+            )}
+          </div>
+
+          <div>
+            <div className={label + ' mb-1.5'}>Invoices</div>
+            {billing.invoices.length === 0 ? (
+              <p className="text-xs text-gray-400">No invoices yet — your first one is generated when the trial ends.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {billing.invoices.map(inv => (
+                  <div key={inv.id} className="flex items-center justify-between text-xs bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                    <span className="text-gray-600">{new Date(inv.createdAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                    <span className="font-semibold text-gray-800">{inv.amount != null ? `$${inv.amount.toFixed(2)} ${inv.currency}` : '—'}</span>
+                    <span className={`px-2 py-0.5 rounded-full border font-semibold ${INVOICE_STATUS_STYLE[inv.status] || 'text-gray-500 bg-gray-100 border-gray-200'}`}>{inv.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {msg && <p className={`text-sm mt-3 ${msg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{msg}</p>}
+
+      <SquareCheckoutModal
+        open={!!checkoutPlan}
+        plan={checkoutPlan}
+        providerId={provider.id}
+        userId={user.id}
+        defaultEmail={user.email}
+        onClose={() => setCheckoutPlan(null)}
+        onSuccess={() => { setCheckoutPlan(null); onChanged(); load() }}
+      />
+      <SquareUpdateCardModal
+        open={showUpdateCard}
+        providerId={provider.id}
+        userId={user.id}
+        onClose={() => setShowUpdateCard(false)}
+        onSuccess={() => { setShowUpdateCard(false); setMsg('Card updated.'); load() }}
+      />
+      <ConfirmModal
+        open={confirmCancel}
+        title="Cancel this subscription?"
+        message="You'll keep your current plan features through the end of this billing period, then it drops to Listed (free). Your data is always preserved."
+        confirmLabel="Cancel subscription"
+        danger
+        busy={busy}
+        onConfirm={cancelSubscription}
+        onCancel={() => setConfirmCancel(false)}
+      />
+    </div>
+  )
+}
+
+function BillingSection({ providers, setProviders, profile, user }) {
+  const refreshProvider = async (providerId) => {
+    if (!supabase) return
+    const { data } = await supabase.from('providers').select('*').eq('id', providerId).single()
+    if (data) setProviders(prev => prev.map(x => x.id === providerId ? data : x))
   }
 
   if (!providers.length) return (
@@ -124,31 +262,9 @@ function BillingSection({ providers, setProviders, profile, user }) {
 
   return (
     <div className="space-y-4">
-      {providers.map(p => {
-        const status = getPlanStatus(p)
-        const canTrial = status.tier !== 'featured' && status.kind !== 'trial' && status.kind !== 'granted'
-        return (
-          <div key={p.id} className={card}>
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h2 className="text-sm font-bold text-gray-900">{p.name}</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Current plan: <span className="font-semibold text-gray-700">{status.label}</span></p>
-              </div>
-              <div className="flex gap-2">
-                {canTrial && (
-                  <button onClick={() => startTrial(p, status.tier === 'listed' ? 'verified' : 'featured')} disabled={starting === p.id}
-                    className="px-4 py-2 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-dark transition disabled:opacity-50">
-                    {starting === p.id ? 'Activating…' : `Start free trial: ${status.tier === 'listed' ? 'Verified' : 'Featured'}`}
-                  </button>
-                )}
-                <Link href="/pricing" className="px-4 py-2 bg-white text-brand text-xs font-semibold rounded-lg border border-brand/20 hover:bg-brand/5 transition">See plans</Link>
-              </div>
-            </div>
-          </div>
-        )
-      })}
-      {msg && <p className={`text-sm ${msg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{msg}</p>}
-      <p className="text-xs text-gray-400">We don't take payment automatically yet — upgrade requests go to our team and we'll follow up to get you set up.</p>
+      {providers.map(p => (
+        <BillingCard key={p.id} provider={p} user={user} onChanged={() => refreshProvider(p.id)} />
+      ))}
     </div>
   )
 }
