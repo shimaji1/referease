@@ -7,6 +7,10 @@ import { getPlanStatus } from '@/lib/plan'
 import { TEMPLATES as ANNOUNCEMENT_TEMPLATES, DEFAULT_STYLE as ANNOUNCEMENT_DEFAULT_STYLE, mergeStyle as mergeAnnouncementStyle, fetchAllAnnouncements, createAdminAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/lib/announcements'
 import AnnouncementStyleEditor from '@/components/AnnouncementStyleEditor'
 import AnnouncementSlide from '@/components/AnnouncementSlide'
+import RichTextEditor from '@/components/RichTextEditor'
+import { slugify, fetchAllPosts, createPost, updatePost, deletePost } from '@/lib/posts'
+import TrendChart from '@/components/TrendChart'
+import { fetchTrafficOverview, fetchTopPages, fetchTrafficSources, fetchDeviceBreakdown, fetchSearchInsights, fetchConversionFunnel, fetchProviderEngagementRollup } from '@/lib/siteAnalytics'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -937,6 +941,8 @@ export default function AdminPage() {
         )}
 
         {tab === "announcements" && <AnnouncementsTab setMsg={setMsg} onCountChange={setPendingAnnouncementCount} />}
+        {tab === "blog" && <BlogTab setMsg={setMsg} />}
+        {tab === "analytics" && <AnalyticsTab setMsg={setMsg} />}
       </div>
       </div>
     </div>
@@ -1165,6 +1171,359 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
           ))}
         </div>
       )}
+    </>
+  )
+}
+
+// ─── Blog Posts tab ───
+const emptyPost = () => ({
+  id: null, title: '', slug: '', excerpt: '', author: '', cover_image: '', cover_image_path: '',
+  tags: '', body: '', meta_title: '', meta_description: '', og_image: '', og_image_path: '', published: false, published_at: null,
+})
+
+function BlogTab({ setMsg }) {
+  const s = { width:"100%", padding:"8px 10px", fontSize:"13px", background:"#ffffff", border:"1px solid #d1d5db", borderRadius:"6px", color:"#111827", outline:"none", marginTop:"4px" }
+  const lbl = { fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", display:"block", marginTop:"12px" }
+  const box = { border:"1px solid #e2e8f0", borderRadius:"8px", padding:"14px 16px", marginTop:"16px" }
+
+  const [rows, setRows] = useState([])
+  const [form, setForm] = useState(emptyPost())
+  const [uploadingCover, setUploadingCover] = useState(false)
+  const [uploadingOg, setUploadingOg] = useState(false)
+  const [slugTouched, setSlugTouched] = useState(false)
+
+  const load = useCallback(async () => { setRows(await fetchAllPosts()) }, [])
+  useEffect(() => { load() }, [load])
+
+  const setTitle = (title) => setForm(f => ({ ...f, title, slug: slugTouched ? f.slug : slugify(title) }))
+
+  const uploadImage = async (file, kind) => {
+    if (!file || !supabase) return
+    const setUp = kind === 'cover' ? setUploadingCover : setUploadingOg
+    setUp(true)
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `blog/${kind}-${Date.now()}-${safe}`
+    const { error: upErr } = await supabase.storage.from('forms').upload(path, file)
+    if (upErr) { setMsg('Error: ' + upErr.message); setUp(false); return }
+    const { data: pub } = supabase.storage.from('forms').getPublicUrl(path)
+    if (kind === 'cover') setForm(f => ({ ...f, cover_image: pub?.publicUrl || '', cover_image_path: path }))
+    else setForm(f => ({ ...f, og_image: pub?.publicUrl || '', og_image_path: path }))
+    setUp(false)
+  }
+
+  const startEdit = (row) => {
+    setForm({
+      id: row.id, title: row.title || '', slug: row.slug || '', excerpt: row.excerpt || '', author: row.author || '',
+      cover_image: row.cover_image || '', cover_image_path: '', tags: row.tags || '', body: row.body || '',
+      meta_title: row.meta_title || '', meta_description: row.meta_description || '', og_image: row.og_image || '', og_image_path: '',
+      published: !!row.published, published_at: row.published_at || null,
+    })
+    setSlugTouched(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const resetForm = () => { setForm(emptyPost()); setSlugTouched(false) }
+
+  const save = async (publishNow) => {
+    if (!form.title.trim()) { setMsg('Add a title first'); return }
+    if (!form.slug.trim()) { setMsg('Add a slug first'); return }
+    const fields = { ...form, published: publishNow !== undefined ? publishNow : form.published }
+    const res = form.id ? await updatePost(form.id, fields) : await createPost(fields)
+    if (res.error) { setMsg('Error: ' + res.error); return }
+    setMsg(form.id ? 'Post saved' : (fields.published ? 'Post published' : 'Draft created'))
+    resetForm()
+    load()
+  }
+
+  const remove = async (row) => {
+    if (!window.confirm(`Delete "${row.title}"? This can't be undone.`)) return
+    await deletePost(row.id)
+    setMsg('Post deleted')
+    if (form.id === row.id) resetForm()
+    load()
+  }
+
+  return (
+    <>
+      <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"4px" }}>Blog Posts</h2>
+      <p style={{ fontSize:"12px", color:"#64748b", marginBottom:"16px" }}>Full editor with SEO fields — every image requires alt text before it can be inserted.</p>
+
+      <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"16px", marginBottom:"20px" }}>
+        <div style={{ fontSize:"13px", fontWeight:700 }}>{form.id ? 'Edit post' : '+ New post'}</div>
+
+        <label style={lbl}>Title *</label>
+        <input style={s} value={form.title} onChange={e => setTitle(e.target.value)} placeholder="How to cut referral rejection rate to zero" />
+
+        <label style={lbl}>Slug *</label>
+        <input style={s} value={form.slug} onChange={e => { setSlugTouched(true); setForm(f => ({ ...f, slug: slugify(e.target.value) })) }} />
+        <div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"4px" }}>refereasy.ca/blog/{form.slug || '…'}</div>
+
+        <label style={lbl}>Excerpt</label>
+        <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={form.excerpt} onChange={e => setForm(f => ({ ...f, excerpt: e.target.value }))} placeholder="Shown on the blog index and used as the fallback meta description" maxLength={200} />
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
+          <div><label style={lbl}>Author</label><input style={s} value={form.author} onChange={e => setForm(f => ({ ...f, author: e.target.value }))} /></div>
+          <div><label style={lbl}>Tags (comma-separated)</label><input style={s} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="referrals, wait times" /></div>
+        </div>
+
+        <label style={lbl}>Cover image</label>
+        <div style={{ display:"flex", alignItems:"center", gap:"10px", marginTop:"4px" }}>
+          <label style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#e2e8f0", color:"#475569" }}>
+            {uploadingCover ? 'Uploading…' : form.cover_image ? 'Change image' : '📎 Choose image'}
+            <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={e => uploadImage(e.target.files?.[0], 'cover')} style={{ display:"none" }} disabled={uploadingCover} />
+          </label>
+          {form.cover_image && <img src={form.cover_image} alt="" style={{ width:"36px", height:"36px", borderRadius:"6px", objectFit:"cover" }} />}
+        </div>
+
+        <label style={lbl}>Content</label>
+        <div style={{ marginTop:"4px" }}>
+          <RichTextEditor value={form.body} onChange={html => setForm(f => ({ ...f, body: html }))} placeholder="Write your post…" />
+        </div>
+
+        <div style={box}>
+          <div style={{ fontSize:"12px", fontWeight:700, color:"#374151" }}>SEO</div>
+          <label style={lbl}>Meta title <span style={{ color:"#94a3b8", textTransform:"none", fontWeight:400 }}>(falls back to Title)</span></label>
+          <input style={s} value={form.meta_title} onChange={e => setForm(f => ({ ...f, meta_title: e.target.value }))} maxLength={60} />
+          <label style={lbl}>Meta description <span style={{ color:"#94a3b8", textTransform:"none", fontWeight:400 }}>(falls back to Excerpt)</span></label>
+          <textarea style={{ ...s, minHeight:"44px", resize:"vertical" }} value={form.meta_description} onChange={e => setForm(f => ({ ...f, meta_description: e.target.value }))} maxLength={160} />
+          <label style={lbl}>Social share image <span style={{ color:"#94a3b8", textTransform:"none", fontWeight:400 }}>(falls back to Cover image)</span></label>
+          <div style={{ display:"flex", alignItems:"center", gap:"10px", marginTop:"4px" }}>
+            <label style={{ all:"unset", cursor:"pointer", padding:"7px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#e2e8f0", color:"#475569" }}>
+              {uploadingOg ? 'Uploading…' : form.og_image ? 'Change image' : '📎 Choose image'}
+              <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={e => uploadImage(e.target.files?.[0], 'og')} style={{ display:"none" }} disabled={uploadingOg} />
+            </label>
+            {form.og_image && <img src={form.og_image} alt="" style={{ width:"36px", height:"36px", borderRadius:"6px", objectFit:"cover" }} />}
+          </div>
+        </div>
+
+        <div style={{ display:"flex", gap:"8px", marginTop:"14px", alignItems:"center" }}>
+          <button onClick={() => save(false)} style={{ all:"unset", cursor:"pointer", padding:"9px 18px", borderRadius:"6px", fontSize:"12px", fontWeight:700, background:"#e2e8f0", color:"#475569" }}>Save draft</button>
+          <button onClick={() => save(true)} style={{ all:"unset", cursor:"pointer", padding:"9px 18px", borderRadius:"6px", fontSize:"12px", fontWeight:700, background:"#1e3a5f", color:"#fff" }}>{form.published ? 'Save & keep live' : 'Publish'}</button>
+          {form.id && form.published && <button onClick={() => save(false)} style={{ all:"unset", cursor:"pointer", padding:"9px 18px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#fef3c7", color:"#b45309" }}>Unpublish</button>}
+          {form.id && <button onClick={resetForm} style={{ all:"unset", cursor:"pointer", padding:"9px 18px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#e2e8f0", color:"#475569" }}>Cancel edit</button>}
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"30px", textAlign:"center", color:"#64748b", fontSize:"13px" }}>No posts yet</div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+          {rows.map(p => (
+            <div key={p.id} style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"12px 14px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"12px" }}>
+                <div style={{ flex:1, display:"flex", gap:"12px" }}>
+                  {p.cover_image && <img src={p.cover_image} alt="" style={{ width:"56px", height:"56px", borderRadius:"6px", objectFit:"cover", flexShrink:0 }} />}
+                  <div>
+                    <div style={{ fontSize:"13px", fontWeight:600 }}>{p.title}</div>
+                    <div style={{ fontSize:"11px", color:"#64748b", marginTop:"2px" }}>/blog/{p.slug}</div>
+                    <div style={{ fontSize:"10px", color:"#94a3b8", marginTop:"4px" }}>{p.author ? `${p.author} · ` : ''}{p.published_at ? new Date(p.published_at).toLocaleDateString() : 'Not published'}</div>
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:"4px", alignItems:"center", flexShrink:0 }}>
+                  <span style={{ padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background: p.published ? "#05966920" : "#f59e0b20", color: p.published ? "#059669" : "#b45309" }}>{p.published ? 'Published' : 'Draft'}</span>
+                  <button onClick={() => startEdit(p)} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#3b82f620", color:"#2563eb", border:"1px solid #3b82f640" }}>Edit</button>
+                  <button onClick={() => remove(p)} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>Delete</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ─── Platform Analytics tab ───
+const RANGE_OPTIONS = [{ label: '7 days', days: 7 }, { label: '30 days', days: 30 }, { label: '90 days', days: 90 }]
+
+function StatCard({ label, value, change }) {
+  return (
+    <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"10px", padding:"14px 16px" }}>
+      <div style={{ fontSize:"10px", fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.06em" }}>{label}</div>
+      <div style={{ fontSize:"22px", fontWeight:800, color:"#0f172a", marginTop:"4px" }}>{value}</div>
+      {typeof change === 'number' && (
+        <div style={{ fontSize:"11px", fontWeight:700, marginTop:"2px", color: change >= 0 ? "#059669" : "#dc2626" }}>{change >= 0 ? '↑' : '↓'} {Math.abs(change)}% vs prior period</div>
+      )}
+    </div>
+  )
+}
+
+function Panel({ title, children }) {
+  return (
+    <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"10px", padding:"16px" }}>
+      <div style={{ fontSize:"12px", fontWeight:700, color:"#374151", marginBottom:"12px" }}>{title}</div>
+      {children}
+    </div>
+  )
+}
+
+function Bar({ label, count, pct }) {
+  return (
+    <div style={{ marginBottom:"8px" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:"11px", color:"#475569", marginBottom:"3px" }}>
+        <span style={{ textTransform:"capitalize" }}>{label}</span><span>{count} · {pct}%</span>
+      </div>
+      <div style={{ height:"6px", background:"#f1f5f9", borderRadius:"999px", overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${pct}%`, background:"#1e3a5f", borderRadius:"999px" }} />
+      </div>
+    </div>
+  )
+}
+
+function FunnelRow({ label, value, max, color }) {
+  const pct = max ? Math.max(4, Math.round((value / max) * 100)) : 0
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"8px" }}>
+      <div style={{ width:"110px", fontSize:"11px", color:"#475569", flexShrink:0 }}>{label}</div>
+      <div style={{ flex:1, height:"20px", background:"#f1f5f9", borderRadius:"6px", overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${pct}%`, background:color, borderRadius:"6px", display:"flex", alignItems:"center", paddingLeft:"8px" }}>
+          <span style={{ fontSize:"11px", fontWeight:700, color:"#fff" }}>{value}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AnalyticsTab({ setMsg }) {
+  const [days, setDays] = useState(30)
+  const [overview, setOverview] = useState(null)
+  const [topPages, setTopPages] = useState([])
+  const [sources, setSources] = useState(null)
+  const [devices, setDevices] = useState(null)
+  const [search, setSearchData] = useState(null)
+  const [funnel, setFunnel] = useState(null)
+  const [rollup, setRollup] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    Promise.all([
+      fetchTrafficOverview(days), fetchTopPages(days), fetchTrafficSources(days),
+      fetchDeviceBreakdown(days), fetchSearchInsights(days), fetchConversionFunnel(days),
+      fetchProviderEngagementRollup(days),
+    ]).then(([ov, tp, src, dev, se, fn, rl]) => {
+      if (cancelled) return
+      setOverview(ov); setTopPages(tp); setSources(src); setDevices(dev); setSearchData(se); setFunnel(fn); setRollup(rl)
+      setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [days])
+
+  if (loading || !overview) return <div style={{ padding:"40px", textAlign:"center", color:"#94a3b8", fontSize:"13px" }}>Loading analytics…</div>
+
+  const trendSeries = [
+    { key: 'views', label: 'Page views', color: '#1e3a5f', data: overview.series.map(d => ({ date: d.date, value: d.views })) },
+    { key: 'visitors', label: 'Unique visitors', color: '#f59e0b', data: overview.series.map(d => ({ date: d.date, value: d.visitors })) },
+  ]
+  const funnelMax = funnel?.visits || 1
+
+  return (
+    <>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:"16px" }}>
+        <div>
+          <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"4px" }}>Platform Analytics</h2>
+          <p style={{ fontSize:"12px", color:"#64748b" }}>Site-wide traffic, search behaviour, and engagement — everything, not scoped to one listing.</p>
+        </div>
+        <div style={{ display:"flex", gap:"4px" }}>
+          {RANGE_OPTIONS.map(r => (
+            <button key={r.days} onClick={() => setDays(r.days)} style={{ all:"unset", cursor:"pointer", padding:"6px 12px", borderRadius:"6px", fontSize:"11px", fontWeight:700, background: days === r.days ? "#1e3a5f" : "#f1f5f9", color: days === r.days ? "#fff" : "#64748b" }}>{r.label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:"10px", marginBottom:"16px" }}>
+        <StatCard label="Page views" value={overview.pageViews.toLocaleString()} change={overview.pageViewsChange} />
+        <StatCard label="Unique visitors" value={overview.uniqueVisitors.toLocaleString()} change={overview.uniqueVisitorsChange} />
+        <StatCard label="Sessions" value={overview.sessions.toLocaleString()} />
+        <StatCard label="Pages / session" value={overview.avgPagesPerSession} />
+        <StatCard label="Bounce rate" value={`${overview.bounceRate}%`} />
+      </div>
+
+      <div style={{ marginBottom:"16px" }}>
+        <Panel title="Traffic over time">
+          <TrendChart series={trendSeries} height={180} />
+        </Panel>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
+        <Panel title="Top pages">
+          {topPages.length === 0 ? <p style={{ fontSize:"12px", color:"#94a3b8" }}>No traffic yet.</p> : topPages.map(p => (
+            <div key={p.path} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid #f1f5f9", fontSize:"12px" }}>
+              <span style={{ color:"#334155", fontFamily:"monospace" }}>{p.path}</span>
+              <span style={{ fontWeight:700, color:"#0f172a" }}>{p.count}</span>
+            </div>
+          ))}
+        </Panel>
+        <Panel title="Traffic sources">
+          <div style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid #f1f5f9", fontSize:"12px" }}>
+            <span style={{ color:"#334155" }}>Direct / unknown</span>
+            <span style={{ fontWeight:700, color:"#0f172a" }}>{sources?.direct ?? 0}</span>
+          </div>
+          {(sources?.referral || []).length === 0 ? <p style={{ fontSize:"12px", color:"#94a3b8", marginTop:"8px" }}>No external referrers yet.</p> : sources.referral.map(r => (
+            <div key={r.domain} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid #f1f5f9", fontSize:"12px" }}>
+              <span style={{ color:"#334155" }}>{r.domain}</span>
+              <span style={{ fontWeight:700, color:"#0f172a" }}>{r.count}</span>
+            </div>
+          ))}
+        </Panel>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
+        <Panel title="Device breakdown">
+          {(devices?.devices || []).length === 0 ? <p style={{ fontSize:"12px", color:"#94a3b8" }}>No data yet.</p> : devices.devices.map(d => <Bar key={d.label} label={d.label} count={d.count} pct={d.pct} />)}
+        </Panel>
+        <Panel title="Browser breakdown">
+          {(devices?.browsers || []).length === 0 ? <p style={{ fontSize:"12px", color:"#94a3b8" }}>No data yet.</p> : devices.browsers.map(b => <Bar key={b.label} label={b.label} count={b.count} pct={b.pct} />)}
+        </Panel>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"12px", marginBottom:"12px" }}>
+        <Panel title="Top search terms">
+          {(search?.topQueries || []).length === 0 ? <p style={{ fontSize:"12px", color:"#94a3b8" }}>No searches yet.</p> : search.topQueries.map(q => (
+            <div key={q.query} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:"12px" }}>
+              <span style={{ color:"#334155" }}>"{q.query}"</span><span style={{ fontWeight:700 }}>{q.count}</span>
+            </div>
+          ))}
+        </Panel>
+        <Panel title="Top searched specialties">
+          {(search?.topSpecialties || []).length === 0 ? <p style={{ fontSize:"12px", color:"#94a3b8" }}>No filtered searches yet.</p> : search.topSpecialties.map(s => (
+            <div key={s.specialty} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:"12px" }}>
+              <span style={{ color:"#334155" }}>{s.specialty}</span><span style={{ fontWeight:700 }}>{s.count}</span>
+            </div>
+          ))}
+        </Panel>
+        <Panel title="Search quality">
+          <div style={{ fontSize:"28px", fontWeight:800, color: (search?.zeroResultRate || 0) > 20 ? "#dc2626" : "#0f172a" }}>{search?.zeroResultRate ?? 0}%</div>
+          <div style={{ fontSize:"11px", color:"#94a3b8" }}>of {search?.totalSearches ?? 0} searches returned zero results</div>
+        </Panel>
+      </div>
+
+      <div style={{ marginBottom:"12px" }}>
+        <Panel title="Platform conversion funnel">
+          <FunnelRow label="Site visits" value={funnel?.visits || 0} max={funnelMax} color="#1e3a5f" />
+          <FunnelRow label="Searches" value={funnel?.searches || 0} max={funnelMax} color="#2a5082" />
+          <FunnelRow label="Profile views" value={funnel?.profileViews || 0} max={funnelMax} color="#3b82f6" />
+          <FunnelRow label="Contact clicks" value={funnel?.contactClicks || 0} max={funnelMax} color="#059669" />
+          <FunnelRow label="Signups" value={funnel?.signups || 0} max={funnelMax} color="#f59e0b" />
+        </Panel>
+      </div>
+
+      <Panel title="Most-viewed listings (platform-wide)">
+        {(rollup?.topProviders || []).length === 0 ? <p style={{ fontSize:"12px", color:"#94a3b8" }}>No listing engagement yet.</p> : (
+          <div style={{ display:"flex", flexDirection:"column", gap:"2px" }}>
+            {rollup.topProviders.map((p, i) => (
+              <div key={p.id} style={{ display:"grid", gridTemplateColumns:"24px 1fr 90px 90px 90px", alignItems:"center", padding:"7px 0", borderBottom:"1px solid #f1f5f9", fontSize:"12px" }}>
+                <span style={{ color:"#94a3b8", fontWeight:700 }}>{i + 1}</span>
+                <span style={{ color:"#334155", fontWeight:600 }}>{p.name}</span>
+                <span style={{ color:"#64748b" }}>{p.views} views</span>
+                <span style={{ color:"#64748b" }}>{p.contacts} contacts</span>
+                <span style={{ color:"#64748b" }}>{p.favourites} saves</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
     </>
   )
 }

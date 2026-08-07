@@ -10,11 +10,25 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.5",
     "@tailwindcss/postcss": "^4.3.3",
+    "@tiptap/extension-highlight": "^3.29.2",
+    "@tiptap/extension-image": "^3.29.2",
+    "@tiptap/extension-link": "^3.29.2",
+    "@tiptap/extension-placeholder": "^3.29.2",
+    "@tiptap/extension-table": "^3.29.2",
+    "@tiptap/extension-text-align": "^3.29.2",
+    "@tiptap/extension-text-style": "^3.29.2",
+    "@tiptap/extension-underline": "^3.29.2",
+    "@tiptap/pm": "^3.29.2",
+    "@tiptap/react": "^3.29.2",
+    "@tiptap/starter-kit": "^3.29.2",
     "autoprefixer": "^10.5.4",
     "next": "latest",
     "postcss": "^8.5.19",
     "react": "latest",
     "react-dom": "latest",
     "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.20"
   }
 }

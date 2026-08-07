@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext'
 import ListPickerModal from '@/components/ListPickerModal'
 import { fetchLists, fetchSavedProviderIds, addToList, removeFromAllLists } from '@/lib/favourites'
 import { trackEvent } from '@/lib/analytics'
+import { trackSearch } from '@/lib/siteAnalytics'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -616,6 +617,18 @@ export default function SearchPage() {
       trackEvent(Number(id), 'impression')
     })
   }, [page, page1FeaturedKey])
+
+  // Business-intelligence signal for the admin traffic dashboard: what people search
+  // for, and whether they get zero results. Debounced so it fires once per pause in
+  // typing, not on every keystroke.
+  useEffect(() => {
+    if (!search.trim() && !spec) return
+    const t = setTimeout(() => {
+      trackSearch({ query: search.trim() || null, specialty: spec || null, resultsCount: totalCount })
+    }, 800)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, spec])
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center text-gray-400">

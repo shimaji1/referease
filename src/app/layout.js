@@ -1,6 +1,7 @@
 import './globals.css'
 import { AuthProvider } from '@/context/AuthContext'
 import Footer from '@/components/Footer'
+import PageTracker from '@/components/PageTracker'
 
 const BASE = 'https://www.refereasy.ca'
 
@@ -71,6 +72,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="bg-gray-50 text-gray-900">
         <AuthProvider>
+          <PageTracker />
           {children}
           <Footer />
         </AuthProvider>

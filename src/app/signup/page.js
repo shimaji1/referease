@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { checkPassword } from '@/lib/password'
 import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
+import { trackSignup } from '@/lib/siteAnalytics'
 
 export default function SignUpPage() {
   const { signUp } = useAuth()
@@ -28,6 +29,7 @@ export default function SignUpPage() {
     })
     setLoading(false)
     if (err) { setError(err.message); return }
+    trackSignup(role)
     router.push('/dashboard')
   }
 
