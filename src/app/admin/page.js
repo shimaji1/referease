@@ -11,6 +11,8 @@ import RichTextEditor from '@/components/RichTextEditor'
 import { slugify, fetchAllPosts, createPost, updatePost, deletePost } from '@/lib/posts'
 import TrendChart from '@/components/TrendChart'
 import { presetRange, fetchTrafficOverview, fetchTopPages, fetchTrafficSources, fetchDeviceBreakdown, fetchSearchInsights, fetchConversionFunnel, fetchProviderEngagementRollup } from '@/lib/siteAnalytics'
+import { fetchSetting, saveSetting, DEFAULTS } from '@/lib/siteSettings'
+import { DEFAULT_TERMS_HTML, DEFAULT_PRIVACY_HTML } from '@/lib/legalDefaults'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -130,7 +132,6 @@ export default function AdminPage() {
   const [dupScanning, setDupScanning] = useState(false)
   const [dupKeeper, setDupKeeper] = useState({})
   const [inviting, setInviting] = useState(null)
-  const [siteP, setSiteP] = useState(null)
   const PAGE_SIZE = 50
 
   const login = () => {
@@ -351,16 +352,6 @@ export default function AdminPage() {
     load()
   }
 
-  // ── Site settings (pricing) ──
-  const loadSite = async () => {
-    const { data } = await supabase.from('site_settings').select('value').eq('key', 'pricing').single()
-    setSiteP(data?.value || { tiers: [] })
-  }
-  const saveSite = async () => {
-    const { error } = await supabase.from('site_settings').upsert({ key: 'pricing', value: siteP, updated_at: new Date().toISOString() })
-    setMsg(error ? 'Error saving: ' + error.message : 'Pricing saved, live on /pricing.')
-  }
-  const updTier = (i, patch) => setSiteP(sp => ({ ...sp, tiers: sp.tiers.map((t, idx) => idx === i ? { ...t, ...patch } : t) }))
 
   const ensureSpecialty = async (label, category) => {
     const name = (label || '').trim()
@@ -551,7 +542,7 @@ export default function AdminPage() {
         if (t === 'list') { setTab('list'); setEditing(null); setForm(empty()) }
         else if (t === 'edit') { setEditing(null); setForm(empty()); setServicesText(""); setDoctorsText(""); setLanguagesText("English"); setReferralTypesText(""); setDoctorRows([]); setOrigDocIds([]); setLinkedClinics([]); setTab('edit') }
         else if (t === 'dupes') { setTab('dupes'); if (dupGroups.length === 0) scanDupes() }
-        else if (t === 'site') { setTab('site'); if (!siteP) loadSite() }
+        else if (t === 'site') { setTab('site') }
         else if (t === 'invites') { setTab('invites') }
         else if (t === 'templates') { setTab('templates') }
         else { setTab(t) }
@@ -865,33 +856,7 @@ export default function AdminPage() {
             </div>
           </>
         )}
-        {tab === "site" && (
-          <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"12px", padding:"20px" }}>
-            <h3 style={{ margin:"0 0 4px", fontSize:"16px" }}>Site Content, Pricing</h3>
-            <p style={{ margin:"0 0 16px", fontSize:"12px", color:"#64748b" }}>Edits here go live on the public /pricing page when you hit Save.</p>
-            {!siteP ? <div style={{ color:"#64748b", fontSize:"13px" }}>Loading…</div> : (
-              <>
-                {(siteP.tiers || []).map((t, i) => (
-                  <div key={i} style={{ border:"1px solid #e2e8f0", borderRadius:"10px", padding:"14px", marginBottom:"12px" }}>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 0.6fr 0.6fr 1.4fr", gap:"10px" }}>
-                      <div><label style={lbl}>Plan name</label><input style={s} value={t.name || ""} onChange={e => updTier(i, { name: e.target.value })} /></div>
-                      <div><label style={lbl}>Price</label><input style={s} value={t.price || ""} onChange={e => updTier(i, { price: e.target.value })} placeholder="$29" /></div>
-                      <div><label style={lbl}>Period</label><input style={s} value={t.period || ""} onChange={e => updTier(i, { period: e.target.value })} placeholder="/month" /></div>
-                      <div><label style={lbl}>Tagline</label><input style={s} value={t.tagline || ""} onChange={e => updTier(i, { tagline: e.target.value })} /></div>
-                    </div>
-                    <label style={lbl}>Features (one per line)</label>
-                    <textarea style={{ ...s, minHeight:"90px", resize:"vertical" }} value={(t.features || []).join("\n")} onChange={e => updTier(i, { features: e.target.value.split("\n") })} />
-                    <div style={{ display:"flex", gap:"16px", marginTop:"10px", alignItems:"center" }}>
-                      <div style={{ flex:1 }}><label style={lbl}>Button text</label><input style={s} value={t.cta || ""} onChange={e => updTier(i, { cta: e.target.value })} /></div>
-                      <label style={{ fontSize:"12px", color:"#64748b", display:"flex", alignItems:"center", gap:"6px", cursor:"pointer", marginTop:"18px" }}><input type="checkbox" checked={!!t.highlight} onChange={e => updTier(i, { highlight: e.target.checked })} /> Highlight as most popular</label>
-                    </div>
-                  </div>
-                ))}
-                <button onClick={saveSite} style={{ all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:600, background:"#0891b2", color:"#fff" }}>Save, publish to /pricing</button>
-              </>
-            )}
-          </div>
-        )}
+        {tab === "site" && <SettingsTab setMsg={setMsg} />}
         {tab === "invites" && <InvitesTab providers={providers} setMsg={setMsg} />}
         {tab === "templates" && <TemplatesTab setMsg={setMsg} />}
         {tab === "claims" && (
@@ -949,6 +914,163 @@ export default function AdminPage() {
   )
 }
 
+
+// ─── Settings tab: general/SEO/pricing/legal/operations, replacing the old pricing-only
+// "Site settings" block now that Announcements/Blog/Analytics have their own tabs ───
+const SETTINGS_SECTIONS = ['General', 'SEO', 'Pricing', 'Legal', 'Operations']
+
+function SettingsTab({ setMsg }) {
+  const s = { width:"100%", padding:"8px 10px", fontSize:"13px", background:"#ffffff", border:"1px solid #d1d5db", borderRadius:"6px", color:"#111827", outline:"none", marginTop:"4px" }
+  const lbl = { fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", display:"block", marginTop:"12px" }
+  const saveBtn = { all:"unset", cursor:"pointer", padding:"10px 24px", borderRadius:"8px", fontSize:"13px", fontWeight:700, background:"#1e3a5f", color:"#fff", marginTop:"16px", display:"inline-block" }
+
+  const [section, setSection] = useState('General')
+  const [general, setGeneral] = useState(DEFAULTS.general)
+  const [seo, setSeo] = useState(DEFAULTS.seo)
+  const [pricing, setPricing] = useState({ tiers: [] })
+  const [legalDoc, setLegalDoc] = useState('terms')
+  const [legalTerms, setLegalTerms] = useState({ html: DEFAULT_TERMS_HTML })
+  const [legalPrivacy, setLegalPrivacy] = useState({ html: DEFAULT_PRIVACY_HTML })
+  const [operations, setOperations] = useState(DEFAULTS.operations)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      fetchSetting('general'), fetchSetting('seo'), fetchSetting('pricing'),
+      fetchSetting('legal_terms'), fetchSetting('legal_privacy'), fetchSetting('operations'),
+    ]).then(([g, se, pr, lt, lp, op]) => {
+      setGeneral(g || DEFAULTS.general)
+      setSeo(se || DEFAULTS.seo)
+      setPricing(pr?.tiers ? pr : { tiers: [] })
+      setLegalTerms(lt?.html ? lt : { html: DEFAULT_TERMS_HTML })
+      setLegalPrivacy(lp?.html ? lp : { html: DEFAULT_PRIVACY_HTML })
+      setOperations(op || DEFAULTS.operations)
+      setLoaded(true)
+    })
+  }, [])
+
+  const save = async (key, value, label) => {
+    const res = await saveSetting(key, value)
+    setMsg(res.error ? 'Error: ' + res.error : `${label} saved.`)
+  }
+
+  const updTier = (i, patch) => setPricing(sp => ({ ...sp, tiers: sp.tiers.map((t, idx) => idx === i ? { ...t, ...patch } : t) }))
+
+  if (!loaded) return <div style={{ padding:"40px", textAlign:"center", color:"#94a3b8", fontSize:"13px" }}>Loading settings…</div>
+
+  return (
+    <>
+      <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"4px" }}>Settings</h2>
+      <p style={{ fontSize:"12px", color:"#64748b", marginBottom:"16px" }}>Full control over site identity, SEO defaults, pricing copy, legal pages, and operational switches — no code changes needed.</p>
+
+      <div style={{ display:"flex", gap:"4px", marginBottom:"16px" }}>
+        {SETTINGS_SECTIONS.map(sec => (
+          <button key={sec} onClick={() => setSection(sec)} style={{ all:"unset", cursor:"pointer", padding:"7px 16px", borderRadius:"6px", fontSize:"12px", fontWeight:700, background: section === sec ? "#1e3a5f" : "#f1f5f9", color: section === sec ? "#fff" : "#64748b" }}>{sec}</button>
+        ))}
+      </div>
+
+      <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"12px", padding:"20px" }}>
+        {section === 'General' && (
+          <>
+            <h3 style={{ margin:0, fontSize:"14px" }}>Site identity & contact</h3>
+            <p style={{ margin:"4px 0 0", fontSize:"12px", color:"#64748b" }}>Used in the footer, structured data, and anywhere the site refers to itself.</p>
+            <label style={lbl}>Site name</label>
+            <input style={s} value={general.site_name} onChange={e => setGeneral(g => ({ ...g, site_name: e.target.value }))} />
+            <label style={lbl}>Tagline</label>
+            <input style={s} value={general.tagline} onChange={e => setGeneral(g => ({ ...g, tagline: e.target.value }))} />
+            <label style={lbl}>Support / contact email</label>
+            <input style={s} value={general.support_email} onChange={e => setGeneral(g => ({ ...g, support_email: e.target.value }))} />
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
+              <div><label style={lbl}>Facebook URL</label><input style={s} value={general.social_facebook} onChange={e => setGeneral(g => ({ ...g, social_facebook: e.target.value }))} placeholder="https://facebook.com/…" /></div>
+              <div><label style={lbl}>Twitter / X URL</label><input style={s} value={general.social_twitter} onChange={e => setGeneral(g => ({ ...g, social_twitter: e.target.value }))} placeholder="https://x.com/…" /></div>
+              <div><label style={lbl}>Instagram URL</label><input style={s} value={general.social_instagram} onChange={e => setGeneral(g => ({ ...g, social_instagram: e.target.value }))} placeholder="https://instagram.com/…" /></div>
+              <div><label style={lbl}>LinkedIn URL</label><input style={s} value={general.social_linkedin} onChange={e => setGeneral(g => ({ ...g, social_linkedin: e.target.value }))} placeholder="https://linkedin.com/…" /></div>
+            </div>
+            <button onClick={() => save('general', general, 'Site identity')} style={saveBtn}>Save</button>
+          </>
+        )}
+
+        {section === 'SEO' && (
+          <>
+            <h3 style={{ margin:0, fontSize:"14px" }}>Default SEO</h3>
+            <p style={{ margin:"4px 0 0", fontSize:"12px", color:"#64748b" }}>Fallback title/description/image for the homepage and any page that doesn't set its own.</p>
+            <label style={lbl}>Default meta title</label>
+            <input style={s} value={seo.default_meta_title} onChange={e => setSeo(x => ({ ...x, default_meta_title: e.target.value }))} maxLength={70} />
+            <label style={lbl}>Default meta description</label>
+            <textarea style={{ ...s, minHeight:"60px", resize:"vertical" }} value={seo.default_meta_description} onChange={e => setSeo(x => ({ ...x, default_meta_description: e.target.value }))} maxLength={200} />
+            <label style={lbl}>Default social share image (URL)</label>
+            <input style={s} value={seo.default_og_image} onChange={e => setSeo(x => ({ ...x, default_og_image: e.target.value }))} placeholder="/img/logo.png" />
+            <button onClick={() => save('seo', seo, 'SEO defaults')} style={saveBtn}>Save</button>
+          </>
+        )}
+
+        {section === 'Pricing' && (
+          <>
+            <h3 style={{ margin:0, fontSize:"14px" }}>Pricing page copy</h3>
+            <p style={{ margin:"4px 0 12px", fontSize:"12px", color:"#64748b" }}>Edits price, period, tagline, features, and button text on /pricing. Plan identity and trial behaviour stay fixed.</p>
+            {(pricing.tiers || []).map((t, i) => (
+              <div key={i} style={{ border:"1px solid #e2e8f0", borderRadius:"10px", padding:"14px", marginBottom:"12px" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 0.6fr 0.6fr 1.4fr", gap:"10px" }}>
+                  <div><label style={lbl}>Plan name</label><input style={s} value={t.name || ""} onChange={e => updTier(i, { name: e.target.value })} /></div>
+                  <div><label style={lbl}>Price</label><input style={s} value={t.price || ""} onChange={e => updTier(i, { price: e.target.value })} placeholder="$29" /></div>
+                  <div><label style={lbl}>Period</label><input style={s} value={t.period || ""} onChange={e => updTier(i, { period: e.target.value })} placeholder="/month" /></div>
+                  <div><label style={lbl}>Tagline</label><input style={s} value={t.tagline || ""} onChange={e => updTier(i, { tagline: e.target.value })} /></div>
+                </div>
+                <label style={lbl}>Features (one per line)</label>
+                <textarea style={{ ...s, minHeight:"90px", resize:"vertical" }} value={(t.features || []).join("\n")} onChange={e => updTier(i, { features: e.target.value.split("\n") })} />
+                <div style={{ flex:1 }}><label style={lbl}>Button text</label><input style={s} value={t.cta || ""} onChange={e => updTier(i, { cta: e.target.value })} /></div>
+              </div>
+            ))}
+            <button onClick={() => save('pricing', pricing, 'Pricing')} style={saveBtn}>Save, publish to /pricing</button>
+          </>
+        )}
+
+        {section === 'Legal' && (
+          <>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <h3 style={{ margin:0, fontSize:"14px" }}>Legal pages</h3>
+              <div style={{ display:"flex", gap:"4px" }}>
+                <button onClick={() => setLegalDoc('terms')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", borderRadius:"6px", fontSize:"11px", fontWeight:700, background: legalDoc === 'terms' ? "#1e3a5f" : "#f1f5f9", color: legalDoc === 'terms' ? "#fff" : "#64748b" }}>Terms of Service</button>
+                <button onClick={() => setLegalDoc('privacy')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", borderRadius:"6px", fontSize:"11px", fontWeight:700, background: legalDoc === 'privacy' ? "#1e3a5f" : "#f1f5f9", color: legalDoc === 'privacy' ? "#fff" : "#64748b" }}>Privacy Policy</button>
+              </div>
+            </div>
+            <p style={{ margin:"4px 0 12px", fontSize:"12px", color:"#64748b" }}>Edits go live on /{legalDoc === 'terms' ? 'terms' : 'privacy'} immediately on save, and update the "Last updated" date shown there.</p>
+            {legalDoc === 'terms' ? (
+              <RichTextEditor value={legalTerms.html} onChange={html => setLegalTerms({ html })} />
+            ) : (
+              <RichTextEditor value={legalPrivacy.html} onChange={html => setLegalPrivacy({ html })} />
+            )}
+            <button
+              onClick={() => legalDoc === 'terms'
+                ? save('legal_terms', { html: legalTerms.html, updated_at: new Date().toISOString() }, 'Terms of Service')
+                : save('legal_privacy', { html: legalPrivacy.html, updated_at: new Date().toISOString() }, 'Privacy Policy')}
+              style={saveBtn}>
+              Save & publish
+            </button>
+          </>
+        )}
+
+        {section === 'Operations' && (
+          <>
+            <h3 style={{ margin:0, fontSize:"14px" }}>Operational switches</h3>
+            <p style={{ margin:"4px 0 12px", fontSize:"12px", color:"#64748b" }}>Site-wide kill switches — no redeploy needed.</p>
+            <div style={{ border:"1px solid #e2e8f0", borderRadius:"10px", padding:"14px" }}>
+              <label style={{ display:"flex", alignItems:"center", gap:"10px", cursor:"pointer" }}>
+                <input type="checkbox" checked={!operations.emails_paused} onChange={e => setOperations(o => ({ ...o, emails_paused: !e.target.checked }))} style={{ width:"16px", height:"16px" }} />
+                <span style={{ fontSize:"13px", fontWeight:600, color:"#111827" }}>Automated emails enabled</span>
+              </label>
+              <p style={{ fontSize:"11px", color:"#94a3b8", margin:"6px 0 0 26px" }}>Controls trial reminders and monthly provider-update emails. Staff invites and admin outreach campaigns aren't affected — those only send when you trigger them directly.</p>
+              <p style={{ fontSize:"11px", fontWeight:700, margin:"10px 0 0 26px", color: operations.emails_paused ? "#b45309" : "#059669" }}>
+                {operations.emails_paused ? '⏸ Currently paused' : '▶ Currently active'}
+              </p>
+            </div>
+            <button onClick={() => save('operations', operations, 'Operations')} style={saveBtn}>Save</button>
+          </>
+        )}
+      </div>
+    </>
+  )
+}
 
 // ─── Homepage Announcements tab: approve/reject provider submissions, plus create/edit/
 // delete admin-authored slides directly (not tied to any provider) ───

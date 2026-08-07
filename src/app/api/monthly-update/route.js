@@ -12,12 +12,6 @@ const TOKEN_VALID_DAYS = 14
 // Emails Featured providers whose info hasn't been prompted in 30+ days, with a
 // token link to /update-info — no login required, so it's a 60-second job for them.
 async function handle(request) {
-  // Paused: site isn't ready for providers to receive these yet. Flip PAUSE_EMAILS off
-  // (or delete this block) once we're ready to resume.
-  if (process.env.PAUSE_EMAILS !== 'false') {
-    return NextResponse.json({ ok: true, paused: true, note: 'Monthly update emails are paused (PAUSE_EMAILS)' })
-  }
-
   const url = new URL(request.url)
   const isVercelCron = request.headers.get('x-vercel-cron') === '1'
   const providedSecret = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || url.searchParams.get('secret')
@@ -29,6 +23,14 @@ async function handle(request) {
 
   const sb = getServiceSupabase()
   if (!sb) return NextResponse.json({ error: 'Supabase service key missing' }, { status: 503 })
+
+  // Controlled from Admin → Settings → Operations. Defaults to paused if the row is
+  // missing or unreachable (safe default — matches the prior PAUSE_EMAILS behaviour).
+  const { data: ops } = await sb.from('site_settings').select('value').eq('key', 'operations').maybeSingle()
+  if (ops?.value?.emails_paused !== false) {
+    return NextResponse.json({ ok: true, paused: true, note: 'Emails are paused (Admin → Settings → Operations)' })
+  }
+
   const resendKey = process.env.RESEND_API_KEY
 
   const cutoff = new Date(Date.now() - MONTH_MS).toISOString()

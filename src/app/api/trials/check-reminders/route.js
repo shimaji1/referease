@@ -72,10 +72,12 @@ async function handleReminders(request) {
   let sent = 0
   const errors = []
 
-  // Paused: site isn't ready for providers to receive these yet. Trial downgrades above
-  // still run (that's account state, not an email). Flip PAUSE_EMAILS off once ready.
-  if (process.env.PAUSE_EMAILS !== 'false') {
-    return NextResponse.json({ ok: true, paused: true, downgraded, note: 'Reminder emails are paused (PAUSE_EMAILS)' })
+  // Controlled from Admin → Settings → Operations. Trial downgrades above still run
+  // regardless (that's account state, not an email). Defaults to paused if the row is
+  // missing or unreachable.
+  const { data: ops } = await sb.from('site_settings').select('value').eq('key', 'operations').maybeSingle()
+  if (ops?.value?.emails_paused !== false) {
+    return NextResponse.json({ ok: true, paused: true, downgraded, note: 'Emails are paused (Admin → Settings → Operations)' })
   }
 
   if (!resendKey && toSend.length > 0) {

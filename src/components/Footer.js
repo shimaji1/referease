@@ -3,9 +3,16 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Logo from './Logo'
 
-export default function Footer() {
+const SOCIAL_ICONS = {
+  social_facebook: '📘', social_twitter: '𝕏', social_instagram: '📷', social_linkedin: '💼',
+}
+
+export default function Footer({ settings }) {
   const pathname = usePathname() || '/'
   if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) return null
+
+  const supportEmail = settings?.support_email || 'info.refereasy@gmail.com'
+  const socials = Object.entries(SOCIAL_ICONS).filter(([key]) => settings?.[key])
 
   return (
     <footer className="bg-gradient-to-b from-white to-gray-50 border-t border-gray-200">
@@ -37,7 +44,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li><Link href="/blog" className="text-gray-600 hover:text-brand transition">Blog</Link></li>
               <li><Link href="/#faq" className="text-gray-600 hover:text-brand transition">FAQ</Link></li>
-              <li><a href="mailto:info.refereasy@gmail.com" className="text-gray-600 hover:text-brand transition">Contact</a></li>
+              <li><a href={`mailto:${supportEmail}`} className="text-gray-600 hover:text-brand transition">Contact</a></li>
             </ul>
           </div>
 
@@ -54,6 +61,9 @@ export default function Footer() {
         <div className="mt-10 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-[11px] text-gray-400">Built for referring physicians across Ontario. Not affiliated with CPSO or the Ministry of Health.</p>
           <div className="flex items-center gap-4 text-[11px] text-gray-400">
+            {socials.map(([key, icon]) => (
+              <a key={key} href={settings[key]} target="_blank" rel="noopener noreferrer" className="hover:text-brand transition text-sm" title={key.replace('social_', '')}>{icon}</a>
+            ))}
             <span>🇨🇦 Made in Ontario</span>
           </div>
         </div>
