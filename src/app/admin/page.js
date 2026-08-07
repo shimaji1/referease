@@ -917,7 +917,7 @@ export default function AdminPage() {
 
 // ─── Settings tab: general/SEO/pricing/legal/operations, replacing the old pricing-only
 // "Site settings" block now that Announcements/Blog/Analytics have their own tabs ───
-const SETTINGS_SECTIONS = ['General', 'SEO', 'Pricing', 'Legal', 'Billing', 'Operations']
+const SETTINGS_SECTIONS = ['General', 'SEO', 'Legal', 'Billing', 'Operations']
 
 function SettingsTab({ setMsg }) {
   const s = { width:"100%", padding:"8px 10px", fontSize:"13px", background:"#ffffff", border:"1px solid #d1d5db", borderRadius:"6px", color:"#111827", outline:"none", marginTop:"4px" }
@@ -927,7 +927,6 @@ function SettingsTab({ setMsg }) {
   const [section, setSection] = useState('General')
   const [general, setGeneral] = useState(DEFAULTS.general)
   const [seo, setSeo] = useState(DEFAULTS.seo)
-  const [pricing, setPricing] = useState({ tiers: [] })
   const [legalDoc, setLegalDoc] = useState('terms')
   const [legalTerms, setLegalTerms] = useState({ html: DEFAULT_TERMS_HTML })
   const [legalPrivacy, setLegalPrivacy] = useState({ html: DEFAULT_PRIVACY_HTML })
@@ -938,13 +937,12 @@ function SettingsTab({ setMsg }) {
 
   useEffect(() => {
     Promise.all([
-      fetchSetting('general'), fetchSetting('seo'), fetchSetting('pricing'),
+      fetchSetting('general'), fetchSetting('seo'),
       fetchSetting('legal_terms'), fetchSetting('legal_privacy'), fetchSetting('operations'),
       fetchSetting('square_plans'),
-    ]).then(([g, se, pr, lt, lp, op, sp]) => {
+    ]).then(([g, se, lt, lp, op, sp]) => {
       setGeneral(g || DEFAULTS.general)
       setSeo(se || DEFAULTS.seo)
-      setPricing(pr?.tiers ? pr : { tiers: [] })
       setLegalTerms(lt?.html ? lt : { html: DEFAULT_TERMS_HTML })
       setLegalPrivacy(lp?.html ? lp : { html: DEFAULT_PRIVACY_HTML })
       setOperations(op || DEFAULTS.operations)
@@ -967,14 +965,12 @@ function SettingsTab({ setMsg }) {
     setMsg(res.error ? 'Error: ' + res.error : `${label} saved.`)
   }
 
-  const updTier = (i, patch) => setPricing(sp => ({ ...sp, tiers: sp.tiers.map((t, idx) => idx === i ? { ...t, ...patch } : t) }))
-
   if (!loaded) return <div style={{ padding:"40px", textAlign:"center", color:"#94a3b8", fontSize:"13px" }}>Loading settings…</div>
 
   return (
     <>
       <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"4px" }}>Settings</h2>
-      <p style={{ fontSize:"12px", color:"#64748b", marginBottom:"16px" }}>Full control over site identity, SEO defaults, pricing copy, legal pages, and operational switches — no code changes needed.</p>
+      <p style={{ fontSize:"12px", color:"#64748b", marginBottom:"16px" }}>Full control over site identity, SEO defaults, legal pages, billing, and operational switches — no code changes needed. Pricing page copy is hardcoded — ask to have it updated directly.</p>
 
       <div style={{ display:"flex", gap:"4px", marginBottom:"16px" }}>
         {SETTINGS_SECTIONS.map(sec => (
@@ -1014,27 +1010,6 @@ function SettingsTab({ setMsg }) {
             <label style={lbl}>Default social share image (URL)</label>
             <input style={s} value={seo.default_og_image} onChange={e => setSeo(x => ({ ...x, default_og_image: e.target.value }))} placeholder="/img/logo.png" />
             <button onClick={() => save('seo', seo, 'SEO defaults')} style={saveBtn}>Save</button>
-          </>
-        )}
-
-        {section === 'Pricing' && (
-          <>
-            <h3 style={{ margin:0, fontSize:"14px" }}>Pricing page copy</h3>
-            <p style={{ margin:"4px 0 12px", fontSize:"12px", color:"#64748b" }}>Edits price, period, tagline, features, and button text on /pricing. Plan identity and trial behaviour stay fixed.</p>
-            {(pricing.tiers || []).map((t, i) => (
-              <div key={i} style={{ border:"1px solid #e2e8f0", borderRadius:"10px", padding:"14px", marginBottom:"12px" }}>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 0.6fr 0.6fr 1.4fr", gap:"10px" }}>
-                  <div><label style={lbl}>Plan name</label><input style={s} value={t.name || ""} onChange={e => updTier(i, { name: e.target.value })} /></div>
-                  <div><label style={lbl}>Price</label><input style={s} value={t.price || ""} onChange={e => updTier(i, { price: e.target.value })} placeholder="$29" /></div>
-                  <div><label style={lbl}>Period</label><input style={s} value={t.period || ""} onChange={e => updTier(i, { period: e.target.value })} placeholder="/month" /></div>
-                  <div><label style={lbl}>Tagline</label><input style={s} value={t.tagline || ""} onChange={e => updTier(i, { tagline: e.target.value })} /></div>
-                </div>
-                <label style={lbl}>Features (one per line)</label>
-                <textarea style={{ ...s, minHeight:"90px", resize:"vertical" }} value={(t.features || []).join("\n")} onChange={e => updTier(i, { features: e.target.value.split("\n") })} />
-                <div style={{ flex:1 }}><label style={lbl}>Button text</label><input style={s} value={t.cta || ""} onChange={e => updTier(i, { cta: e.target.value })} /></div>
-              </div>
-            ))}
-            <button onClick={() => save('pricing', pricing, 'Pricing')} style={saveBtn}>Save, publish to /pricing</button>
           </>
         )}
 

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import TopNav from '@/components/TopNav'
@@ -78,20 +78,7 @@ export default function PricingPage() {
   const { user } = useAuth() || {}
   const [busy, setBusy] = useState(null)
   const [msg, setMsg] = useState('')
-  const [tiers, setTiers] = useState(TIERS)
   const [checkout, setCheckout] = useState(null) // { plan, providerId } while the modal is open
-
-  // Admin can edit price/tagline/features/button copy from Settings → Pricing. The tier
-  // identity (key/highlight/trial-vs-link behaviour) stays code-defined — only the display
-  // text merges in from the DB, matched by position (Listed/Verified/Featured, in order).
-  useEffect(() => {
-    if (!supabase) return
-    supabase.from('site_settings').select('value').eq('key', 'pricing').maybeSingle().then(({ data }) => {
-      const saved = data?.value?.tiers
-      if (!saved || !saved.length) return
-      setTiers(TIERS.map((t, i) => saved[i] ? { ...t, price: saved[i].price ?? t.price, period: saved[i].period ?? t.period, tagline: saved[i].tagline ?? t.tagline, features: saved[i].features?.length ? saved[i].features : t.features, cta: saved[i].cta ?? t.cta } : t))
-    })
-  }, [])
 
   const startTrial = async (plan) => {
     setMsg('')
@@ -127,7 +114,7 @@ export default function PricingPage() {
         {msg && <div className="max-w-2xl mx-auto mb-6 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{msg}</div>}
 
         <div className="grid md:grid-cols-3 gap-6">
-          {tiers.map(tier => (
+          {TIERS.map(tier => (
             <div key={tier.key} className={`relative rounded-2xl p-8 flex flex-col ${tier.highlight ? 'bg-gradient-to-br from-brand to-[#2c4f7c] text-white border-2 border-brand shadow-xl scale-[1.02]' : 'bg-white border-2 border-gray-200'}`}>
               {tier.highlight && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-brand text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">Most popular</div>
