@@ -2,6 +2,7 @@ import './globals.css'
 import { AuthProvider } from '@/context/AuthContext'
 import Footer from '@/components/Footer'
 import PageTracker from '@/components/PageTracker'
+import CookieBanner from '@/components/CookieBanner'
 
 const BASE = 'https://www.refereasy.ca'
 
@@ -75,6 +76,7 @@ export default function RootLayout({ children }) {
           <PageTracker />
           {children}
           <Footer />
+          <CookieBanner />
         </AuthProvider>
       </body>
     </html>

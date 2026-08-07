@@ -14,6 +14,7 @@ export default function SignUpPage() {
   const [step, setStep] = useState(1)
   const [role, setRole] = useState('')
   const [form, setForm] = useState({ email: '', password: '', fullName: '', phone: '', cpso: '', clinic: '' })
+  const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -23,6 +24,7 @@ export default function SignUpPage() {
     setError('')
     if (!form.email || !form.password || !form.fullName) { setError('Please fill in all required fields'); return }
     if (!checkPassword(form.password).valid) { setError('Password needs 8+ characters, a capital letter, a number, and a symbol.'); return }
+    if (!agreed) { setError('Please agree to the Terms of Service and Privacy Policy to continue.'); return }
     setLoading(true)
     const { error: err } = await signUp(form.email, form.password, form.fullName, role, {
       phone: form.phone, cpso_number: form.cpso, clinic_name: form.clinic,
@@ -111,16 +113,20 @@ export default function SignUpPage() {
                 )}
               </div>
 
+              <label className="flex items-start gap-2 mt-4 cursor-pointer">
+                <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand/30 shrink-0" />
+                <span className="text-xs text-gray-500 leading-relaxed">
+                  I agree to the <Link href="/terms" target="_blank" className="text-brand font-medium hover:underline">Terms of Service</Link> and <Link href="/privacy" target="_blank" className="text-brand font-medium hover:underline">Privacy Policy</Link>.
+                </span>
+              </label>
+
               {error && <p className="text-sm text-red-600 mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
 
-              <button onClick={handleSubmit} disabled={loading}
+              <button onClick={handleSubmit} disabled={loading || !agreed}
                 className="w-full mt-5 py-3 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50 text-sm">
                 {loading ? 'Creating account...' : 'Create Account'}
               </button>
-
-              <p className="text-center text-xs text-gray-400 mt-4">
-                By creating an account you agree to our Terms of Service and Privacy Policy.
-              </p>
             </div>
           )}
         </div>
