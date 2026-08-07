@@ -26,6 +26,7 @@
     "postcss": "^8.5.19",
     "react": "latest",
     "react-dom": "latest",
+    "square": "^45.0.1",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {

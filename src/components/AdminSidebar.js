@@ -41,7 +41,6 @@ export default function AdminSidebar({ tab, setTab, counts = {} }) {
       header: 'Settings',
       items: [
         { key: 'site',      label: 'Settings',            status: 'active' },
-        { key: 'billing',   label: 'Billing / Stripe',    status: 'planned' },
         { key: 'staff',     label: 'Staff & permissions', status: 'planned' },
       ],
     },

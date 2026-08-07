@@ -917,7 +917,7 @@ export default function AdminPage() {
 
 // ─── Settings tab: general/SEO/pricing/legal/operations, replacing the old pricing-only
 // "Site settings" block now that Announcements/Blog/Analytics have their own tabs ───
-const SETTINGS_SECTIONS = ['General', 'SEO', 'Pricing', 'Legal', 'Operations']
+const SETTINGS_SECTIONS = ['General', 'SEO', 'Pricing', 'Legal', 'Billing', 'Operations']
 
 function SettingsTab({ setMsg }) {
   const s = { width:"100%", padding:"8px 10px", fontSize:"13px", background:"#ffffff", border:"1px solid #d1d5db", borderRadius:"6px", color:"#111827", outline:"none", marginTop:"4px" }
@@ -932,22 +932,35 @@ function SettingsTab({ setMsg }) {
   const [legalTerms, setLegalTerms] = useState({ html: DEFAULT_TERMS_HTML })
   const [legalPrivacy, setLegalPrivacy] = useState({ html: DEFAULT_PRIVACY_HTML })
   const [operations, setOperations] = useState(DEFAULTS.operations)
+  const [squarePlans, setSquarePlans] = useState(null)
+  const [squareSyncing, setSquareSyncing] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     Promise.all([
       fetchSetting('general'), fetchSetting('seo'), fetchSetting('pricing'),
       fetchSetting('legal_terms'), fetchSetting('legal_privacy'), fetchSetting('operations'),
-    ]).then(([g, se, pr, lt, lp, op]) => {
+      fetchSetting('square_plans'),
+    ]).then(([g, se, pr, lt, lp, op, sp]) => {
       setGeneral(g || DEFAULTS.general)
       setSeo(se || DEFAULTS.seo)
       setPricing(pr?.tiers ? pr : { tiers: [] })
       setLegalTerms(lt?.html ? lt : { html: DEFAULT_TERMS_HTML })
       setLegalPrivacy(lp?.html ? lp : { html: DEFAULT_PRIVACY_HTML })
       setOperations(op || DEFAULTS.operations)
+      setSquarePlans(sp)
       setLoaded(true)
     })
   }, [])
+
+  const syncSquarePlans = async () => {
+    setSquareSyncing(true)
+    const res = await fetch('/api/admin/square/setup-plans', { method: 'POST' }).then(r => r.json()).catch(e => ({ error: e.message }))
+    setSquareSyncing(false)
+    if (res.error) { setMsg('Error: ' + res.error); return }
+    setSquarePlans(res.plans)
+    setMsg('Square plans created/synced.')
+  }
 
   const save = async (key, value, label) => {
     const res = await saveSetting(key, value)
@@ -1047,6 +1060,31 @@ function SettingsTab({ setMsg }) {
               style={saveBtn}>
               Save & publish
             </button>
+          </>
+        )}
+
+        {section === 'Billing' && (
+          <>
+            <h3 style={{ margin:0, fontSize:"14px" }}>Square subscription plans</h3>
+            <p style={{ margin:"4px 0 12px", fontSize:"12px", color:"#64748b" }}>
+              Creates the Verified ($29/mo) and Featured ($79/mo) subscription plans in Square's catalog, each with a 2-month $0 trial phase before billing starts. Safe to run again if prices change in code.
+            </p>
+            <div style={{ border:"1px solid #e2e8f0", borderRadius:"10px", padding:"14px" }}>
+              {squarePlans ? (
+                <>
+                  <div style={{ fontSize:"12px", color:"#059669", fontWeight:700, marginBottom:"8px" }}>✓ Plans configured</div>
+                  <div style={{ fontSize:"11px", color:"#64748b", fontFamily:"monospace", lineHeight:1.8 }}>
+                    Verified variation: {squarePlans.verified?.variation_id || '—'}<br />
+                    Featured variation: {squarePlans.featured?.variation_id || '—'}
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize:"12px", color:"#b45309" }}>Not set up yet.</div>
+              )}
+              <button onClick={syncSquarePlans} disabled={squareSyncing} style={{ all:"unset", cursor:"pointer", padding:"8px 18px", borderRadius:"6px", fontSize:"12px", fontWeight:700, background:"#1e3a5f", color:"#fff", marginTop:"12px", opacity: squareSyncing ? 0.6 : 1 }}>
+                {squareSyncing ? 'Syncing…' : squarePlans ? 'Re-sync plans' : 'Set up Square plans'}
+              </button>
+            </div>
           </>
         )}
 
