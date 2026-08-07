@@ -67,7 +67,7 @@ export default function SquareCheckoutModal({ open, plan, providerId, userId, de
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider_id: providerId, plan, source_id: result.token, given_name: givenName.trim(), family_name: familyName.trim(), email: email.trim(), user_id: userId }),
+        body: JSON.stringify({ provider_id: providerId, source_id: result.token, given_name: givenName.trim(), family_name: familyName.trim(), email: email.trim(), user_id: userId }),
       }).then(r => r.json())
       setBusy(false)
       if (res.error) { setError(res.error); return }
@@ -81,8 +81,8 @@ export default function SquareCheckoutModal({ open, plan, providerId, userId, de
   return (
     <div className="fixed inset-0 z-[100] bg-black/40 flex items-center justify-center p-4" onMouseDown={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-md p-6" onMouseDown={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-gray-900 mb-1">Start your {info.name} trial</h3>
-        <p className="text-sm text-gray-500 mb-5">{info.price} after 60 days free. Cancel anytime before then, no charge.</p>
+        <h3 className="text-lg font-bold text-gray-900 mb-1">Add a payment method</h3>
+        <p className="text-sm text-gray-500 mb-5">Keeps your {info.name} plan ({info.price}) active when your trial ends — you won't be charged before then, and you can cancel anytime from your dashboard.</p>
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
@@ -109,7 +109,7 @@ export default function SquareCheckoutModal({ open, plan, providerId, userId, de
         <div className="flex gap-2 justify-end mt-2">
           <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
           <button onClick={submit} disabled={!ready || busy} className="px-5 py-2 text-sm font-semibold text-white bg-brand rounded-lg hover:bg-brand-dark transition disabled:opacity-50">
-            {busy ? 'Starting trial…' : 'Start free trial'}
+            {busy ? 'Saving…' : 'Save card'}
           </button>
         </div>
         <p className="text-[11px] text-gray-400 text-center mt-3">Your card won't be charged until the trial ends. Cancel anytime from your dashboard.</p>

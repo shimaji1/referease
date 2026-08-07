@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import TopNav from '@/components/TopNav'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
-import SquareCheckoutModal from '@/components/SquareCheckoutModal'
 
 const TIERS = [
   {
@@ -78,8 +77,9 @@ export default function PricingPage() {
   const { user } = useAuth() || {}
   const [busy, setBusy] = useState(null)
   const [msg, setMsg] = useState('')
-  const [checkout, setCheckout] = useState(null) // { plan, providerId } while the modal is open
 
+  // No card required to start — matches the promise on this page. A card only comes
+  // into play later, from the dashboard, to keep the plan once the trial ends.
   const startTrial = async (plan) => {
     setMsg('')
     if (!user) {
@@ -87,7 +87,6 @@ export default function PricingPage() {
       router.push(`/signup?intent=trial-${plan}`)
       return
     }
-    // Find the user's first provider listing
     if (!supabase) return
     setBusy(plan)
     const { data: providers } = await supabase.from('providers').select('id').eq('owner_id', user.id).limit(1)
@@ -97,8 +96,14 @@ export default function PricingPage() {
       router.push('/dashboard')
       return
     }
+    const res = await fetch('/api/plan/start-trial', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider_id: providers[0].id, plan, user_id: user.id, user_email: user.email }),
+    }).then(r => r.json()).catch(e => ({ error: e.message }))
     setBusy(null)
-    setCheckout({ plan, providerId: providers[0].id })
+    if (res.error) { setMsg('Error: ' + res.error); return }
+    router.push('/dashboard?trial=' + plan)
   }
 
   return (
@@ -121,7 +126,7 @@ export default function PricingPage() {
               )}
               {tier.trial ? (
                 <div className={`mb-4 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg text-center ${tier.highlight ? 'bg-white/15 text-amber-200 border border-white/20' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                  60 days free · Card required
+                  60 days free · No credit card
                 </div>
               ) : (
                 <div className="mb-4 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg text-center bg-gray-50 text-gray-500 border border-gray-200">
@@ -204,19 +209,9 @@ export default function PricingPage() {
 
         {/* Small trust-note footer */}
         <p className="mt-16 text-center text-xs text-gray-400 max-w-xl mx-auto leading-relaxed">
-          Try Verified or Featured free for 60 days. A card is required to start, but you won't be charged until the trial ends — cancel anytime before then from your dashboard.
+          Try Verified or Featured free for 60 days, no credit card required. Add a payment method anytime from your dashboard to keep the plan when the trial ends — downgrades to free automatically if you don't. Your data is always preserved.
         </p>
       </section>
-
-      <SquareCheckoutModal
-        open={!!checkout}
-        plan={checkout?.plan}
-        providerId={checkout?.providerId}
-        userId={user?.id}
-        defaultEmail={user?.email}
-        onClose={() => setCheckout(null)}
-        onSuccess={() => { setCheckout(null); router.push('/dashboard?trial=' + checkout.plan) }}
-      />
     </div>
   )
 }

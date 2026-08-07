@@ -107,7 +107,7 @@ const TEMPLATES = {
   trial_15d: ({ name, tier, endDate, customMessage }) => wrap(`
     ${h1('Your trial ends in 15 days')}
     ${p(`Hi${name ? ' ' + name : ''}, your ${tier === 'featured' ? 'Featured' : 'Verified'} trial on ReferEasy runs through <strong>${endDate}</strong>. That's just over two weeks away.`)}
-    ${p("Here's what you'll lose if the trial expires without keeping your plan:")}
+    ${p("Here's what you'll lose if the trial expires without a payment method on file:")}
     ${bullet(tier === 'featured' ? [
       "Your <strong>Featured placement</strong> at the top of every relevant search",
       "Homepage and category featured slots",
@@ -122,8 +122,8 @@ const TEMPLATES = {
       "Multi-location support",
     ])}
     ${custom(customMessage)}
-    ${p("Want to keep going? Pick up right where you left off, it only takes a minute.")}
-    ${btn('Keep my plan →', `${BASE}/pricing`)}
+    ${p("Add a card now and you won't be charged a cent until the trial actually ends — it just keeps everything running without interruption.")}
+    ${btn('Add payment method →', `${BASE}/dashboard/settings?tab=billing`)}
     ${p(`<span style="color:#64748b;font-size:13px">Your listing stays live either way, only the paid features disappear on downgrade.</span>`)}
   `),
 
@@ -132,8 +132,8 @@ const TEMPLATES = {
     ${p(`Hi${name ? ' ' + name : ''}, your ${tier === 'featured' ? 'Featured' : 'Verified'} trial ends <strong>${endDate}</strong>. Seven days from now.`)}
     ${p("You've been on the plan for over 50 days. Referring physicians in your area have been seeing your enhanced listing that entire time. Losing those features means dropping back to the standard Listed appearance.")}
     ${custom(customMessage)}
-    ${p("Ready to keep your plan? It takes about a minute.")}
-    ${btn('Keep my plan →', `${BASE}/pricing`)}
+    ${p("Add a payment method to keep it going — takes about a minute, and nothing is charged until your trial ends.")}
+    ${btn('Add payment method →', `${BASE}/dashboard/settings?tab=billing`)}
   `),
 
   trial_5d: ({ name, tier, endDate, customMessage }) => wrap(`
@@ -143,16 +143,16 @@ const TEMPLATES = {
       ? "Once the trial ends, you'll drop out of the featured slots on the homepage, category pages, and near-me results. Your listing stays live, but at standard placement."
       : "Once the trial ends, your ✓ Verified badge, custom referral forms, and How-to-Refer instructions will be hidden. Your listing stays live at standard placement.")}
     ${custom(customMessage)}
-    ${p("If you'd like to keep your current plan, it takes about 2 minutes to sort out.")}
-    ${btn('Keep my plan →', `${BASE}/pricing`)}
+    ${p("Add a card in the next few days to keep your current plan — no charge until the trial actually ends.")}
+    ${btn('Add payment method →', `${BASE}/dashboard/settings?tab=billing`)}
   `),
 
   trial_1d: ({ name, tier, endDate, customMessage }) => wrap(`
     ${h1('Tomorrow: your trial ends')}
-    ${p(`Hi${name ? ' ' + name : ''}, this is the last reminder. Your ${tier === 'featured' ? 'Featured' : 'Verified'} plan expires <strong>tonight at midnight ET</strong> and downgrades to Listed (free) tomorrow morning.`)}
-    ${p("Your listing stays live. Your data is preserved. But your paid features will be hidden until you keep your plan.")}
+    ${p(`Hi${name ? ' ' + name : ''}, this is the last reminder. Your ${tier === 'featured' ? 'Featured' : 'Verified'} plan expires <strong>tonight at midnight ET</strong> and downgrades to Listed (free) tomorrow morning unless a card is on file.`)}
+    ${p("Your listing stays live. Your data is preserved. But your paid features will be hidden until you add a payment method and keep your plan.")}
     ${custom(customMessage)}
-    ${btn('Keep my plan →', `${BASE}/pricing`)}
+    ${btn('Add payment method →', `${BASE}/dashboard/settings?tab=billing`)}
     ${p(`<span style="color:#64748b;font-size:13px">Takes about a minute, and your plan continues without interruption.</span>`)}
   `),
 

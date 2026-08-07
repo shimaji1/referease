@@ -116,7 +116,8 @@ function BillingCard({ provider, user, onChanged }) {
   const canTrial = status.tier !== 'featured' && status.kind !== 'trial' && status.kind !== 'granted'
   const [billing, setBilling] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [checkoutPlan, setCheckoutPlan] = useState(null)
+  const [startingTrial, setStartingTrial] = useState(false)
+  const [showAddCard, setShowAddCard] = useState(false)
   const [showUpdateCard, setShowUpdateCard] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -130,6 +131,22 @@ function BillingCard({ provider, user, onChanged }) {
   }, [provider.id, user.id])
 
   useEffect(() => { load() }, [load])
+
+  // No card required — matches the promise on /pricing. A card only comes into play
+  // later (below) to keep the plan once the trial ends.
+  const startTrial = async () => {
+    setStartingTrial(true); setMsg('')
+    const plan = status.tier === 'listed' ? 'verified' : 'featured'
+    const res = await fetch('/api/plan/start-trial', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider_id: provider.id, plan, user_id: user.id, user_email: user.email }),
+    }).then(r => r.json()).catch(e => ({ error: e.message }))
+    setStartingTrial(false)
+    if (res.error) { setMsg('Error: ' + res.error); return }
+    setMsg(`${plan === 'featured' ? 'Featured' : 'Verified'} activated — free for 60 days!`)
+    onChanged()
+    load()
+  }
 
   const cancelSubscription = async () => {
     setBusy(true)
@@ -153,9 +170,9 @@ function BillingCard({ provider, user, onChanged }) {
         </div>
         <div className="flex gap-2">
           {canTrial && (
-            <button onClick={() => setCheckoutPlan(status.tier === 'listed' ? 'verified' : 'featured')}
-              className="px-4 py-2 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-dark transition">
-              Start free trial: {status.tier === 'listed' ? 'Verified' : 'Featured'}
+            <button onClick={startTrial} disabled={startingTrial}
+              className="px-4 py-2 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-dark transition disabled:opacity-50">
+              {startingTrial ? 'Activating…' : `Start free trial: ${status.tier === 'listed' ? 'Verified' : 'Featured'}`}
             </button>
           )}
           <Link href="/pricing" className="px-4 py-2 bg-white text-brand text-xs font-semibold rounded-lg border border-brand/20 hover:bg-brand/5 transition">See plans</Link>
@@ -164,6 +181,18 @@ function BillingCard({ provider, user, onChanged }) {
 
       {loading ? (
         <p className="text-xs text-gray-400 mt-4">Loading billing details…</p>
+      ) : status.kind === 'trial' && !billing?.hasSubscription ? (
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">No payment method on file</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Your trial ends {provider.trial_ends_at ? new Date(provider.trial_ends_at).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }) : 'soon'} — add a card now to keep {status.tier === 'featured' ? 'Featured' : 'Verified'} without interruption. You won't be charged until then.
+              </p>
+            </div>
+            <button onClick={() => setShowAddCard(true)} className="shrink-0 px-4 py-2 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-dark transition">Add payment method</button>
+          </div>
+        </div>
       ) : billing?.hasSubscription ? (
         <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -193,7 +222,7 @@ function BillingCard({ provider, user, onChanged }) {
 
           <div className="flex gap-2">
             <button onClick={() => setShowUpdateCard(true)} className="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Update card</button>
-            {billing.status === 'ACTIVE' && (
+            {(billing.status === 'ACTIVE' || billing.status === 'PENDING') && (
               <button onClick={() => setConfirmCancel(true)} className="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition">Cancel subscription</button>
             )}
           </div>
@@ -220,13 +249,13 @@ function BillingCard({ provider, user, onChanged }) {
       {msg && <p className={`text-sm mt-3 ${msg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{msg}</p>}
 
       <SquareCheckoutModal
-        open={!!checkoutPlan}
-        plan={checkoutPlan}
+        open={showAddCard}
+        plan={status.tier}
         providerId={provider.id}
         userId={user.id}
         defaultEmail={user.email}
-        onClose={() => setCheckoutPlan(null)}
-        onSuccess={() => { setCheckoutPlan(null); onChanged(); load() }}
+        onClose={() => setShowAddCard(false)}
+        onSuccess={() => { setShowAddCard(false); setMsg('Payment method added.'); onChanged(); load() }}
       />
       <SquareUpdateCardModal
         open={showUpdateCard}
@@ -578,6 +607,14 @@ export default function SettingsPage() {
   const router = useRouter()
   const [providers, setProviders] = useState([])
   const [tab, setTab] = useState('account')
+
+  // Lets email links (e.g. trial reminders) deep-link straight to a tab, like
+  // /dashboard/settings?tab=billing — read directly from the URL rather than
+  // useSearchParams so this client page doesn't need a Suspense boundary.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab')
+    if (requested) setTab(requested)
+  }, [])
 
   useEffect(() => {
     if (!supabase || !user || profile?.role !== 'provider') return

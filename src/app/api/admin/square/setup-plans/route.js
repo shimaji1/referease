@@ -4,8 +4,12 @@ import { getSupabase } from '@/lib/supabase-server'
 
 // POST /api/admin/square/setup-plans — one-time (idempotent) setup, triggered from
 // Admin → Settings → Billing. Creates the Verified/Featured subscription plans in
-// Square's Catalog with a 2-month $0 trial phase then the real monthly price (CAD),
-// and stores the resulting plan variation IDs in site_settings so checkout can find them.
+// Square's Catalog at the real monthly price (CAD), single phase — no trial phase baked
+// in here. The free trial is our own trial_ends_at, tracked independently of Square;
+// when a provider adds a card, the subscription we create is given a startDate of
+// trial_ends_at so Square doesn't charge anything until the trial actually ends.
+// (An earlier version baked a $0 phase into the plan itself, which only worked if the
+// card was added at trial start — doesn't work once cards can be added mid-trial.)
 //
 // Safe to re-run: Square catalog upsert with a fresh idempotency key each time creates
 // new plan versions rather than erroring, and we just overwrite the stored IDs.
@@ -41,10 +45,7 @@ export async function POST() {
                 subscriptionPlanVariationData: {
                   name: plan.variationName,
                   phases: [
-                    // 2 monthly cycles at $0 — the free trial (~60 days, varies by month)
-                    { cadence: 'MONTHLY', ordinal: 0n, periods: 2, pricing: { type: 'STATIC', priceMoney: { amount: 0n, currency: 'CAD' } } },
-                    // then ongoing at full price
-                    { cadence: 'MONTHLY', ordinal: 1n, pricing: { type: 'STATIC', priceMoney: { amount: plan.priceCents, currency: 'CAD' } } },
+                    { cadence: 'MONTHLY', ordinal: 0n, pricing: { type: 'STATIC', priceMoney: { amount: plan.priceCents, currency: 'CAD' } } },
                   ],
                 },
               },
