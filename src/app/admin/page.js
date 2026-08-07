@@ -10,7 +10,7 @@ import AnnouncementSlide from '@/components/AnnouncementSlide'
 import RichTextEditor from '@/components/RichTextEditor'
 import { slugify, fetchAllPosts, createPost, updatePost, deletePost } from '@/lib/posts'
 import TrendChart from '@/components/TrendChart'
-import { fetchTrafficOverview, fetchTopPages, fetchTrafficSources, fetchDeviceBreakdown, fetchSearchInsights, fetchConversionFunnel, fetchProviderEngagementRollup } from '@/lib/siteAnalytics'
+import { presetRange, fetchTrafficOverview, fetchTopPages, fetchTrafficSources, fetchDeviceBreakdown, fetchSearchInsights, fetchConversionFunnel, fetchProviderEngagementRollup } from '@/lib/siteAnalytics'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -1334,7 +1334,14 @@ function BlogTab({ setMsg }) {
 }
 
 // ─── Platform Analytics tab ───
-const RANGE_OPTIONS = [{ label: '7 days', days: 7 }, { label: '30 days', days: 30 }, { label: '90 days', days: 90 }]
+const RANGE_PRESETS = [
+  { label: '7 days', days: 7 },
+  { label: '30 days', days: 30 },
+  { label: '90 days', days: 90 },
+  { label: 'Year', days: 365 },
+  { label: 'All time', days: null },
+]
+const fmtDate = (d) => d.toISOString().slice(0, 10)
 
 function StatCard({ label, value, change }) {
   return (
@@ -1385,7 +1392,11 @@ function FunnelRow({ label, value, max, color }) {
 }
 
 function AnalyticsTab({ setMsg }) {
-  const [days, setDays] = useState(30)
+  const [range, setRange] = useState(() => presetRange(30))
+  const [activePreset, setActivePreset] = useState(30)
+  const [showCustom, setShowCustom] = useState(false)
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [overview, setOverview] = useState(null)
   const [topPages, setTopPages] = useState([])
   const [sources, setSources] = useState(null)
@@ -1395,20 +1406,32 @@ function AnalyticsTab({ setMsg }) {
   const [rollup, setRollup] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const pickPreset = (days) => {
+    setActivePreset(days)
+    setShowCustom(false)
+    setRange(presetRange(days))
+  }
+
+  const applyCustom = () => {
+    if (!customFrom || !customTo) return
+    setActivePreset(null)
+    setRange({ start: new Date(customFrom + 'T00:00:00'), end: new Date(customTo + 'T23:59:59') })
+  }
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     Promise.all([
-      fetchTrafficOverview(days), fetchTopPages(days), fetchTrafficSources(days),
-      fetchDeviceBreakdown(days), fetchSearchInsights(days), fetchConversionFunnel(days),
-      fetchProviderEngagementRollup(days),
+      fetchTrafficOverview(range), fetchTopPages(range), fetchTrafficSources(range),
+      fetchDeviceBreakdown(range), fetchSearchInsights(range), fetchConversionFunnel(range),
+      fetchProviderEngagementRollup(range),
     ]).then(([ov, tp, src, dev, se, fn, rl]) => {
       if (cancelled) return
       setOverview(ov); setTopPages(tp); setSources(src); setDevices(dev); setSearchData(se); setFunnel(fn); setRollup(rl)
       setLoading(false)
     })
     return () => { cancelled = true }
-  }, [days])
+  }, [range])
 
   if (loading || !overview) return <div style={{ padding:"40px", textAlign:"center", color:"#94a3b8", fontSize:"13px" }}>Loading analytics…</div>
 
@@ -1420,16 +1443,31 @@ function AnalyticsTab({ setMsg }) {
 
   return (
     <>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:"16px" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:"10px", flexWrap:"wrap", gap:"10px" }}>
         <div>
           <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"4px" }}>Platform Analytics</h2>
           <p style={{ fontSize:"12px", color:"#64748b" }}>Site-wide traffic, search behaviour, and engagement — everything, not scoped to one listing.</p>
         </div>
-        <div style={{ display:"flex", gap:"4px" }}>
-          {RANGE_OPTIONS.map(r => (
-            <button key={r.days} onClick={() => setDays(r.days)} style={{ all:"unset", cursor:"pointer", padding:"6px 12px", borderRadius:"6px", fontSize:"11px", fontWeight:700, background: days === r.days ? "#1e3a5f" : "#f1f5f9", color: days === r.days ? "#fff" : "#64748b" }}>{r.label}</button>
+        <div style={{ display:"flex", gap:"4px", alignItems:"center" }}>
+          {RANGE_PRESETS.map(r => (
+            <button key={r.label} onClick={() => pickPreset(r.days)} style={{ all:"unset", cursor:"pointer", padding:"6px 12px", borderRadius:"6px", fontSize:"11px", fontWeight:700, background: !showCustom && activePreset === r.days ? "#1e3a5f" : "#f1f5f9", color: !showCustom && activePreset === r.days ? "#fff" : "#64748b" }}>{r.label}</button>
           ))}
+          <button onClick={() => setShowCustom(v => !v)} style={{ all:"unset", cursor:"pointer", padding:"6px 12px", borderRadius:"6px", fontSize:"11px", fontWeight:700, background: showCustom ? "#1e3a5f" : "#f1f5f9", color: showCustom ? "#fff" : "#64748b" }}>📅 Custom</button>
         </div>
+      </div>
+
+      {showCustom && (
+        <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"16px", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"10px 12px" }}>
+          <label style={{ fontSize:"11px", fontWeight:600, color:"#64748b" }}>From</label>
+          <input type="date" value={customFrom} max={fmtDate(new Date())} onChange={e => setCustomFrom(e.target.value)} style={{ padding:"5px 8px", fontSize:"12px", border:"1px solid #d1d5db", borderRadius:"6px" }} />
+          <label style={{ fontSize:"11px", fontWeight:600, color:"#64748b" }}>To</label>
+          <input type="date" value={customTo} max={fmtDate(new Date())} onChange={e => setCustomTo(e.target.value)} style={{ padding:"5px 8px", fontSize:"12px", border:"1px solid #d1d5db", borderRadius:"6px" }} />
+          <button onClick={applyCustom} disabled={!customFrom || !customTo} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", borderRadius:"6px", fontSize:"11px", fontWeight:700, background:"#1e3a5f", color:"#fff", opacity: (!customFrom || !customTo) ? 0.5 : 1 }}>Apply</button>
+        </div>
+      )}
+
+      <div style={{ fontSize:"11px", color:"#94a3b8", marginBottom:"12px" }}>
+        Showing {range.start ? range.start.toLocaleDateString('en-CA', { year:'numeric', month:'short', day:'numeric' }) : 'the beginning'} – {range.end.toLocaleDateString('en-CA', { year:'numeric', month:'short', day:'numeric' })}
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:"10px", marginBottom:"16px" }}>

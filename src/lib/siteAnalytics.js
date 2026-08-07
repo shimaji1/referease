@@ -89,45 +89,89 @@ export function trackSignup(role) {
   supabase.from('site_events').insert(ev).then(() => {})
 }
 
-// ── Admin dashboard reads ──────────────────────────────────────────────────
+// ── Admin dashboard reads ───────────────────────────────────────────────────
+// Every fetch takes a `range`: { start: Date|null, end: Date }. start === null means
+// "lifetime" — no lower bound. Built from the date picker / presets in the admin UI.
 
-function periodBounds(days) {
-  const now = new Date()
-  const start = new Date(now.getTime() - days * 86400000)
-  const priorStart = new Date(now.getTime() - days * 2 * 86400000)
-  return { now, start, priorStart }
+export function presetRange(days) {
+  const end = new Date()
+  if (days === null) return { start: null, end } // lifetime
+  const start = new Date(end.getTime() - days * 86400000)
+  return { start, end }
+}
+
+// Prior period of equal length immediately before `start`, for %-change comparisons.
+// Not meaningful for a lifetime range (no "before" to compare to).
+function priorRange({ start, end }) {
+  if (!start) return null
+  const spanMs = end.getTime() - start.getTime()
+  return { start: new Date(start.getTime() - spanMs), end: new Date(start.getTime()) }
+}
+
+function applyRange(query, range, col = 'created_at') {
+  if (range.start) query = query.gte(col, range.start.toISOString())
+  return query.lte(col, range.end.toISOString())
 }
 
 const pctChange = (curr, prev) => (prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100))
 
-export async function fetchTrafficOverview(days = 30) {
-  if (!supabase) return null
-  const { start, priorStart } = periodBounds(days)
+// Chart buckets adapt to the span so a lifetime view doesn't render thousands of
+// daily points — day buckets under ~9 weeks, week buckets under ~1 year, month beyond.
+function pickGranularity(spanDays) {
+  if (spanDays <= 62) return 'day'
+  if (spanDays <= 366) return 'week'
+  return 'month'
+}
 
-  const [{ data: current }, { data: prior }] = await Promise.all([
-    supabase.from('site_events').select('event_type, path, visitor_id, session_id, created_at').gte('created_at', start.toISOString()),
-    supabase.from('site_events').select('event_type, visitor_id').gte('created_at', priorStart.toISOString()).lt('created_at', start.toISOString()),
+function bucketKey(dateStr, granularity) {
+  const d = new Date(dateStr)
+  if (granularity === 'day') return d.toISOString().slice(0, 10)
+  if (granularity === 'week') {
+    const day = d.getUTCDay()
+    const weekStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day))
+    return weekStart.toISOString().slice(0, 10)
+  }
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`
+}
+
+function bucketStep(date, granularity) {
+  const d = new Date(date)
+  if (granularity === 'day') return new Date(d.getTime() + 86400000)
+  if (granularity === 'week') return new Date(d.getTime() + 7 * 86400000)
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))
+}
+
+export async function fetchTrafficOverview(range) {
+  if (!supabase) return null
+  const prior = priorRange(range)
+  const effectiveStart = range.start || new Date(0) // for span/day-count math on "lifetime"
+
+  const [{ data: current }, { data: priorData }] = await Promise.all([
+    applyRange(supabase.from('site_events').select('event_type, path, visitor_id, session_id, created_at'), range),
+    prior ? applyRange(supabase.from('site_events').select('event_type, visitor_id'), prior) : Promise.resolve({ data: null }),
   ])
 
   const cur = current || []
   const pageViewsCur = cur.filter(e => e.event_type === 'page_view')
-  const priorPageViews = (prior || []).filter(e => e.event_type === 'page_view')
+  const priorPageViews = (priorData || []).filter(e => e.event_type === 'page_view')
 
   const uniqueVisitors = new Set(pageViewsCur.map(e => e.visitor_id)).size
   const priorUniqueVisitors = new Set(priorPageViews.map(e => e.visitor_id)).size
   const uniqueSessions = new Set(pageViewsCur.map(e => e.session_id)).size
 
-  // Daily series for the trend chart
-  const daily = {}
-  for (let i = 0; i < days; i++) {
-    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10)
-    daily[d] = { views: 0, visitors: new Set() }
+  // Bucketed series for the trend chart, granularity adapts to the span
+  const spanDays = Math.max(1, Math.ceil((range.end.getTime() - effectiveStart.getTime()) / 86400000))
+  const granularity = pickGranularity(spanDays)
+  const buckets = {}
+  for (let d = new Date(bucketKey(effectiveStart.toISOString(), granularity)); d <= range.end; d = bucketStep(d, granularity)) {
+    buckets[bucketKey(d.toISOString(), granularity)] = { views: 0, visitors: new Set() }
   }
   pageViewsCur.forEach(e => {
-    const d = e.created_at.slice(0, 10)
-    if (daily[d]) { daily[d].views++; daily[d].visitors.add(e.visitor_id) }
+    const k = bucketKey(e.created_at, granularity)
+    if (!buckets[k]) buckets[k] = { views: 0, visitors: new Set() }
+    buckets[k].views++; buckets[k].visitors.add(e.visitor_id)
   })
-  const series = Object.entries(daily).reverse().map(([date, v]) => ({ date, views: v.views, visitors: v.visitors.size }))
+  const series = Object.entries(buckets).sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, views: v.views, visitors: v.visitors.size }))
 
   // Sessions -> pages/session
   const bySessionCount = {}
@@ -138,9 +182,9 @@ export async function fetchTrafficOverview(days = 30) {
 
   return {
     pageViews: pageViewsCur.length,
-    pageViewsChange: pctChange(pageViewsCur.length, priorPageViews.length),
+    pageViewsChange: prior ? pctChange(pageViewsCur.length, priorPageViews.length) : null,
     uniqueVisitors,
-    uniqueVisitorsChange: pctChange(uniqueVisitors, priorUniqueVisitors),
+    uniqueVisitorsChange: prior ? pctChange(uniqueVisitors, priorUniqueVisitors) : null,
     sessions: uniqueSessions,
     avgPagesPerSession,
     bounceRate,
@@ -148,19 +192,17 @@ export async function fetchTrafficOverview(days = 30) {
   }
 }
 
-export async function fetchTopPages(days = 30, limit = 10) {
+export async function fetchTopPages(range, limit = 10) {
   if (!supabase) return []
-  const { start } = periodBounds(days)
-  const { data } = await supabase.from('site_events').select('path').eq('event_type', 'page_view').gte('created_at', start.toISOString())
+  const { data } = await applyRange(supabase.from('site_events').select('path').eq('event_type', 'page_view'), range)
   const counts = {}
   ;(data || []).forEach(e => { counts[e.path] = (counts[e.path] || 0) + 1 })
   return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, limit).map(([path, count]) => ({ path, count }))
 }
 
-export async function fetchTrafficSources(days = 30) {
+export async function fetchTrafficSources(range) {
   if (!supabase) return { direct: 0, referral: [] }
-  const { start } = periodBounds(days)
-  const { data } = await supabase.from('site_events').select('referrer').eq('event_type', 'page_view').gte('created_at', start.toISOString())
+  const { data } = await applyRange(supabase.from('site_events').select('referrer').eq('event_type', 'page_view'), range)
   const rows = data || []
   const direct = rows.filter(e => !e.referrer).length
   const counts = {}
@@ -169,10 +211,9 @@ export async function fetchTrafficSources(days = 30) {
   return { direct, referral, total: rows.length }
 }
 
-export async function fetchDeviceBreakdown(days = 30) {
+export async function fetchDeviceBreakdown(range) {
   if (!supabase) return { devices: [], browsers: [] }
-  const { start } = periodBounds(days)
-  const { data } = await supabase.from('site_events').select('device, browser').eq('event_type', 'page_view').gte('created_at', start.toISOString())
+  const { data } = await applyRange(supabase.from('site_events').select('device, browser').eq('event_type', 'page_view'), range)
   const rows = data || []
   const devCounts = {}, brCounts = {}
   rows.forEach(e => {
@@ -185,10 +226,9 @@ export async function fetchDeviceBreakdown(days = 30) {
   return { devices, browsers, total: rows.length }
 }
 
-export async function fetchSearchInsights(days = 30, limit = 10) {
+export async function fetchSearchInsights(range, limit = 10) {
   if (!supabase) return { topQueries: [], topSpecialties: [], zeroResultRate: 0, totalSearches: 0 }
-  const { start } = periodBounds(days)
-  const { data } = await supabase.from('site_events').select('query, specialty, results_count').eq('event_type', 'search').gte('created_at', start.toISOString())
+  const { data } = await applyRange(supabase.from('site_events').select('query, specialty, results_count').eq('event_type', 'search'), range)
   const rows = data || []
   const qCounts = {}, sCounts = {}
   let zero = 0
@@ -208,12 +248,11 @@ export async function fetchSearchInsights(days = 30, limit = 10) {
 // Platform-wide funnel: visits -> searches -> profile views -> contact clicks -> signups.
 // Pulls from both site_events (visits/searches/signups) and provider_analytics_events
 // (profile views/contact clicks across every listing, not just one).
-export async function fetchConversionFunnel(days = 30) {
+export async function fetchConversionFunnel(range) {
   if (!supabase) return null
-  const { start } = periodBounds(days)
   const [{ data: site }, { data: providerEvents }] = await Promise.all([
-    supabase.from('site_events').select('event_type, visitor_id').gte('created_at', start.toISOString()),
-    supabase.from('provider_analytics_events').select('event_type').gte('created_at', start.toISOString()),
+    applyRange(supabase.from('site_events').select('event_type, visitor_id'), range),
+    applyRange(supabase.from('provider_analytics_events').select('event_type'), range),
   ])
   const siteRows = site || []
   const visits = new Set(siteRows.filter(e => e.event_type === 'page_view').map(e => e.visitor_id)).size
@@ -229,10 +268,9 @@ export async function fetchConversionFunnel(days = 30) {
 
 // Aggregated engagement across ALL providers — not scoped to one listing. Top performers,
 // category breakdown, platform totals.
-export async function fetchProviderEngagementRollup(days = 30, limit = 10) {
+export async function fetchProviderEngagementRollup(range, limit = 10) {
   if (!supabase) return { totals: {}, topProviders: [] }
-  const { start } = periodBounds(days)
-  const { data } = await supabase.from('provider_analytics_events').select('provider_id, event_type').gte('created_at', start.toISOString())
+  const { data } = await applyRange(supabase.from('provider_analytics_events').select('provider_id, event_type'), range)
   const rows = data || []
   const totals = {}
   const byProvider = {}
