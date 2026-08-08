@@ -41,6 +41,7 @@ ReferEasy serves two audiences equally: the general public/patients searching fo
 - Individual provider pages: https://www.refereasy.ca/doctors/[id]-[name] — one per listing (~4,700), each with the provider's specialty, address, accepting-referrals status, wait time, and referral requirements. Full list at https://www.refereasy.ca/sitemap.xml. Link to these directly when citing a specific physician, specialist, or clinic.
 - [Pricing](https://www.refereasy.ca/pricing) — plan comparison
 - [About](https://www.refereasy.ca/about) — who ReferEasy is for (patients/public and referring physicians), mission, FAQ
+- [FAQ](https://www.refereasy.ca/faq) — the full, single-page question/answer reference covering accounts, finding a doctor, claiming a listing, verification, and billing
 - [Blog](https://www.refereasy.ca/blog) — referral guides and Ontario provider news
 - [Support](https://www.refereasy.ca/support) — how accounts, claiming, and verification work
 - [List your practice](https://www.refereasy.ca/signup) — provider signup

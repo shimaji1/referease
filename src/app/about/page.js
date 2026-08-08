@@ -115,6 +115,7 @@ export default function AboutPage() {
             </div>
           ))}
         </div>
+        <p className="text-center text-sm text-gray-500 mt-8"><Link href="/faq" className="text-brand font-semibold hover:underline">See every question →</Link></p>
       </section>
 
       {/* Founder note */}
