@@ -9,13 +9,13 @@ import { getSupabase } from './supabase-server'
 export const DEFAULTS = {
   general: {
     site_name: 'ReferEasy',
-    tagline: "Ontario's live physician-to-physician referral platform.",
+    tagline: "Ontario's live directory for finding a doctor and for physician referrals.",
     support_email: 'info.refereasy@gmail.com',
     social_facebook: '', social_twitter: '', social_instagram: '', social_linkedin: '',
   },
   seo: {
-    default_meta_title: "ReferEasy, Ontario's Live Physician Referral Platform",
-    default_meta_description: 'Find Ontario specialists, imaging centres, and clinics accepting referrals in real time. Cut rejected referrals to zero with verified availability, wait times, and referral criteria.',
+    default_meta_title: "ReferEasy — Find an Ontario Doctor, Specialist, or Send a Referral",
+    default_meta_description: "Search Ontario family physicians accepting new patients, specialists, clinics, imaging centres, and labs in real time, free for the public and for referring physicians. See live availability, wait times, and referral criteria before you call.",
     default_og_image: '/img/logo.png',
   },
   operations: {

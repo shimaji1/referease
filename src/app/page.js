@@ -59,22 +59,30 @@ export default function HomePage() {
   const features = [
     { icon: 'clock', title: 'Real-time availability', text: 'See who is accepting referrals right now, with provider-managed wait times, before you send anything.' },
     { icon: 'file', title: 'Criteria & forms up front', text: 'Referral requirements and downloadable intake forms on every profile, so referrals arrive complete the first time.' },
-    { icon: 'shield', title: 'Verified providers', text: 'Listings verified in three steps, fax code, email code, and ID, so the contact details actually work.' },
+    { icon: 'shield', title: 'Verified providers', text: 'Listings verified by fax and email code, reviewed by our team, so the contact details actually work.' },
     { icon: 'doctor', title: 'Doctor-level profiles', text: 'Refer to a physician, not just a building. Every doctor has their own profile, availability, and locations.' },
     { icon: 'filter', title: 'Smart filters', text: 'Filter by specialty, language, wait time, distance, hours, and gender to find the right match for your patient.' },
     { icon: 'fax', title: 'Built for how you work', text: 'Fax numbers, phone, hours and addresses front and centre, the details your office actually uses.' },
   ]
 
   const faqs = [
+    { q: 'Can patients use ReferEasy to find a family doctor accepting new patients?', a: "Yes. Anyone, patient or physician, can search ReferEasy free, no account needed. It's a common use: searching by location and filtering to family physicians who are currently accepting new patients." },
     { q: 'Is ReferEasy free for family physicians?', a: 'Yes, searching, filtering, and downloading referral forms is free for referring physicians and their staff, always.' },
-    { q: 'How do I know the information is current?', a: 'Providers manage their own availability, wait times and criteria, and verified listings have confirmed their fax and email with one-time codes plus ID.' },
+    { q: 'How do I know the information is current?', a: 'Providers manage their own availability, wait times and criteria, and verified listings have confirmed their fax and email, reviewed by our team.' },
     { q: "I'm a specialist, is my clinic already listed?", a: 'Very likely. We list thousands of Ontario providers. Create a free account, search your name or clinic, and claim your listing to take control of it.' },
-    { q: 'What does claiming a listing involve?', a: 'Three quick steps: a code faxed to your practice, a code emailed to you, and an ID or credential upload. It protects your listing from being edited by anyone else.' },
+    { q: 'What does claiming a listing involve?', a: 'A code faxed to your practice and a code emailed to you, reviewed by our team before access is granted, it protects your listing from being edited by anyone else.' },
     { q: 'Do referrals go through ReferEasy?', a: 'No, you keep your existing workflow. ReferEasy makes sure the referral you fax is complete, well-matched, and going to someone who can take it.' },
   ]
 
+  const faqLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  }
+
   return (
     <div className="min-h-screen bg-white">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       {/* Nav */}
       <TopNav />
 {/* Hero, text + image */}
