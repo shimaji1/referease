@@ -43,7 +43,7 @@ export default function Footer({ settings }) {
             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Resources</h4>
             <ul className="space-y-2 text-sm">
               <li><Link href="/blog" className="text-gray-600 hover:text-brand transition">Blog</Link></li>
-              <li><Link href="/#faq" className="text-gray-600 hover:text-brand transition">FAQ</Link></li>
+              <li><Link href="/support" className="text-gray-600 hover:text-brand transition">Support</Link></li>
               <li><a href={`mailto:${supportEmail}`} className="text-gray-600 hover:text-brand transition">Contact</a></li>
             </ul>
           </div>

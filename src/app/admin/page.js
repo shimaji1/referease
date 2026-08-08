@@ -457,8 +457,21 @@ export default function AdminPage() {
     if (!supabase) return
     await supabase.from("claims").update({ status: action }).eq("id", claim.id)
     if (action === 'approved') {
-      if (claim.provider_id) await supabase.from("providers").update({ owner_id: claim.user_id }).eq("id", claim.provider_id)
-      else if (claim.physician_id) await supabase.from("physicians").update({ owner_id: claim.user_id }).eq("id", claim.physician_id)
+      if (claim.provider_id) {
+        await supabase.from("providers").update({
+          owner_id: claim.user_id,
+          verified: true,
+          verified_at: new Date().toISOString(),
+          cpso_verified: !!(claim.cpso_lookup && claim.cpso_lookup.name_match),
+        }).eq("id", claim.provider_id)
+      } else if (claim.physician_id) {
+        await supabase.from("physicians").update({ owner_id: claim.user_id, verified: true }).eq("id", claim.physician_id)
+      }
+    }
+    // Privacy: the ID was only needed to make this decision — delete it either way.
+    if (claim.id_doc_path) {
+      await supabase.storage.from('forms').remove([claim.id_doc_path]).catch(() => {})
+      await supabase.from('claims').update({ id_doc_url: null, id_doc_path: null }).eq('id', claim.id)
     }
     setMsg(action === 'approved' ? 'Claim approved, linked to user' : 'Claim rejected')
     loadClaims()
@@ -879,8 +892,15 @@ export default function AdminPage() {
                           <div style={{ fontSize:"11px", color:"#64748b", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"12px", alignItems:"center", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:"6px", padding:"6px 10px" }}>
                             <span style={{ color:"#475569", fontWeight:600 }}>Verification:</span>
                             {c.verify_email && <span>✉️ {c.verify_email}</span>}
-                            {c.verify_fax && <span>📠 {c.verify_fax}</span>}
-                            {c.id_doc_url && <a href={c.id_doc_url} target="_blank" rel="noopener noreferrer" style={{ color:"#2563eb", fontWeight:600 }}>📎 View ID</a>}
+                            {c.verify_fax ? <span>📠 {c.verify_fax}</span> : <span style={{ color:"#b45309" }}>📠 skipped</span>}
+                            {c.id_doc_url ? <a href={c.id_doc_url} target="_blank" rel="noopener noreferrer" style={{ color:"#2563eb", fontWeight:600 }}>📎 View ID</a> : c.status !== 'pending' && <span>📎 ID deleted after review</span>}
+                          </div>
+                        )}
+                        {c.cpso_lookup && (
+                          <div style={{ fontSize:"11px", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"8px", alignItems:"center", background: c.cpso_lookup.name_match ? "#05966910" : "#f59e0b10", border:`1px solid ${c.cpso_lookup.name_match ? "#05966940" : "#f59e0b40"}`, borderRadius:"6px", padding:"6px 10px" }}>
+                            <span style={{ color:"#475569", fontWeight:600 }}>CPSO:</span>
+                            <span>{c.cpso_lookup.cpso_data?.name} · {c.cpso_lookup.cpso_data?.status} · {c.cpso_lookup.cpso_data?.specialty || 'n/a'}</span>
+                            {!c.cpso_lookup.name_match && <span style={{ color:"#b45309", fontWeight:600 }}>name mismatch — double-check</span>}
                           </div>
                         )}
                         <div style={{ fontSize:"10px", color:"#94a3b8", marginTop:"2px" }}>
