@@ -123,6 +123,12 @@ export default function SignUpPage() {
                 )}
               </div>
 
+              {role === 'provider' && (
+                <p className="text-xs text-gray-500 mt-3">
+                  New to listing a practice? <Link href="/support#great-listing" target="_blank" className="text-brand font-semibold hover:underline">See our guide on building an effective listing →</Link>
+                </p>
+              )}
+
               <label className="flex items-start gap-2 mt-4 cursor-pointer">
                 <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand/30 shrink-0" />

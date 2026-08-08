@@ -113,7 +113,8 @@ export default function ClaimPage() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <h1 className="text-xl font-bold text-gray-900 mb-1">Claim Your Listing</h1>
-        <p className="text-sm text-gray-500 mb-6">Search for your practice or clinic in our database. Once verified, you'll be able to manage your profile, update availability, and receive referrals.</p>
+        <p className="text-sm text-gray-500 mb-1">Search for your practice or clinic in our database. Once verified, you'll be able to manage your profile, update availability, and receive referrals.</p>
+        <p className="text-sm text-gray-500 mb-6">Once you're in, see our guide on <Link href="/support#great-listing" target="_blank" className="text-brand font-semibold hover:underline">building a listing that gets you accurate referrals →</Link></p>
 
         {/* Search */}
         <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
