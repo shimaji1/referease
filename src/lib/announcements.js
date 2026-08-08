@@ -22,16 +22,18 @@ export const IMAGE_SIZE_OPTIONS = ['sm', 'md', 'lg']
 export const FONT_SIZE_MIN = 7
 export const FONT_SIZE_MAX = 100
 
-const TEXT_SECTION_DEFAULT = { size: 16, color: '', font: 'sans', align: 'left', bold: false, italic: false, underline: false }
+const TEXT_SECTION_DEFAULT = { size: 16, color: '', font: 'sans', align: 'left', bold: false, italic: false, underline: false, x: 0, y: 0 }
 
 // Per-section style, stored as one JSONB blob (`style` column) so new sections don't
 // require a schema migration every time. Content (text/images) stays in its own columns.
+// x/y are a fine-grained pixel nudge on top of the section's normal flow position — not a
+// full free-position system, so the three templates' layouts never need to change shape.
 export const DEFAULT_STYLE = {
   headline: { ...TEXT_SECTION_DEFAULT, size: 26, bold: true },
   subheadline: { ...TEXT_SECTION_DEFAULT, size: 16, bold: true },
   body: { ...TEXT_SECTION_DEFAULT, size: 14 },
-  logo: { size: 40, align: 'left' },
-  button: { size: 15, bg: '', color: '', align: 'left' },
+  logo: { size: 40, align: 'left', x: 0, y: 0 },
+  button: { size: 15, bg: '', color: '', align: 'left', x: 0, y: 0 },
   image: { size: 'md' },
   layout: { v: 'middle' },
 }

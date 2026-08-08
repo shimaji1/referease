@@ -11,7 +11,7 @@ import ConfirmModal from '@/components/ConfirmModal'
 import { checkPassword } from '@/lib/password'
 import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
 import { fetchMyAnnouncement, submitAnnouncement, TEMPLATES, DEFAULT_STYLE, mergeStyle } from '@/lib/announcements'
-import AnnouncementStyleEditor from '@/components/AnnouncementStyleEditor'
+import AnnouncementToolbar from '@/components/AnnouncementToolbar'
 import AnnouncementSlide from '@/components/AnnouncementSlide'
 import SquareCheckoutModal from '@/components/SquareCheckoutModal'
 import SquareUpdateCardModal from '@/components/SquareUpdateCardModal'
@@ -562,6 +562,7 @@ function AnnouncementSection({ providers, user }) {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [selectedEl, setSelectedEl] = useState(null)
 
   const load = useCallback(async () => {
     if (!selected) return
@@ -621,9 +622,10 @@ function AnnouncementSection({ providers, user }) {
       <p className="text-xs text-gray-500 mb-4">One rotating spot in the homepage carousel. Submissions go through a quick review before going live.</p>
 
       <div className="mb-4">
-        <label className={label}>Live preview</label>
-        <div className="relative h-56 rounded-2xl overflow-hidden pointer-events-none">
-          <AnnouncementSlide item={{ ...form, providers: null }} />
+        <AnnouncementToolbar style={form.style} onChange={v => set('style', v)} selected={selectedEl} showImage={form.template !== 'text-card'} />
+        <label className={label + ' mt-3 block'}>Click any element below to select and style it</label>
+        <div className="relative h-56 rounded-2xl overflow-hidden" onClick={() => setSelectedEl(null)}>
+          <AnnouncementSlide item={{ ...form, providers: null }} editable selectedKey={selectedEl} onSelect={setSelectedEl} />
         </div>
       </div>
 
@@ -658,15 +660,15 @@ function AnnouncementSection({ providers, user }) {
         </div>
         <div>
           <label className={label}>Headline (H1) *</label>
-          <input className={inp} value={form.headline} onChange={e => set('headline', e.target.value)} placeholder="Now accepting new patients" maxLength={60} />
+          <input className={inp} value={form.headline} onChange={e => set('headline', e.target.value)} onFocus={() => setSelectedEl('headline')} placeholder="Now accepting new patients" maxLength={60} />
         </div>
         <div>
           <label className={label}>Subheading (H2)</label>
-          <input className={inp} value={form.subheadline} onChange={e => set('subheadline', e.target.value)} placeholder="Optional secondary line" maxLength={80} />
+          <input className={inp} value={form.subheadline} onChange={e => set('subheadline', e.target.value)} onFocus={() => setSelectedEl('subheadline')} placeholder="Optional secondary line" maxLength={80} />
         </div>
         <div>
           <label className={label}>Paragraph</label>
-          <textarea className={inp + ' min-h-[70px] resize-y'} value={form.body} onChange={e => set('body', e.target.value)} placeholder="Short supporting line" maxLength={160} />
+          <textarea className={inp + ' min-h-[70px] resize-y'} value={form.body} onChange={e => set('body', e.target.value)} onFocus={() => setSelectedEl('body')} placeholder="Short supporting line" maxLength={160} />
         </div>
         <div>
           <label className={label}>Logo</label>
@@ -694,17 +696,12 @@ function AnnouncementSection({ providers, user }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={label}>Button text</label>
-            <input className={inp} value={form.cta_label} onChange={e => set('cta_label', e.target.value)} placeholder="Book now" />
+            <input className={inp} value={form.cta_label} onChange={e => set('cta_label', e.target.value)} onFocus={() => setSelectedEl('button')} placeholder="Book now" />
           </div>
           <div>
             <label className={label}>Button link</label>
-            <input className={inp} value={form.cta_url} onChange={e => set('cta_url', e.target.value)} placeholder="/search?id=..." />
+            <input className={inp} value={form.cta_url} onChange={e => set('cta_url', e.target.value)} onFocus={() => setSelectedEl('button')} placeholder="/search?id=..." />
           </div>
-        </div>
-
-        <div className="pt-2 border-t border-gray-100">
-          <label className={label}>Styling</label>
-          <AnnouncementStyleEditor style={form.style} onChange={v => set('style', v)} showImage={form.template !== 'text-card'} />
         </div>
       </div>
 

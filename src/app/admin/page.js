@@ -5,7 +5,7 @@ import FormsManager from "@/components/FormsManager"
 import AdminSidebar from '@/components/AdminSidebar'
 import { getPlanStatus } from '@/lib/plan'
 import { TEMPLATES as ANNOUNCEMENT_TEMPLATES, DEFAULT_STYLE as ANNOUNCEMENT_DEFAULT_STYLE, mergeStyle as mergeAnnouncementStyle, fetchAllAnnouncements, createAdminAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/lib/announcements'
-import AnnouncementStyleEditor from '@/components/AnnouncementStyleEditor'
+import AnnouncementToolbar from '@/components/AnnouncementToolbar'
 import AnnouncementSlide from '@/components/AnnouncementSlide'
 import RichTextEditor from '@/components/RichTextEditor'
 import { slugify, fetchAllPosts, createPost, updatePost, deletePost } from '@/lib/posts'
@@ -1165,6 +1165,7 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
   const [providerQuery, setProviderQuery] = useState('')
   const [providerResults, setProviderResults] = useState([])
   const [linkedProvider, setLinkedProvider] = useState(null)
+  const [selectedEl, setSelectedEl] = useState(null)
 
   const load = useCallback(async () => {
     const data = await fetchAllAnnouncements()
@@ -1208,10 +1209,11 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
   const startEdit = (row) => {
     setForm({ id: row.id, provider_id: row.provider_id, template: row.template, headline: row.headline || '', subheadline: row.subheadline || '', body: row.body || '', image_url: row.image_url || '', image_path: row.image_path || '', logo_url: row.logo_url || '', logo_path: row.logo_path || '', cta_label: row.cta_label || '', cta_url: row.cta_url || '', sort_order: row.sort_order || 0, style: mergeAnnouncementStyle(row.style) })
     setLinkedProvider(row.providers || null)
+    setSelectedEl(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const resetForm = () => { setForm(emptyAnnouncement()); setLinkedProvider(null); setProviderQuery(''); setProviderResults([]) }
+  const resetForm = () => { setForm(emptyAnnouncement()); setLinkedProvider(null); setProviderQuery(''); setProviderResults([]); setSelectedEl(null) }
 
   const save = async () => {
     if (!form.headline.trim()) { setMsg('Add a headline first'); return }
@@ -1252,9 +1254,14 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
       <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"16px", marginBottom:"20px" }}>
         <div style={{ fontSize:"13px", fontWeight:700 }}>{form.id ? 'Edit slide' : '+ New admin slide'}</div>
 
-        <label style={lbl}>Live preview</label>
-        <div style={{ position:"relative", height:"220px", borderRadius:"16px", overflow:"hidden", marginTop:"4px", pointerEvents:"none" }}>
-          <AnnouncementSlide item={{ ...form, providers: linkedProvider }} />
+        <label style={lbl}>Styling</label>
+        <div style={{ marginTop:"4px" }}>
+          <AnnouncementToolbar style={form.style} onChange={v => setForm(f => ({ ...f, style: v }))} selected={selectedEl} showImage={form.template !== 'text-card'} />
+        </div>
+
+        <label style={lbl}>Live preview — click any element to select and style it</label>
+        <div style={{ position:"relative", height:"220px", borderRadius:"16px", overflow:"hidden", marginTop:"4px" }} onClick={() => setSelectedEl(null)}>
+          <AnnouncementSlide item={{ ...form, providers: linkedProvider }} editable selectedKey={selectedEl} onSelect={setSelectedEl} />
         </div>
 
         <label style={lbl}>Template</label>
@@ -1268,13 +1275,13 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
         </div>
 
         <label style={lbl}>Headline (H1) *</label>
-        <input style={s} value={form.headline} onChange={e => setForm(f => ({ ...f, headline: e.target.value }))} placeholder="Now accepting new patients" maxLength={60} />
+        <input style={s} value={form.headline} onChange={e => setForm(f => ({ ...f, headline: e.target.value }))} onFocus={() => setSelectedEl('headline')} placeholder="Now accepting new patients" maxLength={60} />
 
         <label style={lbl}>Subheading (H2)</label>
-        <input style={s} value={form.subheadline} onChange={e => setForm(f => ({ ...f, subheadline: e.target.value }))} placeholder="Optional secondary line" maxLength={80} />
+        <input style={s} value={form.subheadline} onChange={e => setForm(f => ({ ...f, subheadline: e.target.value }))} onFocus={() => setSelectedEl('subheadline')} placeholder="Optional secondary line" maxLength={80} />
 
         <label style={lbl}>Paragraph</label>
-        <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} placeholder="Short supporting line" maxLength={160} />
+        <textarea style={{ ...s, minHeight:"50px", resize:"vertical" }} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} onFocus={() => setSelectedEl('body')} placeholder="Short supporting line" maxLength={160} />
 
         <label style={lbl}>Logo</label>
         <div style={{ display:"flex", alignItems:"center", gap:"10px", marginTop:"4px" }}>
@@ -1321,16 +1328,9 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 100px", gap:"10px" }}>
-          <div><label style={lbl}>Button text</label><input style={s} value={form.cta_label} onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))} placeholder="Book now" /></div>
-          <div><label style={lbl}>Button link</label><input style={s} value={form.cta_url} onChange={e => setForm(f => ({ ...f, cta_url: e.target.value }))} placeholder="/search?id=... or a full URL" /></div>
+          <div><label style={lbl}>Button text</label><input style={s} value={form.cta_label} onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))} onFocus={() => setSelectedEl('button')} placeholder="Book now" /></div>
+          <div><label style={lbl}>Button link</label><input style={s} value={form.cta_url} onChange={e => setForm(f => ({ ...f, cta_url: e.target.value }))} onFocus={() => setSelectedEl('button')} placeholder="/search?id=... or a full URL" /></div>
           <div><label style={lbl}>Order</label><input style={s} type="number" value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: e.target.value }))} /></div>
-        </div>
-
-        <div style={{ marginTop:"14px", paddingTop:"12px", borderTop:"1px solid #f1f5f9" }}>
-          <label style={{ ...lbl, marginTop:0 }}>Styling</label>
-          <div style={{ marginTop:"6px" }}>
-            <AnnouncementStyleEditor style={form.style} onChange={v => setForm(f => ({ ...f, style: v }))} showImage={form.template !== 'text-card'} />
-          </div>
         </div>
 
         <div style={{ display:"flex", gap:"8px", marginTop:"14px" }}>
