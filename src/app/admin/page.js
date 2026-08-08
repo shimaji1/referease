@@ -1089,9 +1089,9 @@ function SettingsTab({ setMsg }) {
             </div>
             <p style={{ margin:"4px 0 12px", fontSize:"12px", color:"#64748b" }}>Edits go live on /{legalDoc === 'terms' ? 'terms' : 'privacy'} immediately on save, and update the "Last updated" date shown there.</p>
             {legalDoc === 'terms' ? (
-              <RichTextEditor value={legalTerms.html} onChange={html => setLegalTerms({ html })} />
+              <RichTextEditor key="terms" value={legalTerms.html} onChange={html => setLegalTerms({ html })} />
             ) : (
-              <RichTextEditor value={legalPrivacy.html} onChange={html => setLegalPrivacy({ html })} />
+              <RichTextEditor key="privacy" value={legalPrivacy.html} onChange={html => setLegalPrivacy({ html })} />
             )}
             <button
               onClick={() => legalDoc === 'terms'
@@ -1477,7 +1477,7 @@ function BlogTab({ setMsg }) {
 
         <label style={lbl}>Content</label>
         <div style={{ marginTop:"4px" }}>
-          <RichTextEditor value={form.body} onChange={html => setForm(f => ({ ...f, body: html }))} placeholder="Write your post…" />
+          <RichTextEditor key={form.id || 'new'} value={form.body} onChange={html => setForm(f => ({ ...f, body: html }))} placeholder="Write your post…" />
         </div>
 
         <div style={box}>

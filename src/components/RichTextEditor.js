@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -206,18 +206,6 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
       setHtmlMode(false)
     }
   }, [editor, htmlMode, htmlDraft, onChange])
-
-  // TipTap's `content` option only seeds the editor once, when it's created — it
-  // doesn't react to the `value` prop changing later. This one editor instance is
-  // reused across "New post" and every "Edit" click in BlogTab, so without this,
-  // switching which post you're editing leaves the old content on screen (or
-  // empty, if you started from a blank new-post form).
-  useEffect(() => {
-    if (!editor) return
-    const incoming = value || ''
-    if (incoming !== editor.getHTML()) editor.commands.setContent(incoming, false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, editor])
 
   if (!editor) return <div className="border border-gray-300 rounded-xl min-h-[400px] bg-gray-50 animate-pulse" />
 

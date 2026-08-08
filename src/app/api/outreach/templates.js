@@ -65,13 +65,13 @@ const TEMPLATES = {
     ${bullet([
       "<strong>Verified badge</strong>, visible on every search result",
       "<strong>Mid-priority ranking</strong>, appear above unverified providers",
-      "<strong>Up to 5 referral forms</strong>, attach your requisition, referral form, or intake sheet",
+      "<strong>Up to 3 referral forms</strong>, attach your requisition, referral form, or intake sheet",
       "<strong>Custom How-to-Refer</strong>, plain-language instructions on your profile",
       "<strong>View analytics</strong>, see how many physicians viewed you this month",
     ])}
     ${custom(customMessage)}
     ${btn('Upgrade to Verified, $29/mo →', `${BASE}/pricing`)}
-    ${p(`<span style="color:#64748b;font-size:13px">Verification takes 3 minutes: fax code, email code, and a quick ID upload.</span>`)}
+    ${p(`<span style="color:#64748b;font-size:13px">Verification takes a couple minutes: a fax code, an email code, and — for individual physicians — an optional CPSO check. No ID required.</span>`)}
   `),
 
   featured: ({ name, customMessage }) => wrap(`
