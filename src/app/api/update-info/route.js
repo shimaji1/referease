@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase-server'
+import { waitDaysApprox } from '@/lib/waitTime'
 
 // GET /api/update-info?token=... — look up the provider behind a monthly-update token.
 export async function GET(request) {
@@ -14,7 +15,7 @@ export async function GET(request) {
   if (new Date(tok.expires_at).getTime() < Date.now()) return NextResponse.json({ error: 'This link has expired.' }, { status: 410 })
 
   const { data: provider } = await sb.from('providers')
-    .select('id, name, accepting_referrals, accepting_new_patients, wait_weeks, phone, fax, email, website, hours')
+    .select('id, name, accepting_referrals, accepting_new_patients, wait_type, wait_weeks, phone, fax, email, website, hours')
     .eq('id', tok.provider_id).single()
   if (!provider) return NextResponse.json({ error: 'Listing not found.' }, { status: 404 })
 
@@ -35,10 +36,14 @@ export async function POST(request) {
   if (new Date(tok.expires_at).getTime() < Date.now()) return NextResponse.json({ error: 'This link has expired.' }, { status: 410 })
 
   const accepting = body.accepting_referrals === null ? null : !!body.accepting_referrals
+  const waitType = body.wait_type || null
+  const waitWeeks = waitType === 'weeks' && body.wait_weeks !== '' && body.wait_weeks != null ? parseInt(body.wait_weeks) : null
   const payload = {
     accepting_referrals: accepting,
     accepting_new_patients: accepting,
-    wait_weeks: body.wait_weeks === '' || body.wait_weeks === null || body.wait_weeks === undefined ? null : parseInt(body.wait_weeks),
+    wait_type: waitType,
+    wait_weeks: waitWeeks,
+    wait_days_approx: waitDaysApprox(waitType, waitWeeks),
     phone: body.phone || null,
     fax: body.fax || null,
     email: body.email || null,

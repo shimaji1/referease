@@ -4,6 +4,7 @@ import TopNav from '@/components/TopNav'
 import ProfileView from '@/components/ProfileView'
 import { getSupabase } from '@/lib/supabase-server'
 import { providerSlug, providerIdFromSlug, extractCity } from '@/lib/providerSeo'
+import { waitLabel, waitColor } from '@/lib/waitTime'
 
 const BASE = 'https://www.refereasy.ca'
 const DOCTOR_CATEGORIES = ['Specialist', 'Family Medicine']
@@ -37,20 +38,21 @@ async function loadRelated(sb, p) {
   const { data: formsData } = await sb.from('listing_forms').select('*').eq('provider_id', p.id)
 
   const primaryClinicIds = p.clinic_provider_id ? [p.clinic_provider_id] : []
-  const { data: locLinks } = await sb.from('doctor_locations').select('clinic_provider_id').eq('doctor_provider_id', p.id)
+  const { data: locLinks } = await sb.from('doctor_locations').select('clinic_provider_id, wait_type, wait_weeks').eq('doctor_provider_id', p.id)
+  const waitByClinicId = {}
+  ;(locLinks || []).forEach(l => { waitByClinicId[l.clinic_provider_id] = { wait_type: l.wait_type, wait_weeks: l.wait_weeks } })
   const secondaryClinicIds = (locLinks || []).map(l => l.clinic_provider_id).filter(id => !primaryClinicIds.includes(id))
   const allClinicIds = [...primaryClinicIds, ...secondaryClinicIds]
   let parentClinics = []
   if (allClinicIds.length) {
     const { data: clinics } = await sb.from('providers').select('id, name, address, phone, fax, website, hours').in('id', allClinicIds)
-    parentClinics = allClinicIds.map(id => (clinics || []).find(c => c.id === id)).filter(Boolean)
+    parentClinics = allClinicIds.map(id => {
+      const c = (clinics || []).find(x => x.id === id)
+      return c ? { ...c, ...(waitByClinicId[id] || {}) } : null
+    }).filter(Boolean)
   }
 
   return { docs, forms: formsData || [], parentClinics }
-}
-
-function waitLabel(weeks) {
-  return weeks == null ? 'Varies' : weeks === 0 ? 'No wait' : `~${weeks} week${weeks > 1 ? 's' : ''}`
 }
 
 function isOpenNow(hours) {
@@ -75,7 +77,7 @@ export async function generateMetadata({ params }) {
   const title = `${p.name}${specialty ? ` — ${specialty}` : ''}${city ? ` in ${city}, Ontario` : ' in Ontario'} | ReferEasy`
 
   const acceptingText = p.accepting_referrals == null ? '' : p.accepting_referrals ? 'Currently accepting referrals.' : 'Not currently accepting new referrals.'
-  const waitText = p.wait_weeks == null ? '' : `Wait time: ${waitLabel(p.wait_weeks)}.`
+  const waitText = p.wait_type ? `Wait time: ${waitLabel(p.wait_type, p.wait_weeks)}.` : ''
   const description = `${p.name} is a${isDoctor ? '' : ' healthcare'} ${specialty || 'healthcare provider'}${city ? ` in ${city}, Ontario` : ' in Ontario'}. ${acceptingText} ${waitText}`.replace(/\s+/g, ' ').trim()
 
   const canonical = `/doctors/${providerSlug(p)}`
@@ -140,7 +142,7 @@ export default async function DoctorProfilePage({ params }) {
     isDoctor
       ? { q: `Is ${p.name} accepting new referrals?`, a: p.accepting_referrals == null ? `Referral status for ${p.name} is not currently listed.` : p.accepting_referrals ? `Yes, ${p.name} is currently accepting new referrals.` : `${p.name} is not currently accepting new referrals.` }
       : { q: `Is ${p.name} accepting new referrals?`, a: p.accepting_referrals == null ? `Referral status for ${p.name} is not currently listed.` : p.accepting_referrals ? `Yes, ${p.name} is currently accepting new referrals.` : `${p.name} is not currently accepting new referrals.` },
-    { q: `What is the wait time to be seen at ${p.name}?`, a: p.wait_weeks == null ? `Wait time for ${p.name} is not currently listed.` : `The current estimated wait time at ${p.name} is ${waitLabel(p.wait_weeks)}.` },
+    { q: `What is the wait time to be seen at ${p.name}?`, a: !p.wait_type ? `Wait time for ${p.name} is not currently listed.` : `The current estimated wait time at ${p.name} is ${waitLabel(p.wait_type, p.wait_weeks)}.` },
     p.requirements ? { q: `What does ${p.name} require for a referral?`, a: p.requirements } : null,
     p.address ? { q: `Where is ${p.name} located?`, a: `${p.name} is located at ${p.address}.` } : null,
   ].filter(Boolean)
@@ -169,7 +171,7 @@ export default async function DoctorProfilePage({ params }) {
           verifiedAt={p.verified_at}
           tiles={[
             { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },
-            { big: waitLabel(p.wait_weeks), small: 'Wait time', color: p.wait_weeks == null ? null : p.wait_weeks <= 4 ? 'text-emerald-600' : p.wait_weeks <= 12 ? 'text-amber-500' : 'text-red-500' },
+            { big: waitLabel(p.wait_type, p.wait_weeks), small: 'Wait time', color: waitColor(p.wait_type, p.wait_weeks) },
             { big: open ? 'Open now' : 'Closed', small: 'Right now', good: open },
           ]}
           banner={
@@ -184,8 +186,8 @@ export default async function DoctorProfilePage({ params }) {
           }
           contact={{ address: p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
           hours={p.hours}
-          locations={parentClinics.length ? parentClinics.map(c => ({ id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax, website: c.website })) : null}
-          referral={{ wait: waitLabel(p.wait_weeks), requirements: p.requirements, criteria: p.criteria, types: p.referral_types, cpso_url: p.cpso_url }}
+          locations={parentClinics.length ? parentClinics.map(c => ({ id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax, website: c.website, wait_type: c.wait_type, wait_weeks: c.wait_weeks })) : null}
+          referral={{ wait: waitLabel(p.wait_type, p.wait_weeks), requirements: p.requirements, criteria: p.criteria, types: p.referral_types, cpso_url: p.cpso_url }}
           notes={p.notes}
           people={docs.length > 0 ? docs.map(d => ({ id: d.id, name: d.name, detail: d.specialty, href: `/doctors/${d.id}` })) : null}
           forms={forms.map(f => ({ id: f.id, name: f.name, url: f.file_url }))}

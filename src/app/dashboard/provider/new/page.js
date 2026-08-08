@@ -34,7 +34,7 @@ export default function NewProviderPage() {
     const { data: created, error } = await supabase.from('providers').insert({ ...data, owner_id: user.id, clinic_provider_id: locations[0]?.id || null }).select().single()
     if (error || !created) { setSaving(false); setAlertMsg('Error: ' + (error?.message || 'could not save')); return }
     for (const loc of locations.slice(1)) {
-      await supabase.from('doctor_locations').insert({ doctor_provider_id: created.id, clinic_provider_id: loc.id })
+      await supabase.from('doctor_locations').insert({ doctor_provider_id: created.id, clinic_provider_id: loc.id, wait_type: loc.wait_type || null, wait_weeks: loc.wait_weeks ?? null, wait_days_approx: loc.wait_days_approx ?? null })
     }
     let warn = null
     for (const r of docs) {

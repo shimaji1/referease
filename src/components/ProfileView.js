@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import ProfileHeader from './ProfileHeader'
 import { trackEvent } from '@/lib/analytics'
+import { waitLabel } from '@/lib/waitTime'
 
 // ============================================================================
 // ONE profile body for every category — clinics, doctors, imaging, labs.
@@ -162,6 +163,7 @@ export default function ProfileView({
                   {loc.address && <Row l="Address" v={loc.address} href={`https://maps.google.com/?q=${encodeURIComponent(loc.address)}`} />}
                   {loc.phone && <Row l="Phone" v={loc.phone} href={`tel:${loc.phone}`} />}
                   {loc.fax && <Row l="Fax" v={loc.fax} />}
+                  {loc.wait_type && <Row l="Wait here" v={waitLabel(loc.wait_type, loc.wait_weeks)} />}
                   {loc.website && <Row l="Website" v={String(loc.website).replace(/^https?:\/\//, '')} href={String(loc.website).startsWith('http') ? loc.website : `https://${loc.website}`} />}
                   {(loc.languages || (i === 0 && languages)) && <Row l="Languages" v={(loc.languages || languages).join(', ')} />}
                 </div>

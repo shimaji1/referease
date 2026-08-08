@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { limit as planLimit } from '@/lib/plan'
+import { WAIT_TYPES, waitDaysApprox } from '@/lib/waitTime'
 
 const CATS = [
   { key: 'Family Medicine', label: 'Family Medicine' },
@@ -31,10 +32,15 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
   const empty = {
     name: '', type: '', specialty_code: '', category: 'Specialist', services: [], address: '', phone: '', fax: '', email: '', website: '',
     rating: '', reviews: 0, hours: { mon: null, tue: null, wed: null, thu: null, fri: null, sat: null, sun: null },
-    accepting_referrals: true, wait_weeks: '', requirements: '', doctors: [], languages: ['English'],
+    accepting_referrals: true, wait_type: '', wait_weeks: '', requirements: '', doctors: [], languages: ['English'],
     paid_referral: false, paid_referral_details: '', data_status: 'complete',
   }
-  const [form, setForm] = useState(initial || empty)
+  // Back-compat: rows saved before wait_type existed just have wait_weeks set —
+  // treat those as type 'weeks' rather than showing them as unknown/varies.
+  const initialForm = initial
+    ? { ...initial, wait_type: initial.wait_type || (initial.wait_weeks != null ? 'weeks' : '') }
+    : empty
+  const [form, setForm] = useState(initialForm)
   const [specialties, setSpecialties] = useState([])
   const [doctorRows, setDoctorRows] = useState(initial?._doctors || [])
   const addDoctorRow = () => setDoctorRows(rows => [...rows, { name: '', specialty: form.type || '', specialty_code: form.specialty_code || '', gender: '', accepting_referrals: null }])
@@ -70,6 +76,7 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
     setClinicLinkQuery(''); setClinicLinkResults([])
   }
   const unlinkClinic = (id) => setLinkedClinics(l => l.filter(c => c.id !== id))
+  const updLinkedClinicWait = (id, patch) => setLinkedClinics(l => l.map(c => c.id === id ? { ...c, ...patch } : c))
   const [servicesText, setServicesText] = useState(joinList(initial?.services))
   const [doctorsText, setDoctorsText] = useState(joinList(initial?.doctors))
   const [languagesText, setLanguagesText] = useState(joinList(initial?.languages || ['English']))
@@ -121,12 +128,17 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
       referral_types: parseList(referralTypesText),
       rating: form.rating ? parseFloat(form.rating) : null,
       reviews: parseInt(form.reviews) || 0,
-      wait_weeks: form.wait_weeks !== '' && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null,
+      wait_type: form.wait_type || null,
+      wait_weeks: form.wait_type === 'weeks' && form.wait_weeks !== '' && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null,
+      wait_days_approx: waitDaysApprox(form.wait_type || null, form.wait_type === 'weeks' ? (form.wait_weeks !== '' ? parseInt(form.wait_weeks) : null) : null),
       lat: form.lat !== '' && form.lat != null ? parseFloat(form.lat) : null,
       lng: form.lng !== '' && form.lng != null ? parseFloat(form.lng) : null,
       email: form.email || null,
       _doctors: validDocs,
-      _locations: linkedClinics,
+      _locations: linkedClinics.map(c => {
+        const weeks = c.wait_type === 'weeks' && c.wait_weeks !== '' && c.wait_weeks != null ? parseInt(c.wait_weeks) : null
+        return { ...c, wait_type: c.wait_type || null, wait_weeks: weeks, wait_days_approx: c.wait_type ? waitDaysApprox(c.wait_type, weeks) : null }
+      }),
     }
     delete data.id; delete data.created_at; delete data.updated_at; delete data.owner_id
     onSubmit(data)
@@ -209,8 +221,17 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
             </select>
           </div>
           <div>
-            <label className={lbl}>Wait Time (weeks)</label>
-            <input className={inp} type="number" min="0" value={form.wait_weeks ?? ''} onChange={e => set('wait_weeks', e.target.value)} placeholder="Leave blank if varies" />
+            <label className={lbl}>Wait Time</label>
+            <div className="flex gap-2">
+              <select className={inp} value={form.wait_type || ''} onChange={e => set('wait_type', e.target.value || null)}>
+                <option value="">Varies / unknown</option>
+                {WAIT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              {form.wait_type === 'weeks' && (
+                <input className={inp} type="number" min="0" value={form.wait_weeks ?? ''} onChange={e => set('wait_weeks', e.target.value)} placeholder="e.g. 3" />
+              )}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">Imaging or labs with same-day or 24/48/72-hour turnaround, use those instead of weeks.</p>
           </div>
           <div>
             <label className={lbl}>Gender (for individual doctors)</label>
@@ -325,12 +346,26 @@ export default function ProviderForm({ initial, onSubmit, loading, submitLabel }
         {linkedClinics.length > 0 && (
           <div className="space-y-2">
             {linkedClinics.map((c, i) => (
-              <div key={c.id} className="flex items-center justify-between gap-2 border border-brand/20 bg-brand/5 rounded-lg px-3 py-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-gray-900 truncate">{c.name}{i === 0 ? <span className="ml-2 text-[9px] font-bold text-brand bg-white border border-brand/20 rounded-full px-1.5 py-0.5 align-middle">MAIN</span> : null}</div>
-                  {c.address && <div className="text-xs text-gray-500 truncate">{c.address}</div>}
+              <div key={c.id} className="border border-brand/20 bg-brand/5 rounded-lg px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 truncate">{c.name}{i === 0 ? <span className="ml-2 text-[9px] font-bold text-brand bg-white border border-brand/20 rounded-full px-1.5 py-0.5 align-middle">MAIN</span> : null}</div>
+                    {c.address && <div className="text-xs text-gray-500 truncate">{c.address}</div>}
+                  </div>
+                  <button type="button" onClick={() => unlinkClinic(c.id)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 shrink-0">Unlink</button>
                 </div>
-                <button type="button" onClick={() => unlinkClinic(c.id)} className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 shrink-0">Unlink</button>
+                {i > 0 && (
+                  <div className="mt-2 pt-2 border-t border-brand/10 flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider shrink-0">Wait at this location</span>
+                    <select className={inp + ' py-1.5'} value={c.wait_type || ''} onChange={e => updLinkedClinicWait(c.id, { wait_type: e.target.value || null })}>
+                      <option value="">Same as main</option>
+                      {WAIT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    {c.wait_type === 'weeks' && (
+                      <input className={inp + ' py-1.5 max-w-[90px]'} type="number" min="0" value={c.wait_weeks ?? ''} onChange={e => updLinkedClinicWait(c.id, { wait_weeks: e.target.value })} placeholder="weeks" />
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

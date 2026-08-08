@@ -13,12 +13,13 @@ import TrendChart from '@/components/TrendChart'
 import { presetRange, fetchTrafficOverview, fetchTopPages, fetchTrafficSources, fetchDeviceBreakdown, fetchSearchInsights, fetchConversionFunnel, fetchProviderEngagementRollup } from '@/lib/siteAnalytics'
 import { fetchSetting, saveSetting, DEFAULTS } from '@/lib/siteSettings'
 import { DEFAULT_TERMS_HTML, DEFAULT_PRIVACY_HTML } from '@/lib/legalDefaults'
+import { WAIT_TYPES, waitDaysApprox } from '@/lib/waitTime'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"]
 
-const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:null, accepting_new_patients:null, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null, sub_specialty:null, gender:null, cpso_url:null, criteria:"", referral_types:[], notes:"" })
+const empty = () => ({ name:"", type:"", category:"Specialist", services:[], address:"", phone:"", fax:"", email:"", website:"", rating:null, reviews:0, hours:{mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null}, accepting_referrals:null, accepting_new_patients:null, wait_type:null, wait_weeks:null, requirements:"", doctors:[], languages:["English"], data_status:"complete", specialty_code:null, sub_specialty:null, gender:null, cpso_url:null, criteria:"", referral_types:[], notes:"" })
 const CAT_HEX = { 'Family Medicine':'#2563eb','Specialist':'#7c3aed','Multi-Specialty':'#4f46e5','Clinic':'#475569','Hospital':'#0891b2','Imaging':'#d97706','Lab':'#0d9488','Physiotherapy':'#ea580c','Rehab':'#db2777' }
 const catHex = (c) => CAT_HEX[c] || '#64748b'
 const normalizeHours = (h) => {
@@ -370,7 +371,8 @@ export default function AdminPage() {
     // keep the legacy providers.doctors[] string array in sync from the structured rows
     const doctorNames = doctorRows.map(r => { const nm = (r.name || '').trim(); return nm && r.specialty ? `${nm}, ${r.specialty}` : nm }).map(x => (x || '').trim()).filter(Boolean)
     if (form.type && form.type.trim() && !form.specialty_code) { await ensureSpecialty(form.type, form.category) }
-    const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorNames, languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), referral_types: referralTypesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_weeks: form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null, email: form.email || null, clinic_provider_id: linkedClinics[0]?.id || null }
+    const waitWeeksVal = form.wait_type === 'weeks' && form.wait_weeks !== "" && form.wait_weeks !== null ? parseInt(form.wait_weeks) : null
+    const rec = { ...form, services: servicesText.split(',').map(x=>x.trim()).filter(Boolean), doctors: doctorNames, languages: languagesText.split(',').map(x=>x.trim()).filter(Boolean), referral_types: referralTypesText.split(',').map(x=>x.trim()).filter(Boolean), rating: form.rating ? parseFloat(form.rating) : null, reviews: parseInt(form.reviews) || 0, wait_type: form.wait_type || null, wait_weeks: waitWeeksVal, wait_days_approx: waitDaysApprox(form.wait_type || null, waitWeeksVal), email: form.email || null, clinic_provider_id: linkedClinics[0]?.id || null }
     delete rec.id; delete rec.created_at; delete rec.updated_at; delete rec.owner_id
 
     // 1) upsert the listing (provider) and capture its id
@@ -508,7 +510,7 @@ export default function AdminPage() {
   useEffect(() => { if (authed) loadAnnouncementCount() }, [authed, loadAnnouncementCount])
 
   const edit = async (p) => {
-    setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, wait_weeks: p.wait_weeks ?? "", email: p.email || "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
+    setForm({ ...p, rating: p.rating || "", reviews: p.reviews || 0, wait_type: p.wait_type || (p.wait_weeks != null ? 'weeks' : ""), wait_weeks: p.wait_weeks ?? "", email: p.email || "", services: p.services || [], doctors: p.doctors || [], languages: p.languages || ["English"], hours: p.hours || {mon:null,tue:null,wed:null,thu:null,fri:null,sat:null,sun:null} })
     setServicesText((p.services || []).join(', '))
     setDoctorsText((p.doctors || []).join(', '))
     setLanguagesText((p.languages || ['English']).join(', '))
@@ -750,7 +752,16 @@ export default function AdminPage() {
               <div><label style={lbl}>Fax</label><input style={s} value={form.fax || ""} onChange={e => setForm({...form, fax:e.target.value || null})} /></div>
               <div><label style={lbl}>Email</label><input style={s} type="email" value={form.email || ""} onChange={e => setForm({...form, email:e.target.value || null})} placeholder="referrals@clinic.ca" /></div>
               <div><label style={lbl}>Website</label><input style={s} value={form.website || ""} onChange={e => setForm({...form, website:e.target.value || null})} /></div>
-              <div><label style={lbl}>Wait (weeks)</label><input style={s} type="number" min="0" value={form.wait_weeks ?? ""} onChange={e => setForm({...form, wait_weeks:e.target.value})} /></div>
+              <div>
+                <label style={lbl}>Wait time</label>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <select style={s} value={form.wait_type || ""} onChange={e => setForm({...form, wait_type: e.target.value || null})}>
+                    <option value="">Varies / unknown</option>
+                    {WAIT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  {form.wait_type === 'weeks' && <input style={s} type="number" min="0" value={form.wait_weeks ?? ""} onChange={e => setForm({...form, wait_weeks:e.target.value})} placeholder="weeks" />}
+                </div>
+              </div>
               <div><label style={lbl}>SNOMED Code</label><input style={s} value={form.specialty_code || ""} onChange={e => setForm({...form, specialty_code:e.target.value || null})} /></div>
               <div><label style={lbl}>Sub-specialty</label><input style={s} value={form.sub_specialty || ""} onChange={e => setForm({...form, sub_specialty:e.target.value || null})} placeholder="e.g. Interventional Cardiology" /></div>
               <div><label style={lbl}>Gender</label><select style={s} value={form.gender || ''} onChange={e => setForm({...form, gender:e.target.value || null})}><option value="">,</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>

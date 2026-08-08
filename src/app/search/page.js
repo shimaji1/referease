@@ -15,6 +15,7 @@ import { fetchLists, fetchSavedProviderIds, addToList, removeFromAllLists } from
 import { trackEvent } from '@/lib/analytics'
 import { trackSearch } from '@/lib/siteAnalytics'
 import { providerSlug } from '@/lib/providerSeo'
+import { waitLabel, waitShort, waitColor, waitDaysApprox } from '@/lib/waitTime'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -89,7 +90,7 @@ function parseSearchQuery(raw) {
 }
 function sortCompare(sort) {
   if (sort === 'rating') return (a, b) => byTier(a, b) || (Number(b.rating) || 0) - (Number(a.rating) || 0)
-  if (sort === 'wait') return (a, b) => byTier(a, b) || (a.wait_weeks ?? 999) - (b.wait_weeks ?? 999)
+  if (sort === 'wait') return (a, b) => byTier(a, b) || (a.wait_days_approx ?? 9999) - (b.wait_days_approx ?? 9999)
   if (sort === 'reviews') return (a, b) => byTier(a, b) || (b.reviews || 0) - (a.reviews || 0)
   if (sort === 'distance') return (a, b) => byTier(a, b) || safeDist(a) - safeDist(b)
   return (a, b) => byTier(a, b) || (a.name || '').localeCompare(b.name || '')
@@ -113,11 +114,11 @@ function specToCategory(specCategory, specName) {
   return 'Specialist'
 }
 
-function WaitBadge({ weeks }) {
-  if (weeks === null || weeks === undefined) return null
-  const cls = weeks === 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : weeks <= 2 ? 'text-amber-700 bg-amber-50 border-amber-200' : weeks <= 6 ? 'text-orange-700 bg-orange-50 border-orange-200' : 'text-red-700 bg-red-50 border-red-200'
-  const label = weeks === 0 ? 'No wait' : weeks === 1 ? '~1 wk' : `~${weeks} wks`
-  return <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>
+function WaitBadge({ type, weeks }) {
+  if (!type) return null
+  const days = waitDaysApprox(type, weeks)
+  const cls = days === 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : days <= 14 ? 'text-amber-700 bg-amber-50 border-amber-200' : days <= 42 ? 'text-orange-700 bg-orange-50 border-orange-200' : 'text-red-700 bg-red-50 border-red-200'
+  return <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>{waitShort(type, weeks)}</span>
 }
 
 const CAT_BADGE = {
@@ -156,7 +157,7 @@ function Card({ p, onSelect, isFav, onFav, sponsored }) {
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
           {p.verified && <VerifiedPill />}
           <AcceptPill v={p.accepting_referrals} />
-          <WaitBadge weeks={p.wait_weeks} />
+          <WaitBadge type={p.wait_type} weeks={p.wait_weeks} />
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
           <span className="text-[10px] text-gray-400">{dist} km</span>
         </div>
@@ -189,7 +190,7 @@ function DoctorCard({ d, isFav, onFav, sponsored }) {
             {isFamily
               ? <AcceptPill v={d.accepting_new_patients} patient />
               : <AcceptPill v={d.accepting_referrals} />}
-            <WaitBadge weeks={d.wait_weeks} />
+            <WaitBadge type={d.wait_type} weeks={d.wait_weeks} />
             {d.verified && <VerifiedPill />}
             {d.hours && <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>}
             {dist && <span className="text-[10px] text-gray-400">{dist} km</span>}
@@ -244,14 +245,19 @@ function Detail({ p, onBack, isFav, onFav }) {
     })
     // Doctor's linked clinics: primary via clinic_provider_id, up to 3 more via doctor_locations
     const primaryIds = p.clinic_provider_id ? [p.clinic_provider_id] : []
-    supabase.from('doctor_locations').select('clinic_provider_id').eq('doctor_provider_id', p.id).then(({ data }) => {
+    supabase.from('doctor_locations').select('clinic_provider_id, wait_type, wait_weeks').eq('doctor_provider_id', p.id).then(({ data }) => {
       if (!alive) return
+      const waitByClinicId = {}
       const secondaryIds = (data || []).map(l => l.clinic_provider_id).filter(id => !primaryIds.includes(id))
+      ;(data || []).forEach(l => { waitByClinicId[l.clinic_provider_id] = { wait_type: l.wait_type, wait_weeks: l.wait_weeks } })
       const allIds = [...primaryIds, ...secondaryIds]
       if (!allIds.length) { setParentClinics([]); return }
       supabase.from('providers').select('id, name, address, phone, fax, website, hours').in('id', allIds).then(({ data: clinics }) => {
         if (!alive || !clinics) return
-        setParentClinics(allIds.map(id => clinics.find(c => c.id === id)).filter(Boolean))
+        setParentClinics(allIds.map(id => {
+          const c = clinics.find(x => x.id === id)
+          return c ? { ...c, ...(waitByClinicId[id] || {}) } : null
+        }).filter(Boolean))
       })
     })
     return () => { alive = false }
@@ -281,7 +287,7 @@ function Detail({ p, onBack, isFav, onFav }) {
         action={<button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
         tiles={[
           { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },
-          { big: p.wait_weeks == null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} wk`, small: 'Wait time', color: p.wait_weeks == null ? null : p.wait_weeks <= 4 ? 'text-emerald-600' : p.wait_weeks <= 12 ? 'text-amber-500' : 'text-red-500' },
+          { big: waitShort(p.wait_type, p.wait_weeks), small: 'Wait time', color: waitColor(p.wait_type, p.wait_weeks) },
           { big: open ? 'Open now' : 'Closed', small: 'Right now', good: open },
           { big: `${dist} km`, small: 'Distance', good: null },
         ]}
@@ -300,8 +306,8 @@ function Detail({ p, onBack, isFav, onFav }) {
         }
         contact={{ address: p.address, phone: p.phone, fax: p.fax, email: p.email, website: p.website, languages: p.languages || ['English'] }}
         hours={p.hours}
-        locations={parentClinics.length ? parentClinics.map(c => ({ id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax, website: c.website })) : null}
-        referral={{ wait: p.wait_weeks === null ? 'Varies' : p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week${p.wait_weeks > 1 ? 's' : ''}`, requirements: p.requirements, criteria: p.criteria, types: p.referral_types, cpso_url: p.cpso_url }}
+        locations={parentClinics.length ? parentClinics.map(c => ({ id: c.id, name: c.name, address: c.address, phone: c.phone, fax: c.fax, website: c.website, wait_type: c.wait_type, wait_weeks: c.wait_weeks })) : null}
+        referral={{ wait: waitLabel(p.wait_type, p.wait_weeks), requirements: p.requirements, criteria: p.criteria, types: p.referral_types, cpso_url: p.cpso_url }}
         notes={p.notes}
         people={docs.length > 0 ? docs.map(d => ({ id: d.id, name: d.name, detail: d.specialty, href: `/search?id=${d.id}` })) : null}
         forms={pforms.map(f => ({ id: f.id, name: f.name, url: f.file_url }))}
@@ -408,7 +414,7 @@ export default function SearchPage() {
     if (!supabase) return
     let alive = true
     supabase.from('providers')
-      .select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, clinic_provider_id')
+      .select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_type, wait_weeks, wait_days_approx, lat, lng, featured, clinic_provider_id')
       .eq('data_status', 'complete').eq('featured', true).limit(30)
       .then(async ({ data }) => {
         if (!alive || !data) return
@@ -542,7 +548,7 @@ export default function SearchPage() {
     if (on) r = r.filter(p => isOpenNow(p.hours))
     if (we) r = r.filter(p => isOpenWeekends(p.hours))
     if (ev) r = r.filter(p => isOpenEvenings(p.hours))
-    if (mw) r = r.filter(p => p.wait_weeks !== null && p.wait_weeks <= parseInt(mw))
+    if (mw) r = r.filter(p => p.wait_days_approx != null && p.wait_days_approx <= parseInt(mw) * 7)
     if (mr) r = r.filter(p => p.rating && Number(p.rating) >= parseFloat(mr))
     if (md) r = r.filter(p => distKm(CENTER.lat,CENTER.lng,p.lat,p.lng) <= parseFloat(md))
     if (parsedQuery.words.length) { r = r.filter(p => { const hay = [p.name, p.type, p.address||"", ...(p.services||[]), ...(p.doctors||[])].join(" ").toLowerCase(); return matchesQuery(hay, parsedQuery.words) }) }
@@ -564,7 +570,7 @@ export default function SearchPage() {
     return {
       id: doc.id, name: doc.name, specialty: codeToName[doc.specialty_code] || doc.specialty, specialty_code: doc.specialty_code,
       accepting_referrals: doc.accepting_referrals, accepting_new_patients: doc.accepting_new_patients,
-      wait_weeks: doc.wait_weeks, languages: doc.languages || [], rating: doc.rating, reviews: doc.reviews, verified: doc.verified, featured: doc.featured, gender: doc.gender,
+      wait_type: doc.wait_type, wait_weeks: doc.wait_weeks, wait_days_approx: doc.wait_days_approx, languages: doc.languages || [], rating: doc.rating, reviews: doc.reviews, verified: doc.verified, featured: doc.featured, gender: doc.gender,
       category: doc.category || specCatMap[doc.specialty_code] || (/famil/i.test(doc.specialty || '') ? 'Family Medicine' : 'Specialist'),
       clinicName: c?.name || null, lat: c?.lat, lng: c?.lng, hours: doc.hours || c?.hours, services: c?.services || [],
       address: doc.address || c?.address || null, phone: doc.phone || c?.phone || null, fax: doc.fax || c?.fax || null,
@@ -582,7 +588,7 @@ export default function SearchPage() {
     if (on) r = r.filter(d => isOpenNow(d.hours))
     if (we) r = r.filter(d => isOpenWeekends(d.hours))
     if (ev) r = r.filter(d => isOpenEvenings(d.hours))
-    if (mw) r = r.filter(d => d.wait_weeks !== null && d.wait_weeks !== undefined && d.wait_weeks <= parseInt(mw))
+    if (mw) r = r.filter(d => d.wait_days_approx != null && d.wait_days_approx <= parseInt(mw) * 7)
     if (mr) r = r.filter(d => d.rating && Number(d.rating) >= parseFloat(mr))
     if (md) r = r.filter(d => d.lat && d.lng && distKm(CENTER.lat, CENTER.lng, d.lat, d.lng) <= parseFloat(md))
     if (parsedQuery.genderWanted) r = r.filter(d => d.gender === parsedQuery.genderWanted)

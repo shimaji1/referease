@@ -27,7 +27,7 @@ export async function GET(request) {
   if (category) query = query.eq('category', category)
   if (type) query = query.eq('type', type)
   if (accepting === 'true') query = query.eq('accepting_referrals', true)
-  if (maxWait) query = query.lte('wait_weeks', parseInt(maxWait))
+  if (maxWait) query = query.lte('wait_days_approx', parseInt(maxWait) * 7)
   if (language) query = query.contains('languages', [language])
   if (service) query = query.contains('services', [service])
   if (search) query = query.or(`name.ilike.%${search}%,type.ilike.%${search}%,address.ilike.%${search}%`)
@@ -36,7 +36,7 @@ export async function GET(request) {
   const sortMap = {
     name: { column: 'name', ascending: true },
     rating: { column: 'rating', ascending: false },
-    wait: { column: 'wait_weeks', ascending: true },
+    wait: { column: 'wait_days_approx', ascending: true },
     reviews: { column: 'reviews', ascending: false },
   }
   const sortConfig = sortMap[sort] || sortMap.name

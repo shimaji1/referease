@@ -3,6 +3,7 @@ import { useState, useEffect, use } from 'react'
 import Logo from '@/components/Logo'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { waitLabel, waitDaysApprox } from '@/lib/waitTime'
 
 const DAYS = ['sun','mon','tue','wed','thu','fri','sat']
 const DAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
@@ -42,9 +43,9 @@ export default function PreviewPage({ params }) {
             {p.accepting_referrals
               ? <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">✓ Accepting Referrals</span>
               : <span className="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full border border-red-200">✕ Not Accepting</span>}
-            {p.wait_weeks !== null && (
-              <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${p.wait_weeks === 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : p.wait_weeks <= 4 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
-                {p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} week wait`}
+            {p.wait_type && (
+              <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${waitDaysApprox(p.wait_type, p.wait_weeks) === 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : waitDaysApprox(p.wait_type, p.wait_weeks) <= 28 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
+                {waitLabel(p.wait_type, p.wait_weeks)} wait
               </span>
             )}
             {p.rating && <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">★ {Number(p.rating).toFixed(1)} ({p.reviews} reviews)</span>}

@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchLists, fetchListItems, createList, removeFromList, deleteList } from '@/lib/favourites'
 import { fetchStaffProviderIds } from '@/lib/staff'
 import { can } from '@/lib/plan'
+import { waitDaysApprox, waitShort } from '@/lib/waitTime'
 import ConfirmModal from '@/components/ConfirmModal'
 
 function ListsSection({ user }) {
@@ -232,9 +233,9 @@ function ProviderDashboard({ profile, user }) {
                 {p.accepting_referrals
                   ? <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">Accepting</span>
                   : <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">Not Accepting</span>}
-                {p.wait_weeks !== null && (
-                  <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${p.wait_weeks === 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : p.wait_weeks <= 4 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
-                    {p.wait_weeks === 0 ? 'No wait' : `~${p.wait_weeks} wk wait`}
+                {p.wait_type && (
+                  <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${waitDaysApprox(p.wait_type, p.wait_weeks) === 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : waitDaysApprox(p.wait_type, p.wait_weeks) <= 28 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
+                    {waitShort(p.wait_type, p.wait_weeks)} wait
                   </span>
                 )}
                 {p.rating && <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">★ {Number(p.rating).toFixed(1)}</span>}

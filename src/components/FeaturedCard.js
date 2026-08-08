@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { VerifiedPill, FeaturedTag } from '@/components/Badges'
+import { waitShort } from '@/lib/waitTime'
 
 // One card design for every featured slot — navy banner top, white body
 export default function FeaturedCard({ item, size = 'md' }) {
@@ -26,7 +27,7 @@ export default function FeaturedCard({ item, size = 'md' }) {
           {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
           {item.accepting_referrals === false && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
           {item.accepting_referrals == null && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Availability unknown</span>}
-          {item.wait_weeks != null && <span className="text-[10px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">~{item.wait_weeks} wk</span>}
+          {item.wait_type && <span className="text-[10px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">{waitShort(item.wait_type, item.wait_weeks)}</span>}
           {item.rating && <span className="text-[10px] font-semibold text-amber-500">★ {Number(item.rating).toFixed(1)}</span>}
         </div>
       </div>

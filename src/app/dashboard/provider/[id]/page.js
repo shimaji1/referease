@@ -48,11 +48,15 @@ export default function EditProviderPage({ params }) {
         try {
           const clinicIds = []
           if (data.clinic_provider_id) clinicIds.push(data.clinic_provider_id)
-          const { data: secondary } = await supabase.from('doctor_locations').select('clinic_provider_id').eq('doctor_provider_id', id)
-          ;(secondary || []).forEach(l => { if (!clinicIds.includes(l.clinic_provider_id)) clinicIds.push(l.clinic_provider_id) })
+          const { data: secondary } = await supabase.from('doctor_locations').select('clinic_provider_id, wait_type, wait_weeks').eq('doctor_provider_id', id)
+          const waitByClinicId = {}
+          ;(secondary || []).forEach(l => { if (!clinicIds.includes(l.clinic_provider_id)) clinicIds.push(l.clinic_provider_id); waitByClinicId[l.clinic_provider_id] = { wait_type: l.wait_type, wait_weeks: l.wait_weeks } })
           if (clinicIds.length) {
             const { data: clinics } = await supabase.from('providers').select('id, name, address').in('id', clinicIds)
-            locationRows = clinicIds.map(cid => (clinics || []).find(c => c.id === cid)).filter(Boolean)
+            locationRows = clinicIds.map(cid => {
+              const c = (clinics || []).find(x => x.id === cid)
+              return c ? { ...c, ...(waitByClinicId[cid] || {}) } : null
+            }).filter(Boolean)
           }
         } catch {}
         setProvider({
@@ -97,7 +101,7 @@ export default function EditProviderPage({ params }) {
     // reconcile this listing's own secondary linked locations (everything past the primary)
     await supabase.from('doctor_locations').delete().eq('doctor_provider_id', clinicId)
     for (const loc of locations.slice(1)) {
-      await supabase.from('doctor_locations').insert({ doctor_provider_id: clinicId, clinic_provider_id: loc.id })
+      await supabase.from('doctor_locations').insert({ doctor_provider_id: clinicId, clinic_provider_id: loc.id, wait_type: loc.wait_type || null, wait_weeks: loc.wait_weeks ?? null, wait_days_approx: loc.wait_days_approx ?? null })
     }
     // reconcile doctors: update existing, create+link new, unlink removed
     const origIds = (provider._doctors || []).map(r => r.id).filter(Boolean)

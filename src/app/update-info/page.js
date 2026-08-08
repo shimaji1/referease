@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react'
 import Logo from '@/components/Logo'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { WAIT_TYPES } from '@/lib/waitTime'
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -24,6 +25,7 @@ function UpdateInfoContent() {
       setProvider(res.provider)
       setForm({
         accepting: res.provider.accepting_referrals === true ? 'true' : res.provider.accepting_referrals === false ? 'false' : 'unknown',
+        wait_type: res.provider.wait_type || (res.provider.wait_weeks != null ? 'weeks' : ''),
         wait_weeks: res.provider.wait_weeks ?? '',
         phone: res.provider.phone || '', fax: res.provider.fax || '', email: res.provider.email || '', website: res.provider.website || '',
         hours: res.provider.hours || {},
@@ -42,7 +44,8 @@ function UpdateInfoContent() {
       body: JSON.stringify({
         token,
         accepting_referrals: form.accepting === 'unknown' ? null : form.accepting === 'true',
-        wait_weeks: form.wait_weeks,
+        wait_type: form.wait_type || null,
+        wait_weeks: form.wait_type === 'weeks' ? form.wait_weeks : null,
         phone: form.phone, fax: form.fax, email: form.email, website: form.website, hours: form.hours,
       }),
     }).then(r => r.json()).catch(e => ({ error: e.message }))
@@ -93,8 +96,16 @@ function UpdateInfoContent() {
                   </select>
                 </div>
                 <div>
-                  <label className={label}>Wait Time (weeks)</label>
-                  <input className={inp} type="number" min="0" value={form.wait_weeks} onChange={e => set('wait_weeks', e.target.value)} placeholder="Leave blank if varies" />
+                  <label className={label}>Wait Time</label>
+                  <div className="flex gap-2">
+                    <select className={inp} value={form.wait_type || ''} onChange={e => set('wait_type', e.target.value || '')}>
+                      <option value="">Varies / unknown</option>
+                      {WAIT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    {form.wait_type === 'weeks' && (
+                      <input className={inp} type="number" min="0" value={form.wait_weeks} onChange={e => set('wait_weeks', e.target.value)} placeholder="e.g. 3" />
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>

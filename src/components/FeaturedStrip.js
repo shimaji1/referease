@@ -32,7 +32,7 @@ export default function FeaturedStrip({ category = null, categories = null, titl
       const filterCol = source === 'verified' ? 'verified' : 'featured'
 
       if (doctorSide !== true) {
-        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured').eq('data_status', 'complete')
+        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_type, wait_weeks, lat, lng, featured').eq('data_status', 'complete')
         // No category/categories prop means "any non-doctor category" — without this exclusion,
         // doctors leak into this branch too (duplicating them alongside the doctor branch below,
         // one copy missing the linked-clinic address fallback the doctor branch applies).
@@ -45,7 +45,7 @@ export default function FeaturedStrip({ category = null, categories = null, titl
       }
       if (doctorSide !== false) {
         // Doctors ARE providers now: category IN ('Specialist','Family Medicine')
-        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_weeks, lat, lng, featured, clinic_provider_id').eq('data_status', 'complete').in('category', ['Specialist','Family Medicine'])
+        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_type, wait_weeks, lat, lng, featured, clinic_provider_id').eq('data_status', 'complete').in('category', ['Specialist','Family Medicine'])
         if (category && DOC_CATS.has(category)) q = q.eq('category', category)
         q = q.eq(filterCol, true).limit(24)
         const { data } = await q
