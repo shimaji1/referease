@@ -14,6 +14,7 @@ import ListPickerModal from '@/components/ListPickerModal'
 import { fetchLists, fetchSavedProviderIds, addToList, removeFromAllLists } from '@/lib/favourites'
 import { trackEvent } from '@/lib/analytics'
 import { trackSearch } from '@/lib/siteAnalytics'
+import { providerSlug } from '@/lib/providerSeo'
 
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"]
 const DAY_LABELS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -265,7 +266,10 @@ function Detail({ p, onBack, isFav, onFav }) {
   }, [p?.id])
   return (
     <div className="animate-fade-in">
-      <button onClick={onBack} className="text-sm text-brand font-semibold mb-4 hover:underline">← Back to results</button>
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <button onClick={onBack} className="text-sm text-brand font-semibold hover:underline">← Back to results</button>
+        <Link href={`/doctors/${providerSlug(p)}`} className="text-xs font-semibold text-gray-400 hover:text-brand">View permalink →</Link>
+      </div>
       <ProfileView
         providerId={p.id}
         name={p.name}

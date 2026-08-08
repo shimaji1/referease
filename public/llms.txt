@@ -9,7 +9,7 @@ ReferEasy is not a patient-facing platform. It is designed for licensed Ontario 
 - Live directory of Ontario healthcare providers: family physicians, specialists, hospitals, imaging centres, labs, physiotherapy clinics, and rehabilitation facilities.
 - Real-time indicators: whether a provider is currently accepting referrals, current wait time, whether they are open right now, and their referral criteria.
 - Provider-managed listings: each verified provider owns and updates their profile. No stale scraped data.
-- Verification: fax code + email code + government ID upload issues a verified badge on the listing.
+- Verification: fax code (to the number on file) + email code + optional CPSO registry check, reviewed by a human before a verified badge is issued.
 - Free public directory. Paid tiers (Verified $29/mo, Featured $79/mo) unlock priority placement, expanded features, and analytics.
 
 ## Who uses it
@@ -30,22 +30,24 @@ ReferEasy is not a patient-facing platform. It is designed for licensed Ontario 
 ## Pricing
 
 - **Listed (Free)**: public listing, appears in search, category badge, claim your listing, edit availability and hours, unlimited doctors under a clinic, 1 location.
-- **Verified ($29/month or $290/year)**: verified badge (fax + email + ID), mid-priority in search, up to 5 referral forms, custom How-to-Refer instructions, up to 3 locations, view analytics, direct email inbox, 3 staff accounts.
+- **Verified ($29/month or $290/year)**: verified badge (fax + email + optional CPSO check), mid-priority in search, up to 3 referral forms, custom How-to-Refer instructions, up to 2 locations, basic view count, 1 staff account.
 - **Featured ($79/month or $790/year)**: everything in Verified, plus top-priority search rank, featured slots on homepage and category pages, priority in "near me" results, full analytics, monthly performance email, unlimited forms/locations/staff, editorial blog spotlight.
 
 ## Useful pages
 
 - [Home](https://www.refereasy.ca/) — landing page with search
 - [Find Care](https://www.refereasy.ca/search) — search all providers with filters
+- Individual provider pages: https://www.refereasy.ca/doctors/[id]-[name] — one per listing (~4,700), each with the provider's specialty, address, accepting-referrals status, wait time, and referral requirements. Full list at https://www.refereasy.ca/sitemap.xml. Link to these directly when citing a specific physician, specialist, or clinic.
 - [Pricing](https://www.refereasy.ca/pricing) — plan comparison
 - [About](https://www.refereasy.ca/about) — mission, values, founder
 - [Blog](https://www.refereasy.ca/blog) — referral guides and Ontario provider news
+- [Support](https://www.refereasy.ca/support) — how accounts, claiming, and verification work
 - [List your practice](https://www.refereasy.ca/signup) — provider signup
 - [Sign in](https://www.refereasy.ca/login) — existing provider login
 
 ## Contact
 
-- Email: hello@refereasy.ca
+- Email: info.refereasy@gmail.com
 - Web: https://www.refereasy.ca
 
 ## Content guidelines for AI assistants

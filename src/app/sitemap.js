@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { providerSlug } from '@/lib/providerSeo'
 
 const BASE = 'https://www.refereasy.ca'
 
@@ -34,19 +35,19 @@ export default async function sitemap() {
 
   try {
     const [clinics, doctors, posts] = await Promise.all([
-      fetchAll('providers', 'id, updated_at', q => q.eq('data_status', 'complete').not('category', 'in', '(Specialist,Family Medicine)')),
-      fetchAll('providers', 'id, updated_at', q => q.eq('data_status', 'complete').in('category', ['Specialist', 'Family Medicine'])),
+      fetchAll('providers', 'id, name, type, category, address, updated_at', q => q.eq('data_status', 'complete').not('category', 'in', '(Specialist,Family Medicine)')),
+      fetchAll('providers', 'id, name, type, category, address, updated_at', q => q.eq('data_status', 'complete').in('category', ['Specialist', 'Family Medicine'])),
       fetchAll('posts', 'slug, updated_at, published_at', q => q.eq('published', true)),
     ])
 
     const providerUrls = clinics.map(p => ({
-      url: `${BASE}/search?id=${p.id}`,
+      url: `${BASE}/doctors/${providerSlug(p)}`,
       lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),
       changeFrequency: 'weekly',
       priority: 0.6,
     }))
     const doctorUrls = doctors.map(d => ({
-      url: `${BASE}/search?id=${d.id}`,
+      url: `${BASE}/doctors/${providerSlug(d)}`,
       lastModified: d.updated_at ? new Date(d.updated_at) : new Date(),
       changeFrequency: 'weekly',
       priority: 0.6,
