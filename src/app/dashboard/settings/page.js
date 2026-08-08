@@ -61,6 +61,72 @@ function AccountSection({ profile, updateProfile }) {
   )
 }
 
+function AccountTypeSection({ user, profile, providers, updateProfile, router }) {
+  const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [msg, setMsg] = useState('')
+  const isProvider = profile.role === 'provider'
+  const owned = providers.filter(p => p.owner_id === user.id)
+
+  const switchToProvider = async () => {
+    setBusy(true); setMsg('')
+    const { error } = await updateProfile({ role: 'provider' })
+    setBusy(false)
+    if (error) { setMsg('Error: ' + error.message); return }
+    router.push('/dashboard')
+  }
+
+  const switchToUser = async () => {
+    setBusy(true); setMsg('')
+    const res = await fetch('/api/account/downgrade-to-user', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: user.id }),
+    }).then(r => r.json()).catch(e => ({ error: e.message }))
+    setBusy(false)
+    setConfirming(false)
+    if (res.error) { setMsg('Error: ' + res.error); return }
+    router.push('/dashboard')
+  }
+
+  return (
+    <div className={card + ' mt-4'}>
+      <h2 className="text-sm font-bold text-gray-900 mb-1">Account Type</h2>
+      {isProvider ? (
+        <>
+          <p className="text-xs text-gray-500 mb-4">
+            You have a provider account{owned.length > 0 ? ` with ${owned.length} listing${owned.length === 1 ? '' : 's'}` : ''}. Switch to a plain user account if you no longer want to manage a listing.
+          </p>
+          <button onClick={() => setConfirming(true)} disabled={busy}
+            className="px-5 py-2.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl border border-gray-300 hover:bg-gray-200 transition disabled:opacity-50">
+            Switch to user account
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="text-xs text-gray-500 mb-4">Want to list your practice on ReferEasy? Switch to a provider account to claim or create a listing.</p>
+          <button onClick={switchToProvider} disabled={busy}
+            className="px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50">
+            {busy ? 'Switching…' : 'Switch to provider account'}
+          </button>
+        </>
+      )}
+      {msg && <p className={`text-sm mt-3 ${msg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{msg}</p>}
+      <ConfirmModal
+        open={confirming}
+        title="Switch to a user account?"
+        message={owned.length > 0
+          ? `This will unclaim ${owned.length === 1 ? 'your listing' : 'your listings'}: ${owned.map(p => p.name).join(', ')}. ${owned.length === 1 ? 'It' : 'They'} will stay visible in the directory but no longer be managed by you — anyone, including you later, can claim ${owned.length === 1 ? 'it' : 'them'} again. Any active subscription will be canceled.`
+          : "You'll lose access to provider features. You can switch back and create a listing anytime."}
+        confirmLabel="Switch to user account"
+        danger
+        busy={busy}
+        onConfirm={switchToUser}
+        onCancel={() => setConfirming(false)}
+      />
+    </div>
+  )
+}
+
 function PasswordSection({ updatePassword }) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -656,7 +722,12 @@ export default function SettingsPage() {
             ))}
           </div>
           <div>
-            {tab === 'account' && <AccountSection profile={profile} updateProfile={updateProfile} />}
+            {tab === 'account' && (
+              <>
+                <AccountSection profile={profile} updateProfile={updateProfile} />
+                <AccountTypeSection user={user} profile={profile} providers={providers} updateProfile={updateProfile} router={router} />
+              </>
+            )}
             {tab === 'password' && <PasswordSection updatePassword={updatePassword} />}
             {tab === 'billing' && isProvider && <BillingSection providers={providers} setProviders={setProviders} profile={profile} user={user} />}
             {tab === 'staff' && isProvider && <StaffSection providers={providers} user={user} />}

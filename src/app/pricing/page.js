@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import TopNav from '@/components/TopNav'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { getPlanStatus } from '@/lib/plan'
 
 const TIERS = [
   {
@@ -89,11 +90,21 @@ export default function PricingPage() {
     }
     if (!supabase) return
     setBusy(plan)
-    const { data: providers } = await supabase.from('providers').select('id').eq('owner_id', user.id).limit(1)
+    const { data: providers } = await supabase.from('providers').select('*').eq('owner_id', user.id).limit(1)
     if (!providers || providers.length === 0) {
       setBusy(null)
       setMsg('You need to claim or create a listing before starting a trial.')
       router.push('/dashboard')
+      return
+    }
+    // Already on this plan (or better) and it's actually active — clicking the tier
+    // again should manage the existing plan, not silently no-op or restart the trial.
+    const status = getPlanStatus(providers[0])
+    const hasThisOrBetter = status.tier === plan || (status.tier === 'featured' && plan === 'verified')
+    const isActive = status.kind === 'trial' || status.kind === 'granted' || status.kind === 'paid'
+    if (hasThisOrBetter && isActive) {
+      setBusy(null)
+      router.push('/dashboard/settings?tab=billing')
       return
     }
     const res = await fetch('/api/plan/start-trial', {

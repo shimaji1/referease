@@ -16,12 +16,13 @@ export default function SignUpPage() {
   const [form, setForm] = useState({ email: '', password: '', fullName: '', phone: '', cpso: '', clinic: '' })
   const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
+  const [emailExists, setEmailExists] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const set = (k, v) => setForm({ ...form, [k]: v })
 
   const handleSubmit = async () => {
-    setError('')
+    setError(''); setEmailExists(false)
     if (!form.email || !form.password || !form.fullName) { setError('Please fill in all required fields'); return }
     if (!checkPassword(form.password).valid) { setError('Password needs 8+ characters, a capital letter, a number, and a symbol.'); return }
     if (!agreed) { setError('Please agree to the Terms of Service and Privacy Policy to continue.'); return }
@@ -30,7 +31,16 @@ export default function SignUpPage() {
       phone: form.phone, cpso_number: form.cpso, clinic_name: form.clinic,
     })
     setLoading(false)
-    if (err) { setError(err.message); return }
+    if (err) {
+      const alreadyExists = /already registered|already exists|already been registered/i.test(err.message)
+      if (alreadyExists) {
+        setEmailExists(true)
+        setError("An account with this email already exists. Sign in, then switch account types anytime from Settings.")
+      } else {
+        setError(err.message)
+      }
+      return
+    }
     trackSignup(role)
     router.push('/dashboard')
   }
@@ -121,7 +131,11 @@ export default function SignUpPage() {
                 </span>
               </label>
 
-              {error && <p className="text-sm text-red-600 mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+              {error && (
+                <p className="text-sm text-red-600 mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {error}{emailExists && <> <Link href="/login" className="font-semibold underline">Sign in →</Link></>}
+                </p>
+              )}
 
               <button onClick={handleSubmit} disabled={loading || !agreed}
                 className="w-full mt-5 py-3 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50 text-sm">
