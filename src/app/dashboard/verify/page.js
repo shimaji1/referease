@@ -24,7 +24,7 @@ function VerifyContent() {
   const [emailCode, setEmailCode] = useState('')
   const [emailSent, setEmailSent] = useState(false)
   const [idFile, setIdFile] = useState(null)
-  const [cpsoNumber, setCpsoNumber] = useState('')
+  const [cpsoLink, setCpsoLink] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
@@ -46,7 +46,6 @@ function VerifyContent() {
       if (data) {
         setProvider(data)
         setEmail(data.email || profile?.email || '')
-        setCpsoNumber(profile?.cpso_number || '')
         setIsDoctor(!!physicianId || ['Specialist', 'Family Medicine'].includes(data.category))
         // No fax on file at all — nothing to verify against, skip straight to email
         if (!data.fax && !data.fax_verified) { setFaxMode('skipped'); setStep(2) }
@@ -121,7 +120,7 @@ function VerifyContent() {
   // approve before ownership/verified status is actually applied).
   const handleSubmitForReview = async () => {
     if (!idFile) { setError('Please choose an ID or credential file'); return }
-    if (faxWasSkipped && isDoctor && !cpsoNumber.trim()) { setError('Since fax verification was skipped, a CPSO number is required so our team can cross-check the registry.'); return }
+    if (faxWasSkipped && isDoctor && !cpsoLink.trim()) { setError('Since fax verification was skipped, a link to your CPSO profile is required so our team can check it.'); return }
     setLoading(true); setError(''); setMsg('')
     let idUrl = null, idPath = null
     try {
@@ -149,7 +148,7 @@ function VerifyContent() {
       verification_method: method,
       verify_email: email, verify_fax: faxWasSkipped ? null : verifiedFaxNumber,
       id_doc_url: idUrl, id_doc_path: idPath,
-      cpso_number: isDoctor ? (cpsoNumber.trim() || null) : null,
+      cpso_link: isDoctor ? (cpsoLink.trim() || null) : null,
     })
     if (claimErr) { setError('Could not submit claim: ' + claimErr.message); setLoading(false); return }
 
@@ -297,10 +296,10 @@ function VerifyContent() {
             {isDoctor && (
               <label className="block mb-4">
                 <span className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                  CPSO Number {faxWasSkipped ? <span className="text-red-500 normal-case">(required, since fax was skipped)</span> : <span className="text-gray-400 normal-case font-normal">(optional, speeds up review)</span>}
+                  Link to your CPSO profile {faxWasSkipped ? <span className="text-red-500 normal-case">(required, since fax was skipped)</span> : <span className="text-gray-400 normal-case font-normal">(optional, speeds up review)</span>}
                 </span>
-                <input className={inp} value={cpsoNumber} onChange={e => setCpsoNumber(e.target.value)} placeholder="e.g. 012345" />
-                <span className="block text-[11px] text-gray-400 mt-1.5">Our team looks this up on the public CPSO registry during review — no need to double check it yourself.</span>
+                <input className={inp} type="url" value={cpsoLink} onChange={e => setCpsoLink(e.target.value)} placeholder="https://doctors.cpso.on.ca/..." />
+                <span className="block text-[11px] text-gray-400 mt-1.5">Find your profile at <a href="https://doctors.cpso.on.ca/" target="_blank" rel="noopener noreferrer" className="text-brand underline">doctors.cpso.on.ca</a> and paste the link here — it lets our team check your registration with one click.</span>
               </label>
             )}
 

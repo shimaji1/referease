@@ -63,15 +63,15 @@ export default async function SupportPage() {
           <Step n={1}>From your dashboard, go to <strong>Claim Your Listing</strong> and search by practice name, phone, fax number, or practitioner number.</Step>
           <Step n={2}>Find your listing and click <strong>Claim &amp; Verify</strong>.</Step>
           <Step n={3}>
-            <strong>Fax verification</strong> — we fax a 6-digit code to the fax number already on file for the listing (not one you type in, that number is fixed to what we already have, so it actually proves something). If that number is wrong or you don't have a fax line, tell us and we'll skip this step.
+            <strong>Fax verification</strong> — we fax a 6-digit code to the fax number already on file for the listing, so it actually proves something. If that number is stale, you can provide a corrected one instead, or tell us you don't have a fax line at all to skip this step.
           </Step>
           <Step n={4}><strong>Email verification</strong> — we email a 6-digit code to confirm your contact address.</Step>
-          <Step n={5}><strong>CPSO number + ID</strong> — enter your CPSO number (we cross-check it against the public registry) and upload a photo ID or your CPSO certificate. If fax was skipped, the CPSO number is required.</Step>
-          <p><strong>Every claim is reviewed by our team before access is granted</strong> — usually within 1–2 business days. Nothing is auto-approved, even if the fax, email, and CPSO check all line up cleanly; a person looks at it first. You'll get an email once it's decided.</p>
+          <Step n={5}><strong>CPSO profile link + ID</strong> (individual physicians only, not clinics or facilities) — paste a link to your CPSO profile and upload a photo ID or your CPSO certificate. If fax was skipped, the CPSO link is required.</Step>
+          <p><strong>Every claim is reviewed by our team before access is granted</strong> — usually within 1–2 business days. Nothing is auto-approved, even if the fax, email, and CPSO evidence all line up cleanly; a person looks at it first. You'll get an email once it's decided.</p>
         </Section>
 
         <Section id="new-listing" title="Adding a listing that isn't in our directory">
-          <p>If your search comes up empty, click <strong>Create New Listing Instead</strong> from the claim page. Fill in your practice details and submit — new listings start on the free Listed plan and are visible in search right away, upgrade to Verified or Featured anytime from Pricing.</p>
+          <p>If your search comes up empty, click <strong>Create New Listing Instead</strong> from the claim page. Fill in your practice details and submit — new listings start on the free Listed plan and are visible in search right away, upgrade to Verified or Featured anytime from Pricing. Upgrading to Verified or Featured routes you through the same verification steps above, since the ✓ Verified badge only means something if it's actually earned, trial or not.</p>
         </Section>
 
         <Section id="verification" title="How verification works & your ID">
@@ -79,7 +79,7 @@ export default async function SupportPage() {
           <ul className="list-disc pl-5 space-y-1.5">
             <li>Your ID is used only for that one review, by our team, not shared or published anywhere.</li>
             <li>It's deleted from our systems as soon as a decision is made on your claim, approved or rejected.</li>
-            <li>The CPSO number check uses the public CPSO registry, so where possible, that's the primary proof, ID is the backup.</li>
+            <li>For individual physicians, a link to your public CPSO profile is the primary proof, ID is the backup. Clinics and facilities aren't asked for CPSO — they don't have one.</li>
           </ul>
         </Section>
 
