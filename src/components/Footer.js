@@ -26,7 +26,7 @@ export default function Footer({ settings }) {
               Ontario's live physician-to-physician referral platform. Real-time availability,
               wait times, and referral criteria, so referrals get accepted, not rejected.
             </p>
-            <p className="text-[11px] text-gray-400 mt-4">© {new Date().getFullYear()} ReferEasy · Ontario, Canada</p>
+            <p className="text-sm font-semibold text-gray-500 mt-4">© {new Date().getFullYear()} ReferEasy · Ontario, Canada. All rights reserved.</p>
           </div>
 
           <div>
