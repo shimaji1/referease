@@ -1,9 +1,14 @@
 import { supabase } from './supabase'
 
+// Local dev and production share one Supabase project — without this, testing on
+// localhost inflates a provider's real view/click counts.
+const DEV_HOSTS = /^(localhost|127\.0\.0\.1|\[::1\])$/
+export const isDevHost = () => typeof window !== 'undefined' && DEV_HOSTS.test(window.location.hostname)
+
 // Fire-and-forget event tracking for the Featured-tier analytics dashboard. Never blocks
 // the UI and never throws — a missed analytics event is not worth breaking a page over.
 export function trackEvent(providerId, eventType) {
-  if (!supabase || !providerId) return
+  if (!supabase || !providerId || isDevHost()) return
   supabase.from('provider_analytics_events').insert({ provider_id: providerId, event_type: eventType }).then(() => {})
 }
 

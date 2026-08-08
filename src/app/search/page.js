@@ -12,7 +12,7 @@ import useLocation from '@/hooks/useLocation'
 import { useAuth } from '@/context/AuthContext'
 import ListPickerModal from '@/components/ListPickerModal'
 import { fetchLists, fetchSavedProviderIds, addToList, removeFromAllLists } from '@/lib/favourites'
-import { trackEvent } from '@/lib/analytics'
+import { trackEvent, isDevHost } from '@/lib/analytics'
 import { trackSearch } from '@/lib/siteAnalytics'
 import { providerSlug } from '@/lib/providerSeo'
 import { waitLabel, waitShort, waitColor, waitDaysApprox } from '@/lib/waitTime'
@@ -266,7 +266,7 @@ function Detail({ p, onBack, isFav, onFav }) {
   // Basic view count (Verified+ plans see this in their dashboard) plus a timestamped
   // event (Featured's full analytics dashboard). Fire-and-forget, never blocks the page.
   useEffect(() => {
-    if (!supabase || !p?.id) return
+    if (!supabase || !p?.id || isDevHost()) return
     supabase.rpc('increment_view_count', { pid: p.id }).then(() => {})
     trackEvent(p.id, 'view')
   }, [p?.id])

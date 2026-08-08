@@ -52,8 +52,14 @@ function referrerDomain(ref) {
   } catch { return null }
 }
 
+// Local dev and production point at the same Supabase project, so without this,
+// every localhost session (testing, this session's own browser automation) shows
+// up in the real traffic dashboard as "visitors."
+const DEV_HOSTS = /^(localhost|127\.0\.0\.1|\[::1\])$/
+
 function baseEvent(extra = {}) {
   if (typeof window === 'undefined') return null
+  if (DEV_HOSTS.test(window.location.hostname)) return null
   const ua = navigator.userAgent || ''
   if (BOT_UA.test(ua)) return null
   const params = new URLSearchParams(window.location.search)
