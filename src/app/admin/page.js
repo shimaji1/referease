@@ -446,7 +446,7 @@ export default function AdminPage() {
 
   const loadClaims = useCallback(async () => {
     if (!supabase) return
-    const { data } = await supabase.from("claims").select("*, providers(name, type, address, phone, category), physicians(name, specialty)").order("created_at", { ascending: false })
+    const { data } = await supabase.from("claims").select("*, providers(name, type, address, phone, fax, category), physicians(name, specialty)").order("created_at", { ascending: false })
     if (data) {
       setClaims(data)
       setPendingCount(data.filter(c => c.status === 'pending').length)
@@ -458,12 +458,15 @@ export default function AdminPage() {
     await supabase.from("claims").update({ status: action }).eq("id", claim.id)
     if (action === 'approved') {
       if (claim.provider_id) {
-        await supabase.from("providers").update({
+        const update = {
           owner_id: claim.user_id,
           verified: true,
           verified_at: new Date().toISOString(),
           cpso_verified: !!(claim.cpso_lookup && claim.cpso_lookup.name_match),
-        }).eq("id", claim.provider_id)
+        }
+        // A corrected fax number that got verified replaces the stale one on file.
+        if (claim.verify_fax && claim.verify_fax !== claim.providers?.fax) update.fax = claim.verify_fax
+        await supabase.from("providers").update(update).eq("id", claim.provider_id)
       } else if (claim.physician_id) {
         await supabase.from("physicians").update({ owner_id: claim.user_id, verified: true }).eq("id", claim.physician_id)
       }
@@ -892,15 +895,20 @@ export default function AdminPage() {
                           <div style={{ fontSize:"11px", color:"#64748b", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"12px", alignItems:"center", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:"6px", padding:"6px 10px" }}>
                             <span style={{ color:"#475569", fontWeight:600 }}>Verification:</span>
                             {c.verify_email && <span>✉️ {c.verify_email}</span>}
-                            {c.verify_fax ? <span>📠 {c.verify_fax}</span> : <span style={{ color:"#b45309" }}>📠 skipped</span>}
+                            {c.verify_fax ? (
+                              c.providers?.fax && c.verify_fax !== c.providers.fax
+                                ? <span style={{ color:"#b45309", fontWeight:600 }}>📠 {c.verify_fax} (on file: {c.providers.fax || 'none'}) — corrected</span>
+                                : <span>📠 {c.verify_fax}</span>
+                            ) : <span style={{ color:"#b45309" }}>📠 skipped</span>}
                             {c.id_doc_url ? <a href={c.id_doc_url} target="_blank" rel="noopener noreferrer" style={{ color:"#2563eb", fontWeight:600 }}>📎 View ID</a> : c.status !== 'pending' && <span>📎 ID deleted after review</span>}
                           </div>
                         )}
                         {c.cpso_lookup && (
-                          <div style={{ fontSize:"11px", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"8px", alignItems:"center", background: c.cpso_lookup.name_match ? "#05966910" : "#f59e0b10", border:`1px solid ${c.cpso_lookup.name_match ? "#05966940" : "#f59e0b40"}`, borderRadius:"6px", padding:"6px 10px" }}>
+                          <div style={{ fontSize:"11px", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"8px", alignItems:"center", background: (c.cpso_lookup.active && c.cpso_lookup.name_match) ? "#05966910" : "#f59e0b10", border:`1px solid ${(c.cpso_lookup.active && c.cpso_lookup.name_match) ? "#05966940" : "#f59e0b40"}`, borderRadius:"6px", padding:"6px 10px" }}>
                             <span style={{ color:"#475569", fontWeight:600 }}>CPSO:</span>
-                            <span>{c.cpso_lookup.cpso_data?.name} · {c.cpso_lookup.cpso_data?.status} · {c.cpso_lookup.cpso_data?.specialty || 'n/a'}</span>
-                            {!c.cpso_lookup.name_match && <span style={{ color:"#b45309", fontWeight:600 }}>name mismatch — double-check</span>}
+                            <span>{c.cpso_lookup.cpso_data?.name} · {c.cpso_lookup.cpso_data?.status} · {c.cpso_lookup.cpso_data?.specialty || 'n/a'} · {c.cpso_lookup.cpso_data?.city || 'city n/a'}</span>
+                            {!c.cpso_lookup.active && <span style={{ color:"#b45309", fontWeight:700 }}>⚠️ not active</span>}
+                            {!c.cpso_lookup.name_match && <span style={{ color:"#b45309", fontWeight:600 }}>name mismatch</span>}
                           </div>
                         )}
                         <div style={{ fontSize:"10px", color:"#94a3b8", marginTop:"2px" }}>

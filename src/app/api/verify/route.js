@@ -39,14 +39,22 @@ export async function POST(request) {
       const checkName = (expected_name || '').toLowerCase().trim()
       const lastNameMatch = checkName.split(' ').some(part => cpsoName.includes(part))
 
+      // The whole point of this check: is the doctor's registration currently active,
+      // not suspended/resigned/deceased/expired? Anything that doesn't clearly say
+      // "active" gets flagged for the reviewer rather than assumed fine.
+      const statusStr = String(data.memberStatus || data.status || '').toLowerCase()
+      const isActive = statusStr.includes('active') && !statusStr.includes('inactive')
+
       return NextResponse.json({
         verified: true,
         name_match: lastNameMatch,
+        active: isActive,
         cpso_data: {
           name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
           status: data.memberStatus || data.status,
           specialty: data.specialty,
           city: data.city,
+          address: data.address || data.practiceAddress || null,
         }
       })
     } catch (err) {
