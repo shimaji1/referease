@@ -180,9 +180,9 @@ function VerifyContent() {
         {msg && <div className="mb-4 p-3 rounded-xl text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">{msg}</div>}
 
         {/* Step 1: Fax */}
-        {step >= 2 && (faxWasSkipped
-          ? <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4"><span>ℹ️</span> Fax verification skipped — our team will review manually</div>
-          : <div className={stepDone}><span>✓</span> Fax code verified {faxMode === 'correcting' && '(corrected number — flagged for review)'}</div>)}
+        {step >= 2 && !faxWasSkipped && (
+          <div className={stepDone}><span>✓</span> Fax code verified {faxMode === 'correcting' && '(corrected number — flagged for review)'}</div>
+        )}
         {step === 1 && (
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4">
