@@ -26,8 +26,6 @@ export default function AdminSidebar({ tab, setTab, counts = {} }) {
       header: 'Content',
       items: [
         { key: 'blog',      label: 'Blog posts',          status: 'active' },
-        { key: 'pages',     label: 'Page editor',         status: 'soon' },
-        { key: 'faq',       label: 'FAQ manager',         status: 'soon' },
       ],
     },
     {
