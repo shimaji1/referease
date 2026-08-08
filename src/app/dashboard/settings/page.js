@@ -20,15 +20,30 @@ const inp = "w-full px-4 py-2.5 text-sm bg-white border border-gray-300 rounded-
 const card = "bg-white border border-gray-200 rounded-xl p-6"
 const label = "block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5"
 
-function AccountSection({ profile, updateProfile }) {
+function AccountSection({ profile, updateProfile, user }) {
   const [fullName, setFullName] = useState(profile.full_name || '')
   const [phone, setPhone] = useState(profile.phone || '')
+  const [companyName, setCompanyName] = useState(profile.company_name || '')
+  const [taxNumber, setTaxNumber] = useState(profile.tax_number || '')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
 
   const save = async () => {
     setSaving(true); setMsg('')
-    const { error } = await updateProfile({ full_name: fullName.trim(), phone: phone.trim() || null })
+    const { error } = await updateProfile({
+      full_name: fullName.trim(),
+      phone: phone.trim() || null,
+      company_name: companyName.trim() || null,
+      tax_number: taxNumber.trim() || null,
+    })
+    if (!error) {
+      // Best effort — pushes the updated company name / business number onto any
+      // Square customer already on file, so it shows up on future invoices too.
+      fetch('/api/billing/sync-company', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id }),
+      }).catch(() => {})
+    }
     setSaving(false)
     setMsg(error ? 'Error: ' + error.message : 'Saved!')
   }
@@ -49,6 +64,15 @@ function AccountSection({ profile, updateProfile }) {
         <div>
           <label className={label}>Phone</label>
           <input className={inp} value={phone} onChange={e => setPhone(e.target.value)} placeholder="905-555-0123" />
+        </div>
+        <div>
+          <label className={label}>Company Name <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+          <input className={inp} value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="e.g. York Dermatology Clinic" />
+        </div>
+        <div>
+          <label className={label}>Business Number / HST# <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+          <input className={inp} value={taxNumber} onChange={e => setTaxNumber(e.target.value)} placeholder="e.g. 123456789 RT0001" />
+          <p className="text-[11px] text-gray-400 mt-1">Included on your billing invoices, for your own accounting records.</p>
         </div>
         <div className="flex items-center gap-3 pt-1">
           <button onClick={save} disabled={saving} className="px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50">
@@ -128,6 +152,7 @@ function AccountTypeSection({ user, profile, providers, updateProfile, router })
 }
 
 function PasswordSection({ updatePassword }) {
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [saving, setSaving] = useState(false)
@@ -135,19 +160,24 @@ function PasswordSection({ updatePassword }) {
 
   const save = async () => {
     setMsg('')
+    if (!currentPassword) { setMsg('Error: Enter your current password'); return }
     if (!checkPassword(password).valid) { setMsg('Error: Password needs 8+ characters, a capital letter, a number, and a symbol.'); return }
     if (password !== confirm) { setMsg('Error: Passwords do not match'); return }
     setSaving(true)
-    const { error } = await updatePassword(password)
+    const { error } = await updatePassword(currentPassword, password)
     setSaving(false)
     if (error) { setMsg('Error: ' + error.message); return }
-    setPassword(''); setConfirm(''); setMsg('Password updated!')
+    setCurrentPassword(''); setPassword(''); setConfirm(''); setMsg('Password updated!')
   }
 
   return (
     <div className={card}>
       <h2 className="text-sm font-bold text-gray-900 mb-4">Change Password</h2>
       <div className="space-y-3 max-w-md">
+        <div>
+          <label className={label}>Current Password</label>
+          <input className={inp} type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Enter your current password" />
+        </div>
         <div>
           <label className={label}>New Password</label>
           <input className={inp} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Create a new password" />
@@ -158,7 +188,7 @@ function PasswordSection({ updatePassword }) {
           <input className={inp} type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Re-enter password" />
         </div>
         <div className="flex items-center gap-3 pt-1">
-          <button onClick={save} disabled={saving || !password} className="px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50">
+          <button onClick={save} disabled={saving || !password || !currentPassword} className="px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50">
             {saving ? 'Updating…' : 'Update Password'}
           </button>
           {msg && <span className={`text-sm ${msg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{msg}</span>}
@@ -293,22 +323,6 @@ function BillingCard({ provider, user, onChanged }) {
             )}
           </div>
 
-          <div>
-            <div className={label + ' mb-1.5'}>Invoices</div>
-            {billing.invoices.length === 0 ? (
-              <p className="text-xs text-gray-400">No invoices yet — your first one is generated when the trial ends.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {billing.invoices.map(inv => (
-                  <div key={inv.id} className="flex items-center justify-between text-xs bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                    <span className="text-gray-600">{new Date(inv.createdAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                    <span className="font-semibold text-gray-800">{inv.amount != null ? `$${inv.amount.toFixed(2)} ${inv.currency}` : '—'}</span>
-                    <span className={`px-2 py-0.5 rounded-full border font-semibold ${INVOICE_STATUS_STYLE[inv.status] || 'text-gray-500 bg-gray-100 border-gray-200'}`}>{inv.status}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       ) : null}
 
@@ -360,6 +374,65 @@ function BillingSection({ providers, setProviders, profile, user }) {
       {providers.map(p => (
         <BillingCard key={p.id} provider={p} user={user} onChanged={() => refreshProvider(p.id)} />
       ))}
+    </div>
+  )
+}
+
+function PaymentHistorySection({ providers, user }) {
+  const [rows, setRows] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    Promise.all(providers.map(p =>
+      fetch(`/api/billing/status?provider_id=${p.id}&user_id=${user.id}`).then(r => r.json()).catch(() => null)
+    )).then(results => {
+      if (cancelled) return
+      const combined = []
+      results.forEach((res, i) => {
+        if (res?.hasSubscription) {
+          for (const inv of res.invoices) combined.push({ ...inv, providerName: providers[i].name })
+        }
+      })
+      combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      setRows(combined)
+      setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [providers, user.id])
+
+  if (!providers.length) return (
+    <div className={card}><h2 className="text-sm font-bold text-gray-900 mb-2">Payment History</h2><p className="text-sm text-gray-500">Create a listing first to see billing history.</p></div>
+  )
+
+  const multi = providers.length > 1
+
+  return (
+    <div className={card}>
+      <h2 className="text-sm font-bold text-gray-900 mb-1">Payment History</h2>
+      <p className="text-xs text-gray-500 mb-4">Every invoice generated for your plan{multi ? 's' : ''}, most recent first.</p>
+      {loading ? (
+        <p className="text-xs text-gray-400">Loading payment history…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-gray-400">No invoices yet — your first one is generated when a trial ends or a plan renews.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {rows.map(inv => (
+            <div key={inv.id} className="flex items-center justify-between gap-3 text-xs bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5">
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-gray-700 font-medium truncate">{multi ? inv.providerName : new Date(inv.createdAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                {multi && <span className="text-gray-400">{new Date(inv.createdAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })}</span>}
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="font-semibold text-gray-800">{inv.amount != null ? `$${inv.amount.toFixed(2)} ${inv.currency}` : '—'}</span>
+                <span className={`px-2 py-0.5 rounded-full border font-semibold ${INVOICE_STATUS_STYLE[inv.status] || 'text-gray-500 bg-gray-100 border-gray-200'}`}>{inv.status}</span>
+                {inv.publicUrl && <a href={inv.publicUrl} target="_blank" rel="noopener noreferrer" className="text-brand font-semibold hover:underline">View →</a>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -694,7 +767,7 @@ export default function SettingsPage() {
   const tabs = [
     { key: 'account', label: 'Account Information' },
     { key: 'password', label: 'Change Password' },
-    ...(isProvider ? [{ key: 'billing', label: 'Billing' }, { key: 'staff', label: 'Staff & Team' }, { key: 'announcement', label: 'Homepage Announcement' }] : []),
+    ...(isProvider ? [{ key: 'billing', label: 'Billing' }, { key: 'payment-history', label: 'Payment History' }, { key: 'staff', label: 'Staff & Team' }, { key: 'announcement', label: 'Homepage Announcement' }] : []),
     { key: 'danger', label: 'Danger Zone' },
   ]
 
@@ -724,12 +797,13 @@ export default function SettingsPage() {
           <div>
             {tab === 'account' && (
               <>
-                <AccountSection profile={profile} updateProfile={updateProfile} />
+                <AccountSection profile={profile} updateProfile={updateProfile} user={user} />
                 <AccountTypeSection user={user} profile={profile} providers={providers} updateProfile={updateProfile} router={router} />
               </>
             )}
             {tab === 'password' && <PasswordSection updatePassword={updatePassword} />}
             {tab === 'billing' && isProvider && <BillingSection providers={providers} setProviders={setProviders} profile={profile} user={user} />}
+            {tab === 'payment-history' && isProvider && <PaymentHistorySection providers={providers} user={user} />}
             {tab === 'staff' && isProvider && <StaffSection providers={providers} user={user} />}
             {tab === 'announcement' && isProvider && <AnnouncementSection providers={providers} user={user} />}
             {tab === 'danger' && <DangerZone user={user} profile={profile} />}

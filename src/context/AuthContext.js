@@ -82,10 +82,13 @@ export function AuthProvider({ children }) {
     setProfile(null)
   }
 
-  // Changes the password for the currently signed-in user (no old-password check needed —
-  // Supabase's own session is the proof of identity here).
-  const updatePassword = async (newPassword) => {
-    if (!supabase) return { error: { message: 'Database not connected' } }
+  // Changes the password for the currently signed-in user. Re-verifies the current
+  // password first (Supabase has no dedicated "check password" call, so a real
+  // sign-in with it doubles as the check) before applying the new one.
+  const updatePassword = async (currentPassword, newPassword) => {
+    if (!supabase || !user) return { error: { message: 'Database not connected' } }
+    const { error: verifyError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword })
+    if (verifyError) return { error: { message: 'Current password is incorrect' } }
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     return { error }
   }

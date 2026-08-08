@@ -36,6 +36,13 @@ export async function POST(request) {
   if (!variationId) return NextResponse.json({ error: 'Billing plan not set up yet — contact support' }, { status: 503 })
 
   try {
+    // Company name / business number, if set, flow onto the Square customer so they
+    // show up on invoices — Square has no dedicated tax-ID field, so it's folded in.
+    const { data: ownerProfile } = await sb.from('profiles').select('company_name, tax_number').eq('id', provider.owner_id).maybeSingle()
+    const companyName = ownerProfile?.company_name
+      ? (ownerProfile.tax_number ? `${ownerProfile.company_name} (HST/BN: ${ownerProfile.tax_number})` : ownerProfile.company_name)
+      : undefined
+
     // 1. Customer — reuse if this provider already has one from a prior attempt
     let customerId = provider.square_customer_id
     if (!customerId) {
@@ -44,9 +51,12 @@ export async function POST(request) {
         givenName: given_name || provider.name,
         familyName: family_name || undefined,
         emailAddress: email || provider.email || undefined,
+        companyName,
         referenceId: String(provider.id),
       })
       customerId = customerRes.customer.id
+    } else if (companyName) {
+      await client.customers.update({ customerId, companyName }).catch(() => {})
     }
 
     // 2. Card on file, from the token the Web Payments SDK produced client-side

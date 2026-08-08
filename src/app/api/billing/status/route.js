@@ -50,6 +50,7 @@ export async function GET(request) {
           amount: amount ? Number(amount.amount) / 100 : null,
           currency: amount?.currency,
           createdAt: inv.createdAt,
+          publicUrl: inv.publicUrl || null,
         })
       }
     }
