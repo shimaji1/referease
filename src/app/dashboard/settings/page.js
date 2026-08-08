@@ -208,6 +208,7 @@ const INVOICE_STATUS_STYLE = {
 }
 
 function BillingCard({ provider, user, onChanged }) {
+  const router = useRouter()
   const status = getPlanStatus(provider)
   const canTrial = status.tier !== 'featured' && status.kind !== 'trial' && status.kind !== 'granted'
   const [billing, setBilling] = useState(null)
@@ -239,6 +240,9 @@ function BillingCard({ provider, user, onChanged }) {
     }).then(r => r.json()).catch(e => ({ error: e.message }))
     setStartingTrial(false)
     if (res.error) { setMsg('Error: ' + res.error); return }
+    // The Verified/Featured plans promise a Verified badge — earning it (trial or
+    // not) requires actually going through verification, not just picking the plan.
+    if (!provider.verified) { router.push(`/dashboard/verify?provider_id=${provider.id}`); return }
     setMsg(`${plan === 'featured' ? 'Featured' : 'Verified'} activated — free for 60 days!`)
     onChanged()
     load()
@@ -274,6 +278,16 @@ function BillingCard({ provider, user, onChanged }) {
           <Link href="/pricing" className="px-4 py-2 bg-white text-brand text-xs font-semibold rounded-lg border border-brand/20 hover:bg-brand/5 transition">See plans</Link>
         </div>
       </div>
+
+      {status.tier !== 'listed' && !provider.verified && (
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-semibold text-blue-800">Verification needed for your badge</p>
+            <p className="text-xs text-blue-700 mt-0.5">{status.tier === 'featured' ? 'Featured' : 'Verified'} plans include the ✓ Verified badge, but it only shows once your listing is actually verified. This isn't optional — it's what makes the badge mean something.</p>
+          </div>
+          <Link href={`/dashboard/verify?provider_id=${provider.id}`} className="shrink-0 px-4 py-2 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-dark transition">Verify now</Link>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-xs text-gray-400 mt-4">Loading billing details…</p>

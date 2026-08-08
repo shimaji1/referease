@@ -462,7 +462,7 @@ export default function AdminPage() {
           owner_id: claim.user_id,
           verified: true,
           verified_at: new Date().toISOString(),
-          cpso_verified: !!(claim.cpso_lookup && claim.cpso_lookup.name_match),
+          cpso_verified: !!claim.cpso_number,
         }
         // A corrected fax number that got verified replaces the stale one on file.
         if (claim.verify_fax && claim.verify_fax !== claim.providers?.fax) update.fax = claim.verify_fax
@@ -903,12 +903,10 @@ export default function AdminPage() {
                             {c.id_doc_url ? <a href={c.id_doc_url} target="_blank" rel="noopener noreferrer" style={{ color:"#2563eb", fontWeight:600 }}>📎 View ID</a> : c.status !== 'pending' && <span>📎 ID deleted after review</span>}
                           </div>
                         )}
-                        {c.cpso_lookup && (
-                          <div style={{ fontSize:"11px", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"8px", alignItems:"center", background: (c.cpso_lookup.active && c.cpso_lookup.name_match) ? "#05966910" : "#f59e0b10", border:`1px solid ${(c.cpso_lookup.active && c.cpso_lookup.name_match) ? "#05966940" : "#f59e0b40"}`, borderRadius:"6px", padding:"6px 10px" }}>
-                            <span style={{ color:"#475569", fontWeight:600 }}>CPSO:</span>
-                            <span>{c.cpso_lookup.cpso_data?.name} · {c.cpso_lookup.cpso_data?.status} · {c.cpso_lookup.cpso_data?.specialty || 'n/a'} · {c.cpso_lookup.cpso_data?.city || 'city n/a'}</span>
-                            {!c.cpso_lookup.active && <span style={{ color:"#b45309", fontWeight:700 }}>⚠️ not active</span>}
-                            {!c.cpso_lookup.name_match && <span style={{ color:"#b45309", fontWeight:600 }}>name mismatch</span>}
+                        {c.cpso_number && (
+                          <div style={{ fontSize:"11px", marginTop:"4px", display:"flex", flexWrap:"wrap", gap:"8px", alignItems:"center", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:"6px", padding:"6px 10px" }}>
+                            <span style={{ color:"#475569", fontWeight:600 }}>CPSO #{c.cpso_number}</span>
+                            <a href="https://doctors.cpso.on.ca/" target="_blank" rel="noopener noreferrer" style={{ color:"#2563eb", fontWeight:600 }}>🔎 Check on CPSO register →</a>
                           </div>
                         )}
                         <div style={{ fontSize:"10px", color:"#94a3b8", marginTop:"2px" }}>

@@ -114,6 +114,10 @@ export default function PricingPage() {
     }).then(r => r.json()).catch(e => ({ error: e.message }))
     setBusy(null)
     if (res.error) { setMsg('Error: ' + res.error); return }
+    // The Verified/Featured plans promise a Verified badge — that badge is only real
+    // if it's actually earned, trial or not. Send them straight into verification
+    // rather than letting an unverified listing display as if it were.
+    if (!providers[0].verified) { router.push(`/dashboard/verify?provider_id=${providers[0].id}`); return }
     router.push('/dashboard?trial=' + plan)
   }
 

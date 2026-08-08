@@ -25,16 +25,17 @@ function VerifyContent() {
   const [emailSent, setEmailSent] = useState(false)
   const [idFile, setIdFile] = useState(null)
   const [cpsoNumber, setCpsoNumber] = useState('')
-  const [cpsoResult, setCpsoResult] = useState(null)
-  const [cpsoChecking, setCpsoChecking] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
 
   const faxOnFile = provider?.fax || ''
   // CPSO only applies to individual physicians — a clinic, lab, or imaging centre has
-  // no CPSO number of its own, so we never ask a facility for one.
-  const isDoctor = !!physicianId || ['Specialist', 'Family Medicine'].includes(provider?.category)
+  // no CPSO number of its own. Defaulted from the listing's category, but the
+  // claimant can override it — directory category tags aren't always right (a solo
+  // specialist mistagged as a clinic, or vice versa), and a hard-coded hide would
+  // just be wrong for them.
+  const [isDoctor, setIsDoctor] = useState(null)
   const faxWasSkipped = faxMode === 'skipped'
 
   const [existingClaim, setExistingClaim] = useState(null)
@@ -46,8 +47,9 @@ function VerifyContent() {
         setProvider(data)
         setEmail(data.email || profile?.email || '')
         setCpsoNumber(profile?.cpso_number || '')
+        setIsDoctor(!!physicianId || ['Specialist', 'Family Medicine'].includes(data.category))
         // No fax on file at all — nothing to verify against, skip straight to email
-        if (!data.fax && !data.fax_verified) setFaxMode('skipped')
+        if (!data.fax && !data.fax_verified) { setFaxMode('skipped'); setStep(2) }
         if (data.fax_verified) setStep(2)
         if (data.fax_verified && data.email_verified) setStep(3)
       }
@@ -115,16 +117,6 @@ function VerifyContent() {
     setMsg('Email verified!'); setStep(3)
   }
 
-  // Step 3: CPSO lookup (best effort — supporting evidence for the reviewer, not a gate)
-  const runCpsoLookup = async () => {
-    if (!cpsoNumber.trim()) return
-    setCpsoChecking(true); setError('')
-    const result = await callApi({ action: 'cpso_lookup', cpso_number: cpsoNumber.trim(), expected_name: profile?.full_name })
-    setCpsoChecking(false)
-    if (result.error) { setCpsoResult({ error: result.error }); return }
-    setCpsoResult(result)
-  }
-
   // Step 3: ID upload -> submit for admin review (no auto-grant — an admin has to
   // approve before ownership/verified status is actually applied).
   const handleSubmitForReview = async () => {
@@ -157,7 +149,7 @@ function VerifyContent() {
       verification_method: method,
       verify_email: email, verify_fax: faxWasSkipped ? null : verifiedFaxNumber,
       id_doc_url: idUrl, id_doc_path: idPath,
-      cpso_lookup: isDoctor && cpsoResult && !cpsoResult.error ? cpsoResult : null,
+      cpso_number: isDoctor ? (cpsoNumber.trim() || null) : null,
     })
     if (claimErr) { setError('Could not submit claim: ' + claimErr.message); setLoading(false); return }
 
@@ -178,7 +170,9 @@ function VerifyContent() {
       </nav>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">{physicianId ? 'Verify to Claim This Profile' : 'Verify Your Listing'}</h1>
+        <h1 className="text-xl font-bold text-gray-900 mb-1">
+          {physicianId ? 'Verify to Claim This Profile' : provider && user && provider.owner_id === user.id ? 'Verify Your Listing to Activate Your Badge' : 'Verify Your Listing'}
+        </h1>
         <p className="text-sm text-gray-500 mb-2">{provider?.name || 'Loading...'}</p>
 
         {existingClaim ? (
@@ -287,31 +281,27 @@ function VerifyContent() {
               <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center text-brand font-bold text-sm">3</div>
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{isDoctor ? 'CPSO Number & ID' : 'Photo ID'}</h3>
-                <p className="text-xs text-gray-500">{isDoctor ? "A quick registry cross-check speeds up review, then upload a photo ID or your CPSO certificate" : "Upload a photo ID so our team can confirm your identity"}</p>
+                <p className="text-xs text-gray-500">{isDoctor ? "Your CPSO number lets our team confirm your license on the public registry, then upload a photo ID or your CPSO certificate" : "Upload a photo ID so our team can confirm your identity"}</p>
               </div>
             </div>
 
+            <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">This listing is for</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setIsDoctor(true)} className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border transition ${isDoctor ? 'bg-brand text-white border-brand' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>An individual physician (has a CPSO number)</button>
+                <button type="button" onClick={() => setIsDoctor(false)} className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border transition ${isDoctor === false ? 'bg-brand text-white border-brand' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>A clinic or facility (no CPSO)</button>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2">We guessed based on the listing's category — change it if that's wrong.</p>
+            </div>
+
             {isDoctor && (
-              <>
-                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              <label className="block mb-4">
+                <span className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
                   CPSO Number {faxWasSkipped ? <span className="text-red-500 normal-case">(required, since fax was skipped)</span> : <span className="text-gray-400 normal-case font-normal">(optional, speeds up review)</span>}
-                </label>
-                <div className="flex gap-2">
-                  <input className={inp} value={cpsoNumber} onChange={e => { setCpsoNumber(e.target.value); setCpsoResult(null) }} placeholder="e.g. 012345" />
-                  <button onClick={runCpsoLookup} disabled={cpsoChecking || !cpsoNumber.trim()} className="px-4 py-3 bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-200 transition disabled:opacity-50 shrink-0">
-                    {cpsoChecking ? 'Checking...' : 'Check'}
-                  </button>
-                </div>
-                {cpsoResult && !cpsoResult.error && (
-                  <div className={`mt-2 text-xs px-3 py-2 rounded-lg border ${cpsoResult.active && cpsoResult.name_match ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                    <div>Found: {cpsoResult.cpso_data?.name} · <strong>{cpsoResult.cpso_data?.status}</strong> · {cpsoResult.cpso_data?.specialty || 'Specialty n/a'} · {cpsoResult.cpso_data?.city || 'City n/a'}</div>
-                    {!cpsoResult.active && <div className="font-semibold mt-1">⚠️ Registration doesn't look active — our team will verify before approving.</div>}
-                    {!cpsoResult.name_match && <div className="mt-1">Name doesn't clearly match — our team will double-check.</div>}
-                    <div className="mt-1 text-gray-500">Compare the city above to your listing's address ({provider?.address || 'no address on file'}) — it should be the same practice.</div>
-                  </div>
-                )}
-                {cpsoResult?.error && <div className="mt-2 text-xs px-3 py-2 rounded-lg border bg-gray-50 border-gray-200 text-gray-500">CPSO lookup unavailable right now — this is just a nice-to-have, your reviewer can check manually.</div>}
-              </>
+                </span>
+                <input className={inp} value={cpsoNumber} onChange={e => setCpsoNumber(e.target.value)} placeholder="e.g. 012345" />
+                <span className="block text-[11px] text-gray-400 mt-1.5">Our team looks this up on the public CPSO registry during review — no need to double check it yourself.</span>
+              </label>
             )}
 
             <div className={isDoctor ? "mt-4 pt-4 border-t border-gray-100" : ""}>
