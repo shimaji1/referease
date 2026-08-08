@@ -14,7 +14,7 @@ function VerifyContent() {
   const physicianId = searchParams.get('physician_id')   // optional: claiming a doctor profile
 
   const [provider, setProvider] = useState(null)
-  const [step, setStep] = useState(1) // 1=Fax, 2=Email, 3=ID+CPSO, 4=Submitted
+  const [step, setStep] = useState(1) // 1=Fax, 2=Email, 3=CPSO, 4=Submitted
   const [faxMode, setFaxMode] = useState('onfile') // 'onfile' | 'correcting' | 'skipped'
   const [correctedFax, setCorrectedFax] = useState('')
   const [verifiedFaxNumber, setVerifiedFaxNumber] = useState('')
@@ -23,7 +23,6 @@ function VerifyContent() {
   const [email, setEmail] = useState('')
   const [emailCode, setEmailCode] = useState('')
   const [emailSent, setEmailSent] = useState(false)
-  const [idFile, setIdFile] = useState(null)
   const [cpsoLink, setCpsoLink] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -116,38 +115,24 @@ function VerifyContent() {
     setMsg('Email verified!'); setStep(3)
   }
 
-  // Step 3: ID upload -> submit for admin review (no auto-grant — an admin has to
-  // approve before ownership/verified status is actually applied).
+  // Step 3: submit for admin review — fax and CPSO are both just evidence at this
+  // point (present, corrected, or skipped); no auto-grant either way. An admin looks
+  // at whatever was provided and decides, following up by email for anything more
+  // they need before approving.
   const handleSubmitForReview = async () => {
-    if (!idFile) { setError('Please choose an ID or credential file'); return }
-    if (faxWasSkipped && isDoctor && !cpsoLink.trim()) { setError('Since fax verification was skipped, a link to your CPSO profile is required so our team can check it.'); return }
     setLoading(true); setError(''); setMsg('')
-    let idUrl = null, idPath = null
-    try {
-      const safe = idFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-      idPath = `verification/${providerId}-${Date.now()}-${safe}`
-      const { error: upErr } = await supabase.storage.from('forms').upload(idPath, idFile)
-      if (upErr) { setError('Upload failed: ' + upErr.message); setLoading(false); return }
-      const { data: pub } = supabase.storage.from('forms').getPublicUrl(idPath)
-      idUrl = pub?.publicUrl || null
-    } catch (e) { setError('Upload error: ' + e.message); setLoading(false); return }
 
     const faxCorrected = faxMode === 'correcting' && !!verifiedFaxNumber
-    const method = faxWasSkipped
-      ? (isDoctor ? 'email+cpso+id' : 'email+id')
-      : (faxCorrected ? 'fax(corrected)+email+id' : 'fax+email+id')
+    const parts = [faxWasSkipped ? 'fax:skipped' : (faxCorrected ? 'fax:corrected' : 'fax:onfile'), 'email']
+    if (isDoctor) parts.push(cpsoLink.trim() ? 'cpso' : 'cpso:skipped')
+    const method = parts.join('+')
 
-    // Record the claim as pending — an admin reviews the fax/email/CPSO/ID evidence
-    // below and only then grants ownership + the verified badge. A corrected fax
-    // number is weaker evidence than the one already on file (self-reported), so
-    // it's flagged in the method string for the reviewer rather than trusted outright.
     const { error: claimErr } = await supabase.from('claims').insert({
       user_id: user.id, provider_id: parseInt(providerId), physician_id: physicianId || null,
       user_email: profile?.email, user_name: profile?.full_name,
       status: 'pending',
       verification_method: method,
       verify_email: email, verify_fax: faxWasSkipped ? null : verifiedFaxNumber,
-      id_doc_url: idUrl, id_doc_path: idPath,
       cpso_link: isDoctor ? (cpsoLink.trim() || null) : null,
     })
     if (claimErr) { setError('Could not submit claim: ' + claimErr.message); setLoading(false); return }
@@ -196,7 +181,7 @@ function VerifyContent() {
 
         {/* Step 1: Fax */}
         {step >= 2 && (faxWasSkipped
-          ? <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4"><span>ℹ️</span> Fax verification skipped — {isDoctor ? 'CPSO + ID' : 'ID'} will be checked instead</div>
+          ? <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4"><span>ℹ️</span> Fax verification skipped — our team will review manually</div>
           : <div className={stepDone}><span>✓</span> Fax code verified {faxMode === 'correcting' && '(corrected number — flagged for review)'}</div>)}
         {step === 1 && (
           <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -273,14 +258,14 @@ function VerifyContent() {
           </div>
         )}
 
-        {/* Step 3: CPSO (doctors only) + ID upload */}
+        {/* Step 3: CPSO (doctors only, optional) -> submit */}
         {step === 3 && (
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center text-brand font-bold text-sm">3</div>
               <div>
-                <h3 className="font-semibold text-gray-900 text-sm">{isDoctor ? 'CPSO Number & ID' : 'Photo ID'}</h3>
-                <p className="text-xs text-gray-500">{isDoctor ? "Your CPSO number lets our team confirm your license on the public registry, then upload a photo ID or your CPSO certificate" : "Upload a photo ID so our team can confirm your identity"}</p>
+                <h3 className="font-semibold text-gray-900 text-sm">{isDoctor ? 'CPSO Profile (optional)' : 'Almost done'}</h3>
+                <p className="text-xs text-gray-500">{isDoctor ? "A link to your CPSO profile speeds up review, but you can skip it and our team will follow up if needed" : "Nothing else needed — our team will review your claim"}</p>
               </div>
             </div>
 
@@ -296,26 +281,14 @@ function VerifyContent() {
             {isDoctor && (
               <label className="block mb-4">
                 <span className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                  Link to your CPSO profile {faxWasSkipped ? <span className="text-red-500 normal-case">(required, since fax was skipped)</span> : <span className="text-gray-400 normal-case font-normal">(optional, speeds up review)</span>}
+                  Link to your CPSO profile <span className="text-gray-400 normal-case font-normal">(optional)</span>
                 </span>
                 <input className={inp} type="url" value={cpsoLink} onChange={e => setCpsoLink(e.target.value)} placeholder="https://doctors.cpso.on.ca/..." />
-                <span className="block text-[11px] text-gray-400 mt-1.5">Find your profile at <a href="https://doctors.cpso.on.ca/" target="_blank" rel="noopener noreferrer" className="text-brand underline">doctors.cpso.on.ca</a> and paste the link here — it lets our team check your registration with one click.</span>
+                <span className="block text-[11px] text-gray-400 mt-1.5">Find your profile at <a href="https://doctors.cpso.on.ca/" target="_blank" rel="noopener noreferrer" className="text-brand underline">doctors.cpso.on.ca</a> and paste the link here — it lets our team check your registration with one click. Skip it and they'll look it up themselves, or follow up if they can't find you.</span>
               </label>
             )}
 
-            <div className={isDoctor ? "mt-4 pt-4 border-t border-gray-100" : ""}>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{isDoctor ? 'Photo ID or CPSO certificate' : 'Photo ID or business registration'}</label>
-              <div className="flex items-center gap-3 flex-wrap">
-                <label className="inline-flex items-center px-4 py-2.5 rounded-lg text-sm font-semibold bg-gray-100 text-gray-700 border border-gray-300 cursor-pointer hover:bg-gray-200 transition">
-                  {idFile ? 'Change file' : '📎 Choose file'}
-                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e => setIdFile(e.target.files?.[0] || null)} className="hidden" />
-                </label>
-                <span className="text-sm text-gray-500 truncate min-w-0">{idFile ? idFile.name : (isDoctor ? 'CPSO certificate or photo ID' : 'Photo ID or business registration document')}</span>
-              </div>
-              {!isDoctor && faxWasSkipped && <p className="text-[11px] text-amber-600 mt-2">No CPSO registry applies to a facility listing — our team will verify manually by matching your ID against the practice address on file.</p>}
-              <p className="text-[11px] text-gray-400 mt-2">Used only to verify your identity. It's deleted from our systems as soon as review is complete — approved or not.</p>
-              <button onClick={handleSubmitForReview} disabled={loading || !idFile} className={`${btn} mt-4`}>{loading ? 'Submitting...' : 'Submit for Review'}</button>
-            </div>
+            <button onClick={handleSubmitForReview} disabled={loading} className={btn}>{loading ? 'Submitting...' : 'Submit for Review'}</button>
           </div>
         )}
 
@@ -324,7 +297,7 @@ function VerifyContent() {
           <div className="bg-white border-2 border-brand/30 rounded-xl p-8 text-center">
             <div className="text-4xl mb-3">📋</div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Submitted for review</h3>
-            <p className="text-sm text-gray-500 mb-4">Our team checks the fax/email/CPSO evidence and your ID within 1–2 business days. You'll get an email once it's approved — your listing and verified badge go live at that point, not before.</p>
+            <p className="text-sm text-gray-500 mb-4">Our team reviews the fax/email/CPSO evidence within 1–2 business days, and may email you if they need anything more. You'll hear back once it's decided — your listing and verified badge go live at that point, not before.</p>
             <div className="flex gap-3 justify-center">
               <Link href="/dashboard" className={btn}>Go to Dashboard</Link>
             </div>
@@ -334,7 +307,7 @@ function VerifyContent() {
         {step < 4 && (
           <div className="mt-6 bg-gray-100 rounded-xl p-4 text-xs text-gray-500 leading-relaxed">
             <p className="font-semibold text-gray-700 mb-1">Why these steps?</p>
-            <p>The fax code confirms you control the practice's fax line, the email code confirms your contact email, and {isDoctor ? 'the CPSO check + ID confirm' : 'ID confirms'} your identity. A member of our team reviews all of it before your listing is verified and access is granted — nothing here auto-approves.</p>
+            <p>The fax code confirms you control the practice's fax line, the email code confirms your contact email{isDoctor && ', and the CPSO link speeds up confirming your license'}. A member of our team reviews everything before your listing is verified and access is granted — nothing here auto-approves, and they may reach out if they need more.</p>
           </div>
         )}
         </>

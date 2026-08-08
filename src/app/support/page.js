@@ -31,7 +31,7 @@ export default async function SupportPage() {
     ['account', 'Creating an account'],
     ['claim', 'Claiming your listing'],
     ['new-listing', 'Adding a listing that isn\'t in our directory'],
-    ['verification', 'How verification works & your ID'],
+    ['verification', 'How verification works'],
     ['staff', 'Adding admins & staff'],
     ['billing', 'Plans & billing'],
     ['contact', 'Still need help?'],
@@ -66,20 +66,20 @@ export default async function SupportPage() {
             <strong>Fax verification</strong> — we fax a 6-digit code to the fax number already on file for the listing, so it actually proves something. If that number is stale, you can provide a corrected one instead, or tell us you don't have a fax line at all to skip this step.
           </Step>
           <Step n={4}><strong>Email verification</strong> — we email a 6-digit code to confirm your contact address.</Step>
-          <Step n={5}><strong>CPSO profile link + ID</strong> (individual physicians only, not clinics or facilities) — paste a link to your CPSO profile and upload a photo ID or your CPSO certificate. If fax was skipped, the CPSO link is required.</Step>
-          <p><strong>Every claim is reviewed by our team before access is granted</strong> — usually within 1–2 business days. Nothing is auto-approved, even if the fax, email, and CPSO evidence all line up cleanly; a person looks at it first. You'll get an email once it's decided.</p>
+          <Step n={5}><strong>CPSO profile link</strong> (optional, individual physicians only, not clinics or facilities) — paste a link to your CPSO profile so our team can confirm your license in one click. You can skip this too; we'll look you up ourselves or follow up if we can't find you.</Step>
+          <p><strong>Every claim is reviewed by our team before access is granted</strong> — usually within 1–2 business days. Nothing is auto-approved, even if the fax, email, and CPSO evidence all line up cleanly; a person looks at it first. If anything's missing or unclear, we'll email you asking for it — just reply directly. You'll get a final decision either way.</p>
         </Section>
 
         <Section id="new-listing" title="Adding a listing that isn't in our directory">
           <p>If your search comes up empty, click <strong>Create New Listing Instead</strong> from the claim page. Fill in your practice details and submit — new listings start on the free Listed plan and are visible in search right away, upgrade to Verified or Featured anytime from Pricing. Upgrading to Verified or Featured routes you through the same verification steps above, since the ✓ Verified badge only means something if it's actually earned, trial or not.</p>
         </Section>
 
-        <Section id="verification" title="How verification works & your ID">
-          <p>We ask for a photo ID or CPSO certificate purely to confirm you're really the person you say you are before we hand over control of a public listing. A few things worth knowing:</p>
+        <Section id="verification" title="How verification works">
+          <p>Verification is about confirming you're really the person you say you are before we hand over control of a public listing. A few things worth knowing:</p>
           <ul className="list-disc pl-5 space-y-1.5">
-            <li>Your ID is used only for that one review, by our team, not shared or published anywhere.</li>
-            <li>It's deleted from our systems as soon as a decision is made on your claim, approved or rejected.</li>
-            <li>For individual physicians, a link to your public CPSO profile is the primary proof, ID is the backup. Clinics and facilities aren't asked for CPSO — they don't have one.</li>
+            <li>A real person on our team reviews every claim — nothing is automatic.</li>
+            <li>If something's unclear or missing, we'll email you asking for it, or in some cases just call the practice directly to confirm.</li>
+            <li>For individual physicians, a link to your public CPSO profile is the quickest way to confirm your license. Clinics and facilities aren't asked for one — they don't have CPSO numbers.</li>
           </ul>
         </Section>
 

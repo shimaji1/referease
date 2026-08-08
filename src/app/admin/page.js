@@ -123,6 +123,9 @@ export default function AdminPage() {
   const [total, setTotal] = useState(0)
   const [stats, setStats] = useState({})
   const [claims, setClaims] = useState([])
+  const [requestInfoFor, setRequestInfoFor] = useState(null) // claim id currently composing a message
+  const [requestInfoText, setRequestInfoText] = useState('')
+  const [requestInfoSending, setRequestInfoSending] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [pendingAnnouncementCount, setPendingAnnouncementCount] = useState(0)
   const [specialties, setSpecialties] = useState([])
@@ -478,6 +481,19 @@ export default function AdminPage() {
     }
     setMsg(action === 'approved' ? 'Claim approved, linked to user' : 'Claim rejected')
     loadClaims()
+  }
+
+  const sendClaimInfoRequest = async (claim) => {
+    if (!requestInfoText.trim()) return
+    setRequestInfoSending(true)
+    const res = await fetch('/api/outreach', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: [{ email: claim.user_email, name: claim.user_name }], template: 'claim_more_info', message: requestInfoText.trim() }),
+    }).then(r => r.json()).catch(e => ({ errors: [e.message] }))
+    setRequestInfoSending(false)
+    if (res.errors?.length) { setMsg('Error sending: ' + res.errors[0]); return }
+    setMsg(`Sent to ${claim.user_email}`)
+    setRequestInfoFor(null); setRequestInfoText('')
   }
 
   useEffect(() => { if (authed) loadClaims() }, [authed, loadClaims])
@@ -916,6 +932,7 @@ export default function AdminPage() {
                       <div style={{ display:"flex", gap:"4px", alignItems:"center", flexShrink:0 }}>
                         {c.status === 'pending' ? (
                           <>
+                            <button onClick={() => { setRequestInfoFor(requestInfoFor === c.id ? null : c.id); setRequestInfoText('') }} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#2563eb20", color:"#2563eb", border:"1px solid #2563eb40" }}>✉️ Request info</button>
                             <button onClick={() => handleClaim(c, 'approved')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#05966920", color:"#059669", border:"1px solid #05966940" }}>✓ Approve</button>
                             <button onClick={() => handleClaim(c, 'rejected')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#dc262620", color:"#dc2626", border:"1px solid #dc262640" }}>✕ Reject</button>
                           </>
@@ -924,6 +941,17 @@ export default function AdminPage() {
                         )}
                       </div>
                     </div>
+                    {requestInfoFor === c.id && (
+                      <div style={{ marginTop:"10px", paddingTop:"10px", borderTop:"1px solid #e2e8f0" }}>
+                        <textarea value={requestInfoText} onChange={e => setRequestInfoText(e.target.value)}
+                          placeholder={`What do you need from ${c.user_name || 'them'}? e.g. "Could you confirm the practice address on file, or send a callback number we can reach you at?"`}
+                          style={{ width:"100%", minHeight:"70px", padding:"8px 10px", fontSize:"12px", fontFamily:"inherit", border:"1px solid #d1d5db", borderRadius:"6px", outline:"none", resize:"vertical" }} />
+                        <div style={{ display:"flex", gap:"8px", marginTop:"6px" }}>
+                          <button onClick={() => sendClaimInfoRequest(c)} disabled={requestInfoSending || !requestInfoText.trim()} style={{ all:"unset", cursor: requestInfoSending || !requestInfoText.trim() ? "default" : "pointer", opacity: requestInfoSending || !requestInfoText.trim() ? 0.5 : 1, padding:"6px 14px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#2563eb", color:"#fff" }}>{requestInfoSending ? 'Sending…' : `Send to ${c.user_email}`}</button>
+                          <button onClick={() => { setRequestInfoFor(null); setRequestInfoText('') }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", fontSize:"11px", fontWeight:600, borderRadius:"6px", color:"#64748b" }}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

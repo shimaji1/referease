@@ -2,7 +2,7 @@
 // Each returns fully-formed HTML that Resend will send.
 
 const BASE = 'https://www.refereasy.ca'
-const wrap = (bodyHtml) => `
+const wrap = (bodyHtml, { replyOk = false } = {}) => `
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;padding:0;background:#ffffff">
   <div style="background:#1e3a5f;padding:22px 32px">
     <a href="${BASE}" style="text-decoration:none;display:inline-block">
@@ -13,7 +13,7 @@ const wrap = (bodyHtml) => `
     ${bodyHtml}
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0 18px">
     <p style="color:#94a3b8;font-size:11px;line-height:1.6;margin:0">
-      This is an automated message — please don't reply to this email.<br>
+      ${replyOk ? 'Reply directly to this email — a real person on our team will see it.' : "This is an automated message — please don't reply to this email."}<br>
       ReferEasy · Ontario's live physician-to-physician referral platform · <a href="${BASE}" style="color:#94a3b8">refereasy.ca</a><br>
       You're receiving this because your practice is listed at refereasy.ca or you were referred by a colleague. If this isn't relevant, no action needed.
     </p>
@@ -29,6 +29,7 @@ export const SUBJECTS = {
   verified: "You're one step from Verified on ReferEasy",
   featured: "Get top placement on Ontario's referral platform",
   cold:     "Ontario physicians are using ReferEasy, join us",
+  claim_more_info: "A quick question about your ReferEasy claim",
 }
 
 const btn = (label, url, color = '#1e3a5f') => `
@@ -155,6 +156,13 @@ const TEMPLATES = {
     ${btn('Add payment method →', `${BASE}/dashboard/settings?tab=billing`)}
     ${p(`<span style="color:#64748b;font-size:13px">Takes about a minute, and your plan continues without interruption.</span>`)}
   `),
+
+  claim_more_info: ({ name, customMessage }) => wrap(`
+    ${h1('We need a bit more information')}
+    ${p(`Hi${name ? ' ' + name : ''}, thanks for submitting a claim on ReferEasy. Before we can approve it, we need a little more from you:`)}
+    ${custom(customMessage)}
+    ${p("Just reply directly to this email with the details, and we'll pick your claim back up right away.")}
+  `, { replyOk: true }),
 
 }
 
