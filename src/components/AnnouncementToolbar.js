@@ -57,11 +57,11 @@ function ColorSwatch({ value, onChange, fallback = '#ffffff', title }) {
 // X/Y nudge — the "adjust by 1 point" precision positioning control. Offset is a pixel
 // nudge on top of the element's normal flow position, applied everywhere it renders
 // (editor preview and the live carousel both go through the same renderer).
-function PositionNudge({ x, y, onChange }) {
+function PositionNudge({ x, y, onChange, min = -200, max = 200 }) {
   return (
     <Group label="Position (x / y)">
-      <NumberStepper value={x} onChange={v => onChange({ x: v, y })} min={-200} max={200} />
-      <NumberStepper value={y} onChange={v => onChange({ x, y: v })} min={-200} max={200} />
+      <NumberStepper value={x} onChange={v => onChange({ x: v, y })} min={min} max={max} />
+      <NumberStepper value={y} onChange={v => onChange({ x, y: v })} min={min} max={max} />
       {(x !== 0 || y !== 0) && <button type="button" onClick={() => onChange({ x: 0, y: 0 })} className="text-[10px] text-gray-400 hover:text-gray-600 ml-1">Reset</button>}
     </Group>
   )
@@ -168,7 +168,7 @@ export default function AnnouncementToolbar({ style, onChange, selected, showIma
             <Pills options={IMAGE_SIZE_OPTIONS} value={style.image.size} onChange={v => setSection('image', { size: v })} />
           </Group>
           <Sep />
-          <PositionNudge x={style.image.x} y={style.image.y} onChange={p => setSection('image', p)} />
+          <PositionNudge x={style.image.x} y={style.image.y} onChange={p => setSection('image', p)} min={-60} max={60} />
           {template === 'full-banner' && (
             <>
               <Sep />

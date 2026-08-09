@@ -6,7 +6,13 @@ const fontFamily = (key) => FONT_OPTIONS.find(f => f.key === key)?.family
 const justifyFor = (align) => (align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start')
 const VJUSTIFY = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }
 const IMAGE_WIDTH = { sm: '30%', md: '40%', lg: '55%' }
-const IMAGE_ZOOM = { sm: 1, md: 1.1, lg: 1.25 }
+// Zoomed in beyond 100% on purpose — the x/y nudge pans within this overscanned crop, so
+// there needs to be real extra image outside the frame to reveal as you adjust position.
+// At exactly 100% (no overscan) any nudge would immediately show blank space at the edge.
+const IMAGE_ZOOM = { sm: 1.15, md: 1.3, lg: 1.5 }
+// image-left has no size-based zoom control (the size pills resize the column instead),
+// so it gets one fixed overscan amount purely to give the position nudge room to work.
+const SIDE_IMAGE_ZOOM = 1.2
 // Corner position for the logo badge — kept out of the main text stack so it never gets
 // clipped when a user cranks up headline/body font sizes and the stack overflows the card.
 const LOGO_POS = { left: { left: 12 }, center: { left: '50%' }, right: { right: 12 } }
@@ -124,7 +130,7 @@ export default function AnnouncementSlide({ item, editable = false, selectedKey 
     <div className="flex flex-col sm:flex-row w-full h-full rounded-2xl bg-white border border-gray-200 overflow-hidden">
       <div className={`relative h-40 sm:h-full shrink-0 sm:w-[var(--img-w)] overflow-hidden ${editable ? (selectedKey === 'image' ? 'outline outline-2 outline-blue-500 -outline-offset-2 cursor-pointer' : 'outline outline-1 outline-dashed outline-transparent hover:outline-blue-300 -outline-offset-2 cursor-pointer') : ''}`}
         style={{ '--img-w': imgWidth }} onClick={editable ? (e) => { e.stopPropagation(); onSelect('image') } : undefined}>
-        <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ transform: `translate(${style.image.x}px, ${style.image.y}px)` }} />
+        <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ transform: `translate(${style.image.x}px, ${style.image.y}px) scale(${SIDE_IMAGE_ZOOM})`, transformOrigin: 'center' }} />
       </div>
       <div className="relative flex-1 min-w-0 overflow-hidden">
         <LogoBadge url={item.logo_url} section={style.logo} {...sel('logo')} />
