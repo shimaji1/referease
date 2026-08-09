@@ -32,19 +32,21 @@ export async function fetchStaffProviderIds(userId) {
   return (data || []).map(r => r.provider_id)
 }
 
+// provider_staff has no anon table access — invite_token is a bearer secret checked
+// before the invitee has a session, so lookup/accept go through a service-role route.
 export async function lookupInviteByToken(token) {
-  if (!supabase || !token) return null
-  const { data } = await supabase.from('provider_staff').select('*, providers(name)').eq('invite_token', token).eq('status', 'pending').maybeSingle()
-  return data
+  if (!token) return null
+  const res = await fetch('/api/staff/accept', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'lookup', token }),
+  }).then(r => r.json()).catch(() => ({ invite: null }))
+  return res.invite
 }
 
-// Claims a pending invite for the now-authenticated user. RLS only allows this when the
-// row is still unclaimed (user_id is null, status is pending) — the token itself (a random
-// UUID only the invitee received by email) is what authorizes which row gets claimed.
 export async function acceptInvite(token, userId) {
-  if (!supabase) return false
-  const { error } = await supabase.from('provider_staff')
-    .update({ status: 'accepted', user_id: userId, accepted_at: new Date().toISOString() })
-    .eq('invite_token', token).eq('status', 'pending')
-  return !error
+  const res = await fetch('/api/staff/accept', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'accept', token, user_id: userId }),
+  }).then(r => r.json()).catch(() => ({ ok: false }))
+  return !!res.ok
 }

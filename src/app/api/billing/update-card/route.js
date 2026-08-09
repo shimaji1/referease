@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSquareClient } from '@/lib/square'
-import { getSupabase } from '@/lib/supabase-server'
+import { getServiceSupabase } from '@/lib/supabase-server'
 
 // POST /api/billing/update-card — swaps the card on file for an existing subscription.
 // Creates a new Square card from the freshly tokenized source, points the subscription
@@ -10,7 +10,7 @@ export async function POST(request) {
   const client = getSquareClient()
   if (!client) return NextResponse.json({ error: 'Payments are not configured yet' }, { status: 503 })
 
-  const sb = getSupabase()
+  const sb = getServiceSupabase()
   if (!sb) return NextResponse.json({ error: 'Supabase key missing' }, { status: 503 })
 
   const body = await request.json().catch(() => ({}))

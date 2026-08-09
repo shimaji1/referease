@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSquareClient } from '@/lib/square'
-import { getSupabase } from '@/lib/supabase-server'
+import { getServiceSupabase } from '@/lib/supabase-server'
 
 // POST /api/admin/square/setup-plans — one-time (idempotent) setup, triggered from
 // Admin → Settings → Billing. Creates the Verified/Featured subscription plans in
@@ -23,7 +23,7 @@ export async function POST() {
   const client = getSquareClient()
   if (!client) return NextResponse.json({ error: 'Square not configured (SQUARE_ACCESS_TOKEN missing)' }, { status: 503 })
 
-  const sb = getSupabase()
+  const sb = getServiceSupabase()
   if (!sb) return NextResponse.json({ error: 'Supabase key missing' }, { status: 503 })
 
   const results = {}

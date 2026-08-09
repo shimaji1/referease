@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSquareClient } from '@/lib/square'
-import { getSupabase } from '@/lib/supabase-server'
+import { getServiceSupabase } from '@/lib/supabase-server'
 
 // POST /api/billing/sync-company — pushes profile.company_name / tax_number onto any
 // Square customer already on file for this user's listings, so it shows up on future
@@ -9,7 +9,7 @@ import { getSupabase } from '@/lib/supabase-server'
 // isn't set up yet.
 export async function POST(request) {
   const client = getSquareClient()
-  const sb = getSupabase()
+  const sb = getServiceSupabase()
   if (!client || !sb) return NextResponse.json({ ok: true, skipped: true })
 
   const body = await request.json().catch(() => ({}))

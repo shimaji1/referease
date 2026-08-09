@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSquareClient } from '@/lib/square'
-import { getSupabase } from '@/lib/supabase-server'
+import { getServiceSupabase } from '@/lib/supabase-server'
 
 // GET /api/billing/status?provider_id=X&user_id=Y — live billing snapshot for the
 // dashboard's Billing tab: subscription status, next charge date, card on file, and
@@ -10,7 +10,7 @@ export async function GET(request) {
   const client = getSquareClient()
   if (!client) return NextResponse.json({ error: 'Payments are not configured yet' }, { status: 503 })
 
-  const sb = getSupabase()
+  const sb = getServiceSupabase()
   if (!sb) return NextResponse.json({ error: 'Supabase key missing' }, { status: 503 })
 
   const { searchParams } = new URL(request.url)

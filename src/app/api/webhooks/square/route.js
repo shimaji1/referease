@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { WebhooksHelper } from 'square'
-import { getSupabase } from '@/lib/supabase-server'
+import { getServiceSupabase } from '@/lib/supabase-server'
 
 // POST /api/webhooks/square — configured in the Square Developer Dashboard under this
 // app's Webhooks tab, pointed at https://www.refereasy.ca/api/webhooks/square, subscribed
@@ -22,7 +22,7 @@ export async function POST(request) {
   if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
 
   const event = JSON.parse(rawBody)
-  const sb = getSupabase()
+  const sb = getServiceSupabase()
   if (!sb) return NextResponse.json({ error: 'Supabase key missing' }, { status: 503 })
 
   if (event.type === 'subscription.updated' || event.type === 'subscription.created') {

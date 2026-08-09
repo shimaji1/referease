@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSquareClient } from '@/lib/square'
-import { getSupabase } from '@/lib/supabase-server'
+import { getServiceSupabase } from '@/lib/supabase-server'
 
 // POST /api/billing/cancel — cancels a subscription. Square schedules it to stop at the
 // end of the current billing period rather than ending it instantly (standard SaaS
@@ -10,7 +10,7 @@ export async function POST(request) {
   const client = getSquareClient()
   if (!client) return NextResponse.json({ error: 'Payments are not configured yet' }, { status: 503 })
 
-  const sb = getSupabase()
+  const sb = getServiceSupabase()
   if (!sb) return NextResponse.json({ error: 'Supabase key missing' }, { status: 503 })
 
   const body = await request.json().catch(() => ({}))

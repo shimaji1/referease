@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getSupabase } from '@/lib/supabase-server'
+import { getServiceSupabase } from '@/lib/supabase-server'
 
 function generateCode() {
   return String(Math.floor(100000 + Math.random() * 900000))
@@ -7,7 +7,7 @@ function generateCode() {
 
 // POST /api/verify, handle all verification actions
 export async function POST(request) {
-  const supabase = getSupabase()
+  const supabase = getServiceSupabase()
   if (!supabase) return NextResponse.json({ error: 'Database not connected' }, { status: 503 })
 
   const body = await request.json()

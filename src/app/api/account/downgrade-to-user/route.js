@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSquareClient } from '@/lib/square'
-import { getSupabase } from '@/lib/supabase-server'
+import { getServiceSupabase } from '@/lib/supabase-server'
 
 // POST /api/account/downgrade-to-user — switches a provider account back to a plain
 // user account. Their listing(s) are unclaimed (owner_id cleared, plan reset to
@@ -8,7 +8,7 @@ import { getSupabase } from '@/lib/supabase-server'
 // including this person later, can claim it again. Any active Square subscription
 // is canceled (best effort) since there's no longer an owner to bill.
 export async function POST(request) {
-  const sb = getSupabase()
+  const sb = getServiceSupabase()
   if (!sb) return NextResponse.json({ error: 'Supabase key missing' }, { status: 503 })
 
   const body = await request.json().catch(() => ({}))

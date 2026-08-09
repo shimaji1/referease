@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getSupabase } from '@/lib/supabase-server'
+import { getServiceSupabase } from '@/lib/supabase-server'
 import { buildTemplate, SUBJECTS } from './templates'
 
 // POST /api/outreach, send invitation campaign
@@ -10,7 +10,7 @@ export async function POST(request) {
   const resendKey = process.env.RESEND_API_KEY
   if (!resendKey) return NextResponse.json({ error: 'Email service not configured (RESEND_API_KEY missing)' }, { status: 503 })
 
-  const supabase = getSupabase()
+  const supabase = getServiceSupabase()
   let sent = 0
   const errors = []
 
