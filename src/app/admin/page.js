@@ -14,6 +14,7 @@ import { presetRange, fetchTrafficOverview, fetchTopPages, fetchTrafficSources, 
 import { fetchSetting, saveSetting, DEFAULTS } from '@/lib/siteSettings'
 import { DEFAULT_TERMS_HTML, DEFAULT_PRIVACY_HTML } from '@/lib/legalDefaults'
 import { WAIT_TYPES, waitDaysApprox } from '@/lib/waitTime'
+import { useAuth } from '@/context/AuthContext'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
 const STATUSES = ["complete","partial","incomplete"]
@@ -105,7 +106,18 @@ function PlanDropdown({ provider, onChange }) {
 }
 
 export default function AdminPage() {
-  const [authed, setAuthed] = useState(false)
+  // Real admin login (Supabase Auth + profiles.is_admin) — see supabase-admin-auth.sql.
+  // The old password gate is kept temporarily as a fallback so there's no risk of a
+  // lockout while this rolls out; remove legacyAuthed + the password UI once the real
+  // login is confirmed working.
+  const { user, profile, loading: authLoading, signIn, signOut } = useAuth()
+  const [adminEmail, setAdminEmail] = useState("")
+  const [adminPw, setAdminPw] = useState("")
+  const [adminLoginErr, setAdminLoginErr] = useState("")
+  const [adminLoggingIn, setAdminLoggingIn] = useState(false)
+  const [legacyAuthed, setLegacyAuthed] = useState(false)
+  const realAuthed = !!user && profile?.is_admin === true
+  const authed = realAuthed || legacyAuthed
   const [pw, setPw] = useState("")
   const [providers, setProviders] = useState([])
   const [editing, setEditing] = useState(null)
@@ -138,12 +150,22 @@ export default function AdminPage() {
   const [inviting, setInviting] = useState(null)
   const PAGE_SIZE = 50
 
-  const login = () => {
-    if (pw === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) { setAuthed(true); setMsg(""); try { localStorage.setItem('re-admin-auth', '1') } catch {} }
+  const legacyLogin = () => {
+    if (pw === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) { setLegacyAuthed(true); setMsg(""); try { localStorage.setItem('re-admin-auth', '1') } catch {} }
     else setMsg("Wrong password")
   }
-  const logout = () => { setAuthed(false); setPw(""); try { localStorage.removeItem('re-admin-auth') } catch {} }
-  useEffect(() => { try { if (localStorage.getItem('re-admin-auth') === '1') setAuthed(true) } catch {} }, [])
+  const adminLogin = async () => {
+    setAdminLoginErr(""); setAdminLoggingIn(true)
+    const { error } = await signIn(adminEmail.trim(), adminPw)
+    setAdminLoggingIn(false)
+    if (error) setAdminLoginErr(error.message)
+  }
+  const logout = async () => {
+    setLegacyAuthed(false); setPw("")
+    try { localStorage.removeItem('re-admin-auth') } catch {}
+    if (user) await signOut()
+  }
+  useEffect(() => { try { if (localStorage.getItem('re-admin-auth') === '1') setLegacyAuthed(true) } catch {} }, [])
 
   // Load specialties
   useEffect(() => {
@@ -555,14 +577,38 @@ export default function AdminPage() {
   const s = { width:"100%", padding:"8px 10px", fontSize:"13px", background:"#ffffff", border:"1px solid #d1d5db", borderRadius:"6px", color:"#111827", outline:"none", marginTop:"4px" }
   const lbl = { fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", display:"block", marginTop:"12px" }
 
+  if (authLoading) return (
+    <div style={{ fontFamily:"Inter, sans-serif", background:"#f8fafc", minHeight:"100vh", display:"flex", justifyContent:"center", alignItems:"center", color:"#94a3b8", fontSize:"13px" }}>Loading…</div>
+  )
+
+  if (!authed && user && !profile?.is_admin) return (
+    <div style={{ fontFamily:"Inter, sans-serif", background:"#f8fafc", color:"#111827", minHeight:"100vh", display:"flex", justifyContent:"center", alignItems:"center" }}>
+      <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"14px", padding:"32px", width:"340px", textAlign:"center" }}>
+        <h2 style={{ margin:"0 0 4px", fontSize:"18px" }}>🔐 ReferEasy Admin</h2>
+        <p style={{ margin:"0 0 20px", fontSize:"12px", color:"#64748b" }}>Signed in as {user.email}, but this account doesn't have admin access.</p>
+        <button onClick={logout} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", padding:"10px", textAlign:"center", background:"#f1f5f9", color:"#334155", borderRadius:"8px", fontSize:"13px", fontWeight:600 }}>Sign out</button>
+      </div>
+    </div>
+  )
+
   if (!authed) return (
     <div style={{ fontFamily:"Inter, sans-serif", background:"#f8fafc", color:"#111827", minHeight:"100vh", display:"flex", justifyContent:"center", alignItems:"center" }}>
       <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"14px", padding:"32px", width:"340px" }}>
         <h2 style={{ margin:"0 0 4px", fontSize:"18px" }}>🔐 ReferEasy Admin</h2>
-        <p style={{ margin:"0 0 20px", fontSize:"12px", color:"#64748b" }}>Enter admin password</p>
-        <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key==="Enter" && login()} placeholder="Password" style={s} />
-        <button onClick={login} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"12px", padding:"10px", textAlign:"center", background:"#3b82f6", color:"#fff", borderRadius:"8px", fontSize:"13px", fontWeight:600 }}>Login</button>
-        {msg && <p style={{ color:"#dc2626", fontSize:"12px", marginTop:"8px" }}>{msg}</p>}
+        <p style={{ margin:"0 0 20px", fontSize:"12px", color:"#64748b" }}>Sign in with your admin account</p>
+        <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} onKeyDown={e => e.key==="Enter" && adminLogin()} placeholder="Email" style={s} />
+        <input type="password" value={adminPw} onChange={e => setAdminPw(e.target.value)} onKeyDown={e => e.key==="Enter" && adminLogin()} placeholder="Password" style={{ ...s, marginTop:"8px" }} />
+        <button onClick={adminLogin} disabled={adminLoggingIn} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"12px", padding:"10px", textAlign:"center", background:"#3b82f6", color:"#fff", borderRadius:"8px", fontSize:"13px", fontWeight:600, opacity: adminLoggingIn ? 0.6 : 1 }}>{adminLoggingIn ? 'Signing in…' : 'Sign in'}</button>
+        {adminLoginErr && <p style={{ color:"#dc2626", fontSize:"12px", marginTop:"8px" }}>{adminLoginErr}</p>}
+
+        <details style={{ marginTop:"20px" }}>
+          <summary style={{ cursor:"pointer", fontSize:"11px", color:"#94a3b8" }}>Use the old password instead (temporary)</summary>
+          <div style={{ marginTop:"10px" }}>
+            <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key==="Enter" && legacyLogin()} placeholder="Password" style={s} />
+            <button onClick={legacyLogin} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"8px", padding:"8px", textAlign:"center", background:"#f1f5f9", color:"#334155", borderRadius:"8px", fontSize:"12px", fontWeight:600 }}>Login with password</button>
+            {msg && <p style={{ color:"#dc2626", fontSize:"12px", marginTop:"8px" }}>{msg}</p>}
+          </div>
+        </details>
       </div>
     </div>
   )
