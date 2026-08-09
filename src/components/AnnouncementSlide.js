@@ -98,8 +98,13 @@ export default function AnnouncementSlide({ item, editable = false, selectedKey 
   }
 
   if (item.template === 'text-card' || !item.image_url) {
+    const bgColor = style.background.color
     return (
-      <div className="relative block w-full h-full rounded-2xl bg-gradient-to-br from-brand to-[#2c4f7c] overflow-hidden">
+      <div
+        className={`relative block w-full h-full rounded-2xl overflow-hidden ${bgColor ? '' : 'bg-gradient-to-br from-brand to-[#2c4f7c]'} ${editable ? (selectedKey === 'background' ? 'outline outline-2 outline-blue-500 -outline-offset-2 cursor-pointer' : 'outline outline-1 outline-dashed outline-transparent hover:outline-blue-300 -outline-offset-2 cursor-pointer') : ''}`}
+        style={bgColor ? { backgroundColor: bgColor } : undefined}
+        onClick={editable ? (e) => { e.stopPropagation(); onSelect('background') } : undefined}
+      >
         <LogoBadge url={item.logo_url} section={style.logo} {...sel('logo')} />
         <div className="h-full flex flex-col gap-1 p-6 sm:p-8 overflow-hidden" style={{ justifyContent: vJustify }}>
           <Positionable {...sel('headline')} x={style.headline.x} y={style.headline.y}><StyledText as="h3" text={item.headline} section={style.headline} defaultColor="#ffffff" /></Positionable>

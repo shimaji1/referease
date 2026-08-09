@@ -35,6 +35,7 @@ export const DEFAULT_STYLE = {
   logo: { size: 40, align: 'left', x: 0, y: 0 },
   button: { size: 15, bg: '', color: '', align: 'left', x: 0, y: 0 },
   image: { size: 'md' },
+  background: { color: '' },
   layout: { v: 'middle' },
 }
 
@@ -49,6 +50,7 @@ export function mergeStyle(raw) {
     logo: { ...DEFAULT_STYLE.logo, ...(s.logo || {}) },
     button: { ...DEFAULT_STYLE.button, ...(s.button || {}) },
     image: { ...DEFAULT_STYLE.image, ...(s.image || {}) },
+    background: { ...DEFAULT_STYLE.background, ...(s.background || {}) },
     layout: { ...DEFAULT_STYLE.layout, ...(s.layout || {}) },
   }
 }

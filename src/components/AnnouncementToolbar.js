@@ -68,7 +68,7 @@ function PositionNudge({ x, y, onChange }) {
 }
 
 const TEXT_KEYS = ['headline', 'subheadline', 'body']
-const LABELS = { headline: 'Headline', subheadline: 'Subheading', body: 'Paragraph', logo: 'Logo', button: 'Button', image: 'Picture' }
+const LABELS = { headline: 'Headline', subheadline: 'Subheading', body: 'Paragraph', logo: 'Logo', button: 'Button', image: 'Picture', background: 'Background' }
 
 export default function AnnouncementToolbar({ style, onChange, selected, showImage }) {
   const setSection = (key, patch) => onChange({ ...style, [key]: { ...style[key], ...patch } })
@@ -76,7 +76,7 @@ export default function AnnouncementToolbar({ style, onChange, selected, showIma
   return (
     <div className="border border-gray-200 rounded-xl bg-gray-50 p-2.5 flex flex-wrap items-end gap-3">
       {!selected && (
-        <p className="text-xs text-gray-400 py-1.5 px-1">Click an element in the preview below to style it — headline, subheading, paragraph, logo, button{showImage ? ', or picture' : ''}.</p>
+        <p className="text-xs text-gray-400 py-1.5 px-1">Click an element in the preview below to style it — headline, subheading, paragraph, logo, button{showImage ? ', or picture' : ', or the card background'}.</p>
       )}
 
       {selected && TEXT_KEYS.includes(selected) && (
@@ -156,6 +156,18 @@ export default function AnnouncementToolbar({ style, onChange, selected, showIma
           </Group>
           <Sep />
           <Pills options={IMAGE_SIZE_OPTIONS} value={style.image.size} onChange={v => setSection('image', { size: v })} />
+        </>
+      )}
+
+      {selected === 'background' && (
+        <>
+          <Group label="Background">
+            <span className="h-8 flex items-center text-xs font-semibold text-gray-700 px-1">Card color</span>
+          </Group>
+          <Sep />
+          <Group label="Color">
+            <ColorSwatch value={style.background.color} onChange={v => setSection('background', { color: v })} fallback="#1e3a5f" title="Leave unset for the default navy gradient" />
+          </Group>
         </>
       )}
 
