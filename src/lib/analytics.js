@@ -90,33 +90,10 @@ export async function fetchAnalyticsSummary(providerId, days = 30) {
 // category over the same period — the "you're doing better/worse than peers" framing that
 // makes raw counts feel meaningful instead of just numbers on a page.
 export async function fetchCategoryBenchmark(providerId, category, days = 30) {
-  if (!supabase || !category) return null
-  const periodStart = new Date(Date.now() - days * 86400000).toISOString()
-
-  const { data: peers } = await supabase.from('providers').select('id').eq('category', category).eq('data_status', 'complete').in('plan', ['verified', 'featured'])
-  const peerIds = (peers || []).map(p => p.id).filter(id => id !== providerId)
-  if (!peerIds.length) return null
-
-  const [{ data: mine }, { data: theirs }] = await Promise.all([
-    supabase.from('provider_analytics_events').select('id', { count: 'exact', head: true }).eq('provider_id', providerId).eq('event_type', 'view').gte('created_at', periodStart),
-    supabase.from('provider_analytics_events').select('provider_id').eq('event_type', 'view').gte('created_at', periodStart).in('provider_id', peerIds),
-  ])
-
-  const myViews = mine?.count || 0
-  const peerViewCounts = {}
-  ;(theirs || []).forEach(e => { peerViewCounts[e.provider_id] = (peerViewCounts[e.provider_id] || 0) + 1 })
-  const allPeerCounts = peerIds.map(id => peerViewCounts[id] || 0)
-  const avgPeerViews = allPeerCounts.length ? allPeerCounts.reduce((a, b) => a + b, 0) / allPeerCounts.length : 0
-  const rank = 1 + allPeerCounts.filter(c => c > myViews).length
-
-  return {
-    myViews,
-    avgPeerViews: Math.round(avgPeerViews * 10) / 10,
-    peerCount: peerIds.length,
-    rank,
-    totalInCategory: peerIds.length + 1,
-    vsAveragePct: avgPeerViews > 0 ? Math.round(((myViews - avgPeerViews) / avgPeerViews) * 100) : (myViews > 0 ? 100 : 0),
-  }
+  if (!category) return null
+  const params = new URLSearchParams({ provider_id: providerId, category, days: String(days) })
+  const res = await fetch(`/api/analytics/category-benchmark?${params}`).then(r => r.json()).catch(() => ({ benchmark: null }))
+  return res.benchmark
 }
 
 const EVENT_LABELS = {
