@@ -179,7 +179,8 @@ export default function AdminPage() {
     if (catFilter) query = query.eq("category", catFilter)
     if (planFilter) query = query.eq("plan", planFilter)
     query = query.order("name").range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
-    const { data, count } = await query
+    const { data, count, error } = await query
+    if (error) { setMsg('Error loading providers: ' + error.message); return }
     if (data) setProviders(data)
     if (count !== null) setTotal(count)
   }, [search, statusFilter, catFilter, planFilter, page])
