@@ -11,6 +11,7 @@ import { fetchStaffProviderIds } from '@/lib/staff'
 import { can } from '@/lib/plan'
 import { waitDaysApprox, waitShort } from '@/lib/waitTime'
 import ConfirmModal from '@/components/ConfirmModal'
+import AnnouncementSection from '@/components/AnnouncementSection'
 
 function ListsSection({ user }) {
   const [lists, setLists] = useState([])
@@ -157,6 +158,7 @@ function UserDashboard({ profile, user }) {
 function ProviderDashboard({ profile, user }) {
   const [providers, setProviders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [dashTab, setDashTab] = useState('listings')
 
   const load = useCallback(async () => {
     if (!supabase) return
@@ -189,6 +191,19 @@ function ProviderDashboard({ profile, user }) {
         </div>
       </div>
 
+      <div className="flex gap-1 mb-6 border-b border-gray-200">
+        {[{ key: 'listings', label: 'My Listings' }, { key: 'announcement', label: 'Homepage Announcement' }].map(t => (
+          <button key={t.key} onClick={() => setDashTab(t.key)}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition ${dashTab === t.key ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {dashTab === 'announcement' ? (
+        <AnnouncementSection providers={providers} user={user} />
+      ) : (
+        <>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="text-lg font-bold text-gray-900">My Listings</h2>
         <div className="flex items-center gap-3">
@@ -253,6 +268,8 @@ function ProviderDashboard({ profile, user }) {
       )}
 
       <ListsSection user={user} />
+      </>
+      )}
     </div>
   )
 }
