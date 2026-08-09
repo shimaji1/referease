@@ -19,12 +19,17 @@ const PLANS = [
   { key: 'featured', name: 'ReferEasy Featured', variationName: 'Featured Monthly', priceCents: 7900n },
 ]
 
-export async function POST() {
+export async function POST(request) {
   const client = getSquareClient()
   if (!client) return NextResponse.json({ error: 'Square not configured (SQUARE_ACCESS_TOKEN missing)' }, { status: 503 })
 
   const sb = getServiceSupabase()
   if (!sb) return NextResponse.json({ error: 'Supabase key missing' }, { status: 503 })
+
+  const { user_id } = await request.json().catch(() => ({}))
+  if (!user_id) return NextResponse.json({ error: 'Not signed in as admin — sign in with your real admin account first' }, { status: 401 })
+  const { data: caller } = await sb.from('profiles').select('is_admin').eq('id', user_id).maybeSingle()
+  if (!caller?.is_admin) return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
 
   const results = {}
   try {

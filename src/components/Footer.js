@@ -9,7 +9,7 @@ const SOCIAL_ICONS = {
 
 export default function Footer({ settings }) {
   const pathname = usePathname() || '/'
-  if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) return null
+  if (pathname.startsWith('/h3583r92ew') || pathname.startsWith('/dashboard')) return null
 
   const supportEmail = settings?.support_email || 'info.refereasy@gmail.com'
   const socials = Object.entries(SOCIAL_ICONS).filter(([key]) => settings?.[key])

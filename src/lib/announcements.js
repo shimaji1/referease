@@ -93,7 +93,7 @@ export async function fetchApprovedAnnouncements(limit = 10) {
   return data || []
 }
 
-// ── Admin-only (used from /admin, gated by the admin password, not Supabase auth) ──
+// ── Admin-only (used from the admin panel, gated by a real Supabase Auth login) ──
 
 export async function fetchAllAnnouncements() {
   if (!supabase) return []

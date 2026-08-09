@@ -1064,7 +1064,10 @@ function SettingsTab({ setMsg }) {
 
   const syncSquarePlans = async () => {
     setSquareSyncing(true)
-    const res = await fetch('/api/admin/square/setup-plans', { method: 'POST' }).then(r => r.json()).catch(e => ({ error: e.message }))
+    const res = await fetch('/api/admin/square/setup-plans', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: user?.id }),
+    }).then(r => r.json()).catch(e => ({ error: e.message }))
     setSquareSyncing(false)
     if (res.error) { setMsg('Error: ' + res.error); return }
     setSquarePlans(res.plans)
