@@ -1236,11 +1236,14 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
   }
 
   const review = async (row, action) => {
-    if (!supabase) return
     let admin_notes = null
     if (action === 'rejected') admin_notes = window.prompt('Note for the provider (optional):', '') || null
-    await supabase.from("provider_announcements").update({ status: action, admin_notes, reviewed_at: new Date().toISOString() }).eq("id", row.id)
-    setMsg(action === 'approved' ? 'Announcement approved, now live' : 'Announcement rejected')
+    const res = await fetch('/api/announcements/review', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: row.id, action, admin_notes }),
+    }).then(r => r.json()).catch(e => ({ error: e.message }))
+    if (res.error) { setMsg('Error: ' + res.error); return }
+    setMsg(action === 'approved' ? 'Announcement approved, now live — provider notified by email' : 'Announcement rejected — provider notified by email')
     load()
   }
 

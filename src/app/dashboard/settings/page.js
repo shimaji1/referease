@@ -10,7 +10,7 @@ import { fetchStaff, inviteStaff, revokeStaff } from '@/lib/staff'
 import ConfirmModal from '@/components/ConfirmModal'
 import { checkPassword } from '@/lib/password'
 import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
-import { fetchMyAnnouncement, submitAnnouncement, TEMPLATES, DEFAULT_STYLE, mergeStyle } from '@/lib/announcements'
+import { fetchMyAnnouncement, submitAnnouncement, deleteAnnouncement, TEMPLATES, DEFAULT_STYLE, mergeStyle } from '@/lib/announcements'
 import AnnouncementToolbar from '@/components/AnnouncementToolbar'
 import AnnouncementSlide from '@/components/AnnouncementSlide'
 import SquareCheckoutModal from '@/components/SquareCheckoutModal'
@@ -563,6 +563,8 @@ function AnnouncementSection({ providers, user }) {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [selectedEl, setSelectedEl] = useState(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     if (!selected) return
@@ -608,6 +610,16 @@ function AnnouncementSection({ providers, user }) {
     if (res.error) { setMsg('Error: ' + res.error); return }
     setMsg('Submitted for review!')
     load()
+  }
+
+  const removeAnnouncement = async () => {
+    setDeleting(true)
+    await deleteAnnouncement(existing.id)
+    setDeleting(false)
+    setConfirmingDelete(false)
+    setExisting(null)
+    setForm({ template: 'image-left', headline: '', subheadline: '', body: '', image_url: '', image_path: '', logo_url: '', logo_path: '', cta_label: '', cta_url: '', style: DEFAULT_STYLE })
+    setMsg('Announcement deleted')
   }
 
   if (!featured.length) return (
@@ -707,9 +719,27 @@ function AnnouncementSection({ providers, user }) {
 
       {msg && <p className={`text-sm mt-3 ${msg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{msg}</p>}
 
-      <button onClick={submit} disabled={saving || uploading} className="mt-4 px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50">
-        {saving ? 'Submitting…' : existing ? 'Resubmit for review' : 'Submit for review'}
-      </button>
+      <div className="flex items-center gap-3 mt-4">
+        <button onClick={submit} disabled={saving || uploading} className="px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50">
+          {saving ? 'Submitting…' : existing ? 'Resubmit for review' : 'Submit for review'}
+        </button>
+        {existing && (
+          <button onClick={() => setConfirmingDelete(true)} disabled={saving || deleting} className="px-5 py-2.5 text-red-600 text-sm font-semibold rounded-xl border border-red-200 hover:bg-red-50 transition disabled:opacity-50">
+            Delete announcement
+          </button>
+        )}
+      </div>
+
+      <ConfirmModal
+        open={confirmingDelete}
+        title="Delete this announcement?"
+        message="This removes it from the homepage carousel (if live) and clears your submission. You can always create a new one."
+        confirmLabel="Delete"
+        danger
+        busy={deleting}
+        onConfirm={removeAnnouncement}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   )
 }
@@ -721,10 +751,13 @@ function DangerZone({ user, profile }) {
 
   const requestDeletion = async () => {
     setBusy(true)
-    const { error } = await supabase.from('profiles').update({ deletion_requested_at: new Date().toISOString() }).eq('id', user.id)
+    const res = await fetch('/api/account/request-deletion', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: user.id }),
+    }).then(r => r.json()).catch(e => ({ error: e.message }))
     setBusy(false)
     setConfirming(false)
-    if (!error) setRequested(true)
+    if (!res.error) setRequested(true)
   }
 
   return (
