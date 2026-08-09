@@ -105,7 +105,12 @@ export function AuthProvider({ children }) {
   // (user, provider, or admin), since they're all the same Supabase Auth login.
   const requestPasswordReset = async (email) => {
     if (!supabase) return { error: { message: 'Database not connected' } }
-    const redirectTo = `${window.location.origin}/reset-password`
+    // Always the canonical domain in production (not window.location.origin) — Vercel
+    // also serves the app at its raw *.vercel.app URL, and Supabase silently drops the
+    // redirect (falling back to its own Site URL) for any origin not on the allowed
+    // list, so this can't be left to whichever domain the visitor happened to be on.
+    const isLocal = window.location.hostname === 'localhost'
+    const redirectTo = `${isLocal ? window.location.origin : 'https://www.refereasy.ca'}/reset-password`
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
     return { error }
   }
