@@ -32,7 +32,6 @@ export default function AdminSidebar({ tab, setTab, counts = {} }) {
       header: 'Insights',
       items: [
         { key: 'analytics', label: 'Analytics',           status: 'active' },
-        { key: 'faxes',     label: 'Fax intake',          status: 'soon' },
       ],
     },
     {
