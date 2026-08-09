@@ -16,6 +16,7 @@ export default function TopNav() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
         <Logo size="lg" className="shrink-0" />
         <div className="flex items-center gap-3 sm:gap-5">
+          <Link href="/" className={linkCls('/') + ' hidden sm:inline'}>Home</Link>
           <Link href="/search" className={linkCls('/search') + ' hidden sm:inline'}>Find Care</Link>
           <Link href="/pricing" className={linkCls('/pricing') + ' hidden sm:inline'}>Pricing</Link>
           <Link href="/blog" className={linkCls('/blog') + ' hidden md:inline'}>Blog</Link>

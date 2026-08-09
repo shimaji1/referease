@@ -34,7 +34,7 @@ export const DEFAULT_STYLE = {
   body: { ...TEXT_SECTION_DEFAULT, size: 14 },
   logo: { size: 40, align: 'left', x: 0, y: 0 },
   button: { size: 15, bg: '', color: '', align: 'left', x: 0, y: 0 },
-  image: { size: 'md' },
+  image: { size: 'md', x: 0, y: 0, overlay: true },
   background: { color: '' },
   layout: { v: 'middle' },
 }

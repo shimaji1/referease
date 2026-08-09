@@ -622,7 +622,7 @@ function AnnouncementSection({ providers, user }) {
       <p className="text-xs text-gray-500 mb-4">One rotating spot in the homepage carousel. Submissions go through a quick review before going live.</p>
 
       <div className="mb-4">
-        <AnnouncementToolbar style={form.style} onChange={v => set('style', v)} selected={selectedEl} showImage={form.template !== 'text-card'} />
+        <AnnouncementToolbar style={form.style} onChange={v => set('style', v)} selected={selectedEl} showImage={form.template !== 'text-card'} template={form.template} />
         <label className={label + ' mt-3 block'}>Click any element below to select and style it</label>
         <div className="relative h-56 rounded-2xl overflow-hidden" onClick={() => setSelectedEl(null)}>
           <AnnouncementSlide item={{ ...form, providers: null }} editable selectedKey={selectedEl} onSelect={setSelectedEl} />

@@ -70,7 +70,16 @@ function PositionNudge({ x, y, onChange }) {
 const TEXT_KEYS = ['headline', 'subheadline', 'body']
 const LABELS = { headline: 'Headline', subheadline: 'Subheading', body: 'Paragraph', logo: 'Logo', button: 'Button', image: 'Picture', background: 'Background' }
 
-export default function AnnouncementToolbar({ style, onChange, selected, showImage }) {
+function Checkbox({ checked, onChange, label }) {
+  return (
+    <label className="h-8 flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="w-3.5 h-3.5 accent-brand cursor-pointer" />
+      {label}
+    </label>
+  )
+}
+
+export default function AnnouncementToolbar({ style, onChange, selected, showImage, template }) {
   const setSection = (key, patch) => onChange({ ...style, [key]: { ...style[key], ...patch } })
 
   return (
@@ -152,10 +161,20 @@ export default function AnnouncementToolbar({ style, onChange, selected, showIma
       {selected === 'image' && showImage && (
         <>
           <Group label="Picture">
-            <span className="h-8 flex items-center text-xs font-semibold text-gray-700 px-1">Picture size</span>
+            <span className="h-8 flex items-center text-xs font-semibold text-gray-700 px-1">Picture</span>
           </Group>
           <Sep />
-          <Pills options={IMAGE_SIZE_OPTIONS} value={style.image.size} onChange={v => setSection('image', { size: v })} />
+          <Group label="Size">
+            <Pills options={IMAGE_SIZE_OPTIONS} value={style.image.size} onChange={v => setSection('image', { size: v })} />
+          </Group>
+          <Sep />
+          <PositionNudge x={style.image.x} y={style.image.y} onChange={p => setSection('image', p)} />
+          {template === 'full-banner' && (
+            <>
+              <Sep />
+              <Checkbox checked={style.image.overlay !== false} onChange={v => setSection('image', { overlay: v })} label="Bottom shadow" />
+            </>
+          )}
         </>
       )}
 

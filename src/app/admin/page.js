@@ -1256,7 +1256,7 @@ function AnnouncementsTab({ setMsg, onCountChange }) {
 
         <label style={lbl}>Styling</label>
         <div style={{ marginTop:"4px" }}>
-          <AnnouncementToolbar style={form.style} onChange={v => setForm(f => ({ ...f, style: v }))} selected={selectedEl} showImage={form.template !== 'text-card'} />
+          <AnnouncementToolbar style={form.style} onChange={v => setForm(f => ({ ...f, style: v }))} selected={selectedEl} showImage={form.template !== 'text-card'} template={form.template} />
         </div>
 
         <label style={lbl}>Live preview — click any element to select and style it</label>

@@ -20,7 +20,7 @@ function Positionable({ editable, selected, onSelect, x = 0, y = 0, extraTransfo
     <div
       onClick={editable ? (e) => { e.stopPropagation(); onSelect() } : undefined}
       className={editable ? `rounded transition-shadow ${selected ? 'outline outline-2 outline-blue-500 outline-offset-2' : 'outline outline-1 outline-dashed outline-transparent hover:outline-blue-300 outline-offset-2'} cursor-pointer` : undefined}
-      style={{ transform: `${extraTransform} translate(${x}px, ${y}px)`.trim(), ...extraStyle }}
+      style={{ transform: `${extraTransform} translate(${x}px, ${y}px)`.trim(), pointerEvents: 'auto', ...extraStyle }}
     >
       {children}
     </div>
@@ -82,12 +82,14 @@ export default function AnnouncementSlide({ item, editable = false, selectedKey 
     const zoom = IMAGE_ZOOM[style.image.size] || 1
     return (
       <div className="relative block w-full h-full rounded-2xl overflow-hidden">
-        <Positionable {...sel('image')} extraTransform="" style={{ position: 'absolute', inset: 0 }}>
+        <Positionable {...sel('image')} x={style.image.x} y={style.image.y} style={{ position: 'absolute', inset: 0 }}>
           <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }} />
         </Positionable>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+        {style.image.overlay !== false && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+        )}
         <LogoBadge url={item.logo_url} section={style.logo} {...sel('logo')} />
-        <div className="relative h-full flex flex-col gap-1 p-6 sm:p-8 overflow-hidden" style={{ justifyContent: vJustify }}>
+        <div className="relative h-full flex flex-col gap-1 p-6 sm:p-8 overflow-hidden" style={{ justifyContent: vJustify, pointerEvents: 'none' }}>
           <Positionable {...sel('headline')} x={style.headline.x} y={style.headline.y}><StyledText as="h3" text={item.headline} section={style.headline} defaultColor="#ffffff" /></Positionable>
           <Positionable {...sel('subheadline')} x={style.subheadline.x} y={style.subheadline.y}><StyledText as="h4" text={item.subheadline} section={style.subheadline} defaultColor="#ffffff" /></Positionable>
           <Positionable {...sel('body')} x={style.body.x} y={style.body.y}><StyledText as="p" text={item.body} section={style.body} defaultColor="rgba(255,255,255,0.85)" /></Positionable>
@@ -120,9 +122,9 @@ export default function AnnouncementSlide({ item, editable = false, selectedKey 
   const imgWidth = IMAGE_WIDTH[style.image.size] || IMAGE_WIDTH.md
   return (
     <div className="flex flex-col sm:flex-row w-full h-full rounded-2xl bg-white border border-gray-200 overflow-hidden">
-      <div className={`h-40 sm:h-full shrink-0 sm:w-[var(--img-w)] ${editable ? (selectedKey === 'image' ? 'outline outline-2 outline-blue-500 -outline-offset-2 cursor-pointer' : 'outline outline-1 outline-dashed outline-transparent hover:outline-blue-300 -outline-offset-2 cursor-pointer') : ''}`}
+      <div className={`relative h-40 sm:h-full shrink-0 sm:w-[var(--img-w)] overflow-hidden ${editable ? (selectedKey === 'image' ? 'outline outline-2 outline-blue-500 -outline-offset-2 cursor-pointer' : 'outline outline-1 outline-dashed outline-transparent hover:outline-blue-300 -outline-offset-2 cursor-pointer') : ''}`}
         style={{ '--img-w': imgWidth }} onClick={editable ? (e) => { e.stopPropagation(); onSelect('image') } : undefined}>
-        <img src={item.image_url} alt="" className="w-full h-full object-cover" />
+        <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ transform: `translate(${style.image.x}px, ${style.image.y}px)` }} />
       </div>
       <div className="relative flex-1 min-w-0 overflow-hidden">
         <LogoBadge url={item.logo_url} section={style.logo} {...sel('logo')} />
