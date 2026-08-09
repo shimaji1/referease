@@ -100,8 +100,36 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
+  // Emails a reset link for when the current password isn't known at all — distinct
+  // from updatePassword above, which needs the current password. Works for any account
+  // (user, provider, or admin), since they're all the same Supabase Auth login.
+  const requestPasswordReset = async (email) => {
+    if (!supabase) return { error: { message: 'Database not connected' } }
+    const redirectTo = `${window.location.origin}/reset-password`
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+    return { error }
+  }
+
+  // Called from /reset-password — clicking the emailed link logs the browser into a
+  // temporary recovery session automatically (picked up by the onAuthStateChange
+  // listener above), so this just needs to set the new password on it.
+  const confirmPasswordReset = async (newPassword) => {
+    if (!supabase) return { error: { message: 'Database not connected' } }
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    return { error }
+  }
+
+  // Self-service email change. Supabase emails a confirmation link before this
+  // actually takes effect; profiles.email stays in sync via a DB trigger
+  // (see supabase-email-sync.sql) once the change is confirmed.
+  const updateEmail = async (newEmail) => {
+    if (!supabase || !user) return { error: { message: 'Not signed in' } }
+    const { error } = await supabase.auth.updateUser({ email: newEmail })
+    return { error }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, updatePassword, updateProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, updatePassword, updateProfile, requestPasswordReset, confirmPasswordReset, updateEmail }}>
       {children}
     </AuthContext.Provider>
   )

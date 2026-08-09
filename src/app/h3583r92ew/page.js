@@ -110,11 +110,14 @@ export default function AdminPage() {
   // The old password gate is kept temporarily as a fallback so there's no risk of a
   // lockout while this rolls out; remove legacyAuthed + the password UI once the real
   // login is confirmed working.
-  const { user, profile, loading: authLoading, signIn, signOut } = useAuth()
+  const { user, profile, loading: authLoading, signIn, signOut, requestPasswordReset } = useAuth()
   const [adminEmail, setAdminEmail] = useState("")
   const [adminPw, setAdminPw] = useState("")
   const [adminLoginErr, setAdminLoginErr] = useState("")
   const [adminLoggingIn, setAdminLoggingIn] = useState(false)
+  const [adminForgotMode, setAdminForgotMode] = useState(false)
+  const [adminResetSending, setAdminResetSending] = useState(false)
+  const [adminResetSent, setAdminResetSent] = useState(false)
   const [legacyAuthed, setLegacyAuthed] = useState(false)
   const realAuthed = !!user && profile?.is_admin === true
   const authed = realAuthed || legacyAuthed
@@ -159,6 +162,15 @@ export default function AdminPage() {
     const { error } = await signIn(adminEmail.trim(), adminPw)
     setAdminLoggingIn(false)
     if (error) setAdminLoginErr(error.message)
+  }
+  const adminResetRequest = async () => {
+    setAdminLoginErr("")
+    if (!adminEmail.trim()) { setAdminLoginErr("Enter your email above first"); return }
+    setAdminResetSending(true)
+    const { error } = await requestPasswordReset(adminEmail.trim())
+    setAdminResetSending(false)
+    if (error) { setAdminLoginErr(error.message); return }
+    setAdminResetSent(true)
   }
   const logout = async () => {
     setLegacyAuthed(false); setPw("")
@@ -595,12 +607,31 @@ export default function AdminPage() {
     <div style={{ fontFamily:"Inter, sans-serif", background:"#f8fafc", color:"#111827", minHeight:"100vh", display:"flex", justifyContent:"center", alignItems:"center" }}>
       <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"14px", padding:"32px", width:"340px" }}>
         <h2 style={{ margin:"0 0 4px", fontSize:"18px" }}>🔐 ReferEasy Admin</h2>
-        <p style={{ margin:"0 0 20px", fontSize:"12px", color:"#64748b" }}>Sign in with your admin account</p>
-        <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} onKeyDown={e => e.key==="Enter" && adminLogin()} placeholder="Email" style={s} />
-        <input type="password" value={adminPw} onChange={e => setAdminPw(e.target.value)} onKeyDown={e => e.key==="Enter" && adminLogin()} placeholder="Password" style={{ ...s, marginTop:"8px" }} />
-        <button onClick={adminLogin} disabled={adminLoggingIn} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"12px", padding:"10px", textAlign:"center", background:"#3b82f6", color:"#fff", borderRadius:"8px", fontSize:"13px", fontWeight:600, opacity: adminLoggingIn ? 0.6 : 1 }}>{adminLoggingIn ? 'Signing in…' : 'Sign in'}</button>
-        {adminLoginErr && <p style={{ color:"#dc2626", fontSize:"12px", marginTop:"8px" }}>{adminLoginErr}</p>}
+        {adminResetSent ? (
+          <>
+            <p style={{ margin:"0 0 4px", fontSize:"12px", color:"#64748b" }}>Check <strong>{adminEmail}</strong> for a reset link.</p>
+            <button onClick={() => { setAdminResetSent(false); setAdminForgotMode(false) }} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"14px", padding:"10px", textAlign:"center", background:"#f1f5f9", color:"#334155", borderRadius:"8px", fontSize:"13px", fontWeight:600 }}>Back to sign in</button>
+          </>
+        ) : adminForgotMode ? (
+          <>
+            <p style={{ margin:"0 0 20px", fontSize:"12px", color:"#64748b" }}>Enter your email to get a reset link</p>
+            <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} onKeyDown={e => e.key==="Enter" && adminResetRequest()} placeholder="Email" style={s} />
+            <button onClick={adminResetRequest} disabled={adminResetSending} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"12px", padding:"10px", textAlign:"center", background:"#3b82f6", color:"#fff", borderRadius:"8px", fontSize:"13px", fontWeight:600, opacity: adminResetSending ? 0.6 : 1 }}>{adminResetSending ? 'Sending…' : 'Send reset link'}</button>
+            {adminLoginErr && <p style={{ color:"#dc2626", fontSize:"12px", marginTop:"8px" }}>{adminLoginErr}</p>}
+            <button onClick={() => { setAdminForgotMode(false); setAdminLoginErr("") }} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"10px", padding:"6px", textAlign:"center", color:"#94a3b8", fontSize:"12px" }}>Back to sign in</button>
+          </>
+        ) : (
+          <>
+            <p style={{ margin:"0 0 20px", fontSize:"12px", color:"#64748b" }}>Sign in with your admin account</p>
+            <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} onKeyDown={e => e.key==="Enter" && adminLogin()} placeholder="Email" style={s} />
+            <input type="password" value={adminPw} onChange={e => setAdminPw(e.target.value)} onKeyDown={e => e.key==="Enter" && adminLogin()} placeholder="Password" style={{ ...s, marginTop:"8px" }} />
+            <button onClick={adminLogin} disabled={adminLoggingIn} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"12px", padding:"10px", textAlign:"center", background:"#3b82f6", color:"#fff", borderRadius:"8px", fontSize:"13px", fontWeight:600, opacity: adminLoggingIn ? 0.6 : 1 }}>{adminLoggingIn ? 'Signing in…' : 'Sign in'}</button>
+            {adminLoginErr && <p style={{ color:"#dc2626", fontSize:"12px", marginTop:"8px" }}>{adminLoginErr}</p>}
+            <button onClick={() => setAdminForgotMode(true)} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"10px", padding:"6px", textAlign:"center", color:"#3b82f6", fontSize:"12px", fontWeight:600 }}>Forgot password?</button>
+          </>
+        )}
 
+        {!adminForgotMode && !adminResetSent && (
         <details style={{ marginTop:"20px" }}>
           <summary style={{ cursor:"pointer", fontSize:"11px", color:"#94a3b8" }}>Use the old password instead (temporary)</summary>
           <div style={{ marginTop:"10px" }}>
@@ -609,6 +640,7 @@ export default function AdminPage() {
             {msg && <p style={{ color:"#dc2626", fontSize:"12px", marginTop:"8px" }}>{msg}</p>}
           </div>
         </details>
+        )}
       </div>
     </div>
   )

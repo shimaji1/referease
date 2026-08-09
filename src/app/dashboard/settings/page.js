@@ -18,12 +18,16 @@ const card = "bg-white border border-gray-200 rounded-xl p-6"
 const label = "block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5"
 
 function AccountSection({ profile, updateProfile, user }) {
+  const { updateEmail } = useAuth()
   const [fullName, setFullName] = useState(profile.full_name || '')
   const [phone, setPhone] = useState(profile.phone || '')
   const [companyName, setCompanyName] = useState(profile.company_name || '')
   const [taxNumber, setTaxNumber] = useState(profile.tax_number || '')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [newEmail, setNewEmail] = useState(profile.email || '')
+  const [emailSaving, setEmailSaving] = useState(false)
+  const [emailMsg, setEmailMsg] = useState('')
 
   const save = async () => {
     setSaving(true); setMsg('')
@@ -45,6 +49,16 @@ function AccountSection({ profile, updateProfile, user }) {
     setMsg(error ? 'Error: ' + error.message : 'Saved!')
   }
 
+  const saveEmail = async () => {
+    setEmailMsg('')
+    const trimmed = newEmail.trim()
+    if (!trimmed || trimmed === profile.email) return
+    setEmailSaving(true)
+    const { error } = await updateEmail(trimmed)
+    setEmailSaving(false)
+    setEmailMsg(error ? 'Error: ' + error.message : 'Confirmation link sent to your new email — click it to finish the change.')
+  }
+
   return (
     <div className={card}>
       <h2 className="text-sm font-bold text-gray-900 mb-4">Account Information</h2>
@@ -55,8 +69,18 @@ function AccountSection({ profile, updateProfile, user }) {
         </div>
         <div>
           <label className={label}>Email</label>
-          <input className={inp + ' bg-gray-50 text-gray-500'} value={profile.email || ''} disabled />
-          <p className="text-[11px] text-gray-400 mt-1">Contact support to change your email address.</p>
+          <div className="flex gap-2">
+            <input className={inp} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+            <button onClick={saveEmail} disabled={emailSaving || !newEmail.trim() || newEmail.trim() === profile.email}
+              className="px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl border border-gray-300 hover:bg-gray-200 transition disabled:opacity-50 shrink-0">
+              {emailSaving ? 'Sending…' : 'Update'}
+            </button>
+          </div>
+          {emailMsg ? (
+            <p className={`text-[11px] mt-1 ${emailMsg.startsWith('Error') ? 'text-red-500' : 'text-emerald-600'}`}>{emailMsg}</p>
+          ) : (
+            <p className="text-[11px] text-gray-400 mt-1">Changing this sends a confirmation link to the new address before it takes effect.</p>
+          )}
         </div>
         <div>
           <label className={label}>Phone</label>
@@ -604,8 +628,10 @@ export default function SettingsPage() {
     supabase.from('providers').select('*').eq('owner_id', user.id).order('name').then(({ data }) => { if (data) setProviders(data) })
   }, [user, profile])
 
+  useEffect(() => { if (!authLoading && !user) router.push('/login') }, [authLoading, user, router])
+
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>
-  if (!user) { router.push('/login'); return null }
+  if (!user) return null
 
   const isProvider = profile?.role === 'provider'
   const tabs = [
