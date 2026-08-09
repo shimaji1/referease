@@ -107,9 +107,6 @@ function PlanDropdown({ provider, onChange }) {
 
 export default function AdminPage() {
   // Real admin login (Supabase Auth + profiles.is_admin) — see supabase-admin-auth.sql.
-  // The old password gate is kept temporarily as a fallback so there's no risk of a
-  // lockout while this rolls out; remove legacyAuthed + the password UI once the real
-  // login is confirmed working.
   const { user, profile, loading: authLoading, signIn, signOut, requestPasswordReset } = useAuth()
   const [adminEmail, setAdminEmail] = useState("")
   const [adminPw, setAdminPw] = useState("")
@@ -118,10 +115,7 @@ export default function AdminPage() {
   const [adminForgotMode, setAdminForgotMode] = useState(false)
   const [adminResetSending, setAdminResetSending] = useState(false)
   const [adminResetSent, setAdminResetSent] = useState(false)
-  const [legacyAuthed, setLegacyAuthed] = useState(false)
-  const realAuthed = !!user && profile?.is_admin === true
-  const authed = realAuthed || legacyAuthed
-  const [pw, setPw] = useState("")
+  const authed = !!user && profile?.is_admin === true
   const [providers, setProviders] = useState([])
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(empty())
@@ -153,10 +147,6 @@ export default function AdminPage() {
   const [inviting, setInviting] = useState(null)
   const PAGE_SIZE = 50
 
-  const legacyLogin = () => {
-    if (pw === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) { setLegacyAuthed(true); setMsg(""); try { localStorage.setItem('re-admin-auth', '1') } catch {} }
-    else setMsg("Wrong password")
-  }
   const adminLogin = async () => {
     setAdminLoginErr(""); setAdminLoggingIn(true)
     const { error } = await signIn(adminEmail.trim(), adminPw)
@@ -172,12 +162,7 @@ export default function AdminPage() {
     if (error) { setAdminLoginErr(error.message); return }
     setAdminResetSent(true)
   }
-  const logout = async () => {
-    setLegacyAuthed(false); setPw("")
-    try { localStorage.removeItem('re-admin-auth') } catch {}
-    if (user) await signOut()
-  }
-  useEffect(() => { try { if (localStorage.getItem('re-admin-auth') === '1') setLegacyAuthed(true) } catch {} }, [])
+  const logout = async () => { await signOut() }
 
   // Load specialties
   useEffect(() => {
@@ -631,16 +616,6 @@ export default function AdminPage() {
           </>
         )}
 
-        {!adminForgotMode && !adminResetSent && (
-        <details style={{ marginTop:"20px" }}>
-          <summary style={{ cursor:"pointer", fontSize:"11px", color:"#94a3b8" }}>Use the old password instead (temporary)</summary>
-          <div style={{ marginTop:"10px" }}>
-            <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key==="Enter" && legacyLogin()} placeholder="Password" style={s} />
-            <button onClick={legacyLogin} style={{ all:"unset", cursor:"pointer", display:"block", width:"100%", marginTop:"8px", padding:"8px", textAlign:"center", background:"#f1f5f9", color:"#334155", borderRadius:"8px", fontSize:"12px", fontWeight:600 }}>Login with password</button>
-            {msg && <p style={{ color:"#dc2626", fontSize:"12px", marginTop:"8px" }}>{msg}</p>}
-          </div>
-        </details>
-        )}
       </div>
     </div>
   )
