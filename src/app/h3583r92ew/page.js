@@ -725,7 +725,20 @@ export default function AdminPage() {
           </>
         ) : tab === "edit" ? (
           <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"12px", padding:"20px" }}>
-            <h3 style={{ margin:"0 0 16px", fontSize:"16px" }}>{editing ? "Edit Provider" : "Add New Provider"}</h3>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
+              <h3 style={{ margin:0, fontSize:"16px" }}>{editing ? "Edit Provider" : "Add New Provider"}</h3>
+              {editing && (
+                <button onClick={async () => {
+                  const email = window.prompt(`Invite someone to claim "${form.name}" — they'll skip verification and get instant ownership.\n\nEmail:`)
+                  if (!email || !email.trim()) return
+                  const res = await fetch('/api/claim/invite', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider_id: editing, email: email.trim(), user_id: user?.id }),
+                  }).then(r => r.json()).catch(e => ({ error: e.message }))
+                  setMsg(res.error ? 'Error: ' + res.error : `Claim invite sent to ${email.trim()}`)
+                }} style={{ all:"unset", cursor:"pointer", padding:"6px 14px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#7c3aed15", color:"#7c3aed", border:"1px solid #7c3aed40" }}>✉ Invite to claim</button>
+              )}
+            </div>
 
             {/* Website Extractor */}
             <div style={{ background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:"8px", padding:"14px", marginBottom:"16px" }}>
