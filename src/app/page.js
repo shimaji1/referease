@@ -6,6 +6,7 @@ import FeaturedStrip from '@/components/FeaturedStrip'
 import AnnouncementCarousel from '@/components/AnnouncementCarousel'
 import useLocation from '@/hooks/useLocation'
 import TopNav from '@/components/TopNav'
+import { can } from '@/lib/plan'
 
 const IMG = {
   hero: '/img/hero.jpg',
@@ -49,7 +50,7 @@ export default function HomePage() {
       supabase.from('providers').select('id', { count: 'exact', head: true }).eq('data_status', 'complete').not('category', 'in', '(Specialist,Family Medicine)'),
       supabase.from('providers').select('id', { count: 'exact', head: true }).eq('data_status', 'complete').in('category', ['Specialist', 'Family Medicine']),
       supabase.from('specialties').select('snomed_code', { count: 'exact', head: true }),
-      supabase.from('providers').select('id, name, type, rating, accepting_referrals, verified').eq('data_status', 'complete').not('rating', 'is', null).order('rating', { ascending: false }).limit(6),
+      supabase.from('providers').select('id, name, type, rating, accepting_referrals, verified, plan, plan_granted_by_admin, trial_ends_at').eq('data_status', 'complete').not('rating', 'is', null).order('rating', { ascending: false }).limit(6),
     ]).then(([p, d, sp, f]) => {
       setCounts({ prov: p.count, docs: d.count, specs: sp.count })
       if (f.data) setFeatured(f.data)
@@ -205,7 +206,7 @@ export default function HomePage() {
               <Link key={p.id} href={`/search?id=${p.id}`} className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md hover:border-brand/30 transition block">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <h3 className="font-semibold text-gray-900 text-sm leading-snug">{p.name}</h3>
-                  {p.verified && <span className="text-[10px] font-bold text-brand bg-brand/5 px-2 py-0.5 rounded-full border border-brand/15 shrink-0">✓ Verified</span>}
+                  {p.verified && can(p, 'verified_badge') && <span className="text-[10px] font-bold text-brand bg-brand/5 px-2 py-0.5 rounded-full border border-brand/15 shrink-0">✓ Verified</span>}
                 </div>
                 <p className="text-xs text-brand/70 font-medium mb-3">{p.type}</p>
                 <div className="flex items-center gap-3 text-xs text-gray-500">

@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { VerifiedPill, FeaturedTag } from '@/components/Badges'
 import { waitShort } from '@/lib/waitTime'
+import { can } from '@/lib/plan'
 
 // One card design for every featured slot — navy banner top, white body
 export default function FeaturedCard({ item, size = 'md' }) {
@@ -23,7 +24,7 @@ export default function FeaturedCard({ item, size = 'md' }) {
         <h3 className={`font-bold text-gray-900 ${dims.title} leading-snug line-clamp-2`}>{item.name}</h3>
         {item.address && <p className="text-xs text-gray-500 mt-1 line-clamp-1">📍 {item.address}</p>}
         <div className="flex items-center gap-1.5 flex-wrap mt-auto pt-3">
-          {item.verified && <VerifiedPill />}
+          {item.verified && can(item, 'verified_badge') && <VerifiedPill />}
           {item.accepting_referrals === true && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Accepting</span>}
           {item.accepting_referrals === false && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Not accepting</span>}
           {item.accepting_referrals == null && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Availability unknown</span>}

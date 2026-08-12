@@ -5,6 +5,7 @@ import ProfileView from '@/components/ProfileView'
 import { getSupabase } from '@/lib/supabase-server'
 import { providerSlug, providerIdFromSlug, extractCity } from '@/lib/providerSeo'
 import { waitLabel, waitColor } from '@/lib/waitTime'
+import { can } from '@/lib/plan'
 
 const BASE = 'https://www.refereasy.ca'
 const DOCTOR_CATEGORIES = ['Specialist', 'Family Medicine']
@@ -167,7 +168,7 @@ export default async function DoctorProfilePage({ params }) {
           subtitle={`${p.type}${p.category ? ` · ${p.category}` : ''}`}
           specialty={p.type}
           subSpecialty={p.sub_specialty}
-          verified={p.verified}
+          verified={p.verified && can(p, 'verified_badge')}
           verifiedAt={p.verified_at}
           tiles={[
             { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },

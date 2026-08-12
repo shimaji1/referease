@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import FeaturedCard from './FeaturedCard'
+import { can } from '@/lib/plan'
 
 const DOC_CATS = new Set(['Family Medicine', 'Specialist'])
 
@@ -28,11 +29,13 @@ export default function FeaturedStrip({ category = null, categories = null, titl
       // 'featured' sections show ONLY providers who are actually featured=true — never
       // backfilled with verified-but-not-featured listings. If there aren't enough, the
       // empty state ("Get Featured →") shows instead, which is the honest outcome.
-      // 'verified' sections (e.g. "Recently verified providers") show verified=true only.
+      // 'verified' sections (e.g. "Recently verified providers") show verified=true AND
+      // actually plan-eligible for the badge (see can() filter below) — otherwise this
+      // section would show cards with no checkmark under a "verified" heading.
       const filterCol = source === 'verified' ? 'verified' : 'featured'
 
       if (doctorSide !== true) {
-        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_type, wait_weeks, lat, lng, featured').eq('data_status', 'complete')
+        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, verified_at, plan, plan_granted_by_admin, trial_ends_at, rating, wait_type, wait_weeks, lat, lng, featured').eq('data_status', 'complete')
         // No category/categories prop means "any non-doctor category" — without this exclusion,
         // doctors leak into this branch too (duplicating them alongside the doctor branch below,
         // one copy missing the linked-clinic address fallback the doctor branch applies).
@@ -45,7 +48,7 @@ export default function FeaturedStrip({ category = null, categories = null, titl
       }
       if (doctorSide !== false) {
         // Doctors ARE providers now: category IN ('Specialist','Family Medicine')
-        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, rating, wait_type, wait_weeks, lat, lng, featured, clinic_provider_id').eq('data_status', 'complete').in('category', ['Specialist','Family Medicine'])
+        let q = supabase.from('providers').select('id, name, type, category, address, accepting_referrals, verified, verified_at, plan, plan_granted_by_admin, trial_ends_at, rating, wait_type, wait_weeks, lat, lng, featured, clinic_provider_id').eq('data_status', 'complete').in('category', ['Specialist','Family Medicine'])
         if (category && DOC_CATS.has(category)) q = q.eq('category', category)
         q = q.eq(filterCol, true).limit(24)
         const { data } = await q
@@ -61,11 +64,16 @@ export default function FeaturedStrip({ category = null, categories = null, titl
         }
       }
 
-      let final = results
+      // Belt-and-suspenders: the DB filter above catches verified=true rows regardless of
+      // plan, so also apply the real can(..., 'verified_badge') rule here — it accounts for
+      // expired trials that never got downgraded, which a plain column filter can't express.
+      const eligible = source === 'verified' ? results.filter(x => can(x, 'verified_badge')) : results
+
+      let final = eligible
       if (loc?.lat && loc?.lng) {
-        final = results.map(x => ({ ...x, _d: (x.lat && x.lng) ? km(loc.lat, loc.lng, x.lat, x.lng) : 9999 })).sort((a, b) => a._d - b._d)
+        final = eligible.map(x => ({ ...x, _d: (x.lat && x.lng) ? km(loc.lat, loc.lng, x.lat, x.lng) : 9999 })).sort((a, b) => a._d - b._d)
       } else {
-        final = shuffle(results)
+        final = shuffle(eligible)
       }
       if (alive) setPool(final)
     }

@@ -6,6 +6,7 @@ import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
 import ProfileView from '@/components/ProfileView'
 import { VerifiedPill, FeaturedTag } from '@/components/Badges'
+import { can } from '@/lib/plan'
 import FeaturedStrip from '@/components/FeaturedStrip'
 import TopNav from '@/components/TopNav'
 import useLocation from '@/hooks/useLocation'
@@ -155,7 +156,7 @@ function Card({ p, onSelect, isFav, onFav, sponsored }) {
         <div className="flex items-center gap-1.5 min-w-0"><span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide ${catBadge(p.category || "Clinic")}`}>{(p.category || "Clinic").toUpperCase()}</span><h3 className="font-semibold text-gray-900 text-base leading-snug truncate min-w-0 flex-1">{p.name}</h3></div>
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
-          {p.verified && <VerifiedPill />}
+          {p.verified && can(p, 'verified_badge') && <VerifiedPill />}
           <AcceptPill v={p.accepting_referrals} />
           <WaitBadge type={p.wait_type} weeks={p.wait_weeks} />
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
@@ -191,7 +192,7 @@ function DoctorCard({ d, isFav, onFav, sponsored }) {
               ? <AcceptPill v={d.accepting_new_patients} patient />
               : <AcceptPill v={d.accepting_referrals} />}
             <WaitBadge type={d.wait_type} weeks={d.wait_weeks} />
-            {d.verified && <VerifiedPill />}
+            {d.verified && can(d, 'verified_badge') && <VerifiedPill />}
             {d.hours && <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>}
             {dist && <span className="text-[10px] text-gray-400">{dist} km</span>}
           </div>
@@ -282,7 +283,7 @@ function Detail({ p, onBack, isFav, onFav }) {
         subtitle={`${p.type}${p.category ? ` · ${p.category}` : ''}`}
         specialty={p.type}
         subSpecialty={p.sub_specialty}
-        verified={p.verified}
+        verified={p.verified && can(p, 'verified_badge')}
         verifiedAt={p.verified_at}
         action={<button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
         tiles={[
@@ -414,7 +415,7 @@ export default function SearchPage() {
     if (!supabase) return
     let alive = true
     supabase.from('providers')
-      .select('id, name, type, category, address, phone, fax, accepting_referrals, verified, rating, wait_type, wait_weeks, wait_days_approx, lat, lng, featured, clinic_provider_id')
+      .select('id, name, type, category, address, phone, fax, accepting_referrals, verified, verified_at, plan, plan_granted_by_admin, trial_ends_at, rating, wait_type, wait_weeks, wait_days_approx, lat, lng, featured, clinic_provider_id')
       .eq('data_status', 'complete').eq('featured', true).limit(30)
       .then(async ({ data }) => {
         if (!alive || !data) return
