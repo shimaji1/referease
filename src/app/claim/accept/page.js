@@ -97,7 +97,7 @@ function AcceptContent() {
             <div className="bg-white border-2 border-emerald-300 rounded-xl p-8 text-center">
               <div className="text-4xl mb-3">✅</div>
               <h1 className="text-lg font-bold text-gray-900 mb-2">You're all set</h1>
-              <p className="text-sm text-gray-500 mb-4">You now own {invite.providers?.name}'s listing, verified and ready to manage.</p>
+              <p className="text-sm text-gray-500 mb-4">You now own {invite.providers?.name}'s listing and can manage it from your dashboard.</p>
               <Link href="/dashboard" className="inline-flex px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark transition">Go to Dashboard</Link>
             </div>
           )}
@@ -105,7 +105,7 @@ function AcceptContent() {
           {invite && !done && (
             <div className="animate-fade-in">
               <h1 className="text-2xl font-bold text-gray-900">You're invited to claim this listing</h1>
-              <p className="text-sm text-gray-500 mt-1 mb-6">You've been invited to take ownership of <strong>{invite.providers?.name}</strong>'s listing on ReferEasy — verified, no further steps needed.</p>
+              <p className="text-sm text-gray-500 mt-1 mb-6">You've been invited to take ownership of <strong>{invite.providers?.name}</strong>'s listing on ReferEasy — no verification codes needed.</p>
 
               {user ? (
                 <div className="bg-white border border-gray-200 rounded-xl p-5">

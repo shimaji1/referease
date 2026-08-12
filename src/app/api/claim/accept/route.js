@@ -23,10 +23,13 @@ export async function POST(request) {
       .select('id, provider_id, status').eq('invite_token', token).eq('status', 'pending').maybeSingle()
     if (!invite) return NextResponse.json({ error: 'Invite not found or already used' }, { status: 404 })
 
-    // Skips the fax/email verification flow entirely — the admin who sent this invite
-    // is personally vouching for this person, same trust basis as an admin-approved claim.
+    // Ownership only — skips the fax/email verification CODE hassle (the admin who sent
+    // this invite already knows who they're dealing with), but deliberately does NOT set
+    // verified. That's a separate, distinct decision made via the plan-tier dropdown
+    // elsewhere in admin, same as any other listing — claiming just transfers ownership
+    // and stops showing "Claim this listing" to everyone else.
     const { error: providerErr } = await sb.from('providers')
-      .update({ owner_id: user_id, verified: true, verified_at: new Date().toISOString() })
+      .update({ owner_id: user_id })
       .eq('id', invite.provider_id)
     if (providerErr) return NextResponse.json({ error: providerErr.message }, { status: 400 })
 

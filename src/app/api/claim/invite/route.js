@@ -50,7 +50,7 @@ export async function POST(request) {
   <div style="padding:32px">
     <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 14px;line-height:1.3">You're invited to claim ${provider.name}</h1>
     <p style="color:#334155;font-size:15px;line-height:1.65;margin:0 0 16px">You've been invited to take ownership of <strong>${provider.name}</strong>'s listing on ReferEasy — manage availability, referral criteria, forms, and more.</p>
-    <p style="color:#334155;font-size:15px;line-height:1.65;margin:0 0 16px">Click below to set up your account — no separate verification needed.</p>
+    <p style="color:#334155;font-size:15px;line-height:1.65;margin:0 0 16px">Click below to set up your account — no verification codes needed.</p>
     <div style="text-align:center;margin:28px 0">
       <a href="${acceptUrl}" style="display:inline-block;background:#1e3a5f;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:0.02em">Claim this listing →</a>
     </div>

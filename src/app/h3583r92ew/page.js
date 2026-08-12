@@ -729,7 +729,7 @@ export default function AdminPage() {
               <h3 style={{ margin:0, fontSize:"16px" }}>{editing ? "Edit Provider" : "Add New Provider"}</h3>
               {editing && (
                 <button onClick={async () => {
-                  const email = window.prompt(`Invite someone to claim "${form.name}" — they'll skip verification and get instant ownership.\n\nEmail:`)
+                  const email = window.prompt(`Invite someone to claim "${form.name}" — they'll get instant ownership, no verification codes needed. This does not grant the Verified badge; do that separately via the plan dropdown if you want to.\n\nEmail:`)
                   if (!email || !email.trim()) return
                   const res = await fetch('/api/claim/invite', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
