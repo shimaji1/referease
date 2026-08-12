@@ -34,7 +34,7 @@ export default function AnnouncementCarousel() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative h-72 sm:h-64" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
           {slides.map((item, i) => (
-            <div key={item.id} className="absolute inset-0 transition-opacity duration-500" style={{ opacity: i === index ? 1 : 0, pointerEvents: i === index ? 'auto' : 'none' }}>
+            <div key={item.id} className="absolute inset-0 transition-opacity duration-500" style={{ opacity: i === index ? 1 : 0, pointerEvents: i === index ? 'auto' : 'none', visibility: i === index ? 'visible' : 'hidden' }}>
               <AnnouncementSlide item={item} />
             </div>
           ))}
