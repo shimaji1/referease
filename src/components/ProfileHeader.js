@@ -1,9 +1,9 @@
 'use client'
-import { VerifiedPill } from './Badges'
+import { VerifiedPill, ContactConfirmedTick } from './Badges'
 
 // One profile header for every category — clinics, doctors, imaging, labs.
 // Navy banner + initials avatar + overlapping quick-stat tiles (z-fixed).
-export default function ProfileHeader({ name, subtitle, verified, verifiedAt, action, tiles = [], footer }) {
+export default function ProfileHeader({ name, subtitle, verified, verifiedAt, contactConfirmed, action, tiles = [], footer }) {
   const initials = (name || '?').replace(/^(dr\.?|the)\s+/i, '').split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase()
   const verifiedDateLabel = verifiedAt ? new Date(verifiedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' }) : null
   return (
@@ -16,6 +16,7 @@ export default function ProfileHeader({ name, subtitle, verified, verifiedAt, ac
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-2xl font-bold text-white leading-tight">{name}</h2>
                 {verified && <VerifiedPill dark />}
+                {!verified && contactConfirmed && <ContactConfirmedTick dark />}
                 {verified && verifiedDateLabel && <span className="text-[11px] text-white/60 font-medium">Verified {verifiedDateLabel}</span>}
               </div>
               {subtitle && <p className="text-sm text-white/80 font-medium mt-1">{subtitle}</p>}

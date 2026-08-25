@@ -170,6 +170,7 @@ export default async function DoctorProfilePage({ params }) {
           subSpecialty={p.sub_specialty}
           verified={p.verified && can(p, 'verified_badge')}
           verifiedAt={p.verified_at}
+          contactConfirmed={p.verified && !can(p, 'verified_badge')}
           tiles={[
             { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },
             { big: waitLabel(p.wait_type, p.wait_weeks), small: 'Wait time', color: waitColor(p.wait_type, p.wait_weeks) },

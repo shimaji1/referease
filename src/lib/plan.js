@@ -79,7 +79,7 @@ const CAPABILITIES = {
     'max_staff':           1,
     'analytics_basic':     true,
     'analytics_full':      false,
-    'monthly_report':      false,
+    'monthly_report':      true,
     'editorial_spotlight': false,
     'blog_spotlight':      false,
   },

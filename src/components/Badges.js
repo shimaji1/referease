@@ -28,6 +28,28 @@ export function VerifiedPill({ dark = false }) {
   )
 }
 
+// ContactConfirmedTick: plain gray checkmark for Listed (free/basic) providers whose
+// fax/contact info we've confirmed. Deliberately NOT styled like VerifiedPill (no brand
+// color, no "Verified" wording) — it must never be mistaken for the paid badge, or it
+// recreates the exact incentive problem the verified_badge plan gate was built to fix.
+export function ContactConfirmedTick({ dark = false }) {
+  if (dark) {
+    return (
+      <span title="Fax & contact info confirmed" className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/70 bg-white/10 px-1.5 py-0.5 rounded-full border border-white/15 shrink-0">
+        ✓ Contact confirmed
+      </span>
+    )
+  }
+  return (
+    <span
+      title="Fax & contact info confirmed"
+      className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full border border-slate-200 shrink-0"
+    >
+      ✓ Contact confirmed
+    </span>
+  )
+}
+
 export function FeaturedTag() {
   return (
     <span className="absolute top-3 right-3 text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full z-10 tracking-wide">

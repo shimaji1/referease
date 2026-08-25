@@ -1546,6 +1546,7 @@ function BlogTab({ setMsg }) {
             <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={e => uploadImage(e.target.files?.[0], 'cover')} style={{ display:"none" }} disabled={uploadingCover} />
           </label>
           {form.cover_image && <img src={form.cover_image} alt="" style={{ width:"36px", height:"36px", borderRadius:"6px", objectFit:"cover" }} />}
+          {form.cover_image && <button type="button" onClick={() => setForm(f => ({ ...f, cover_image: '', cover_image_path: '' }))} style={{ all:"unset", cursor:"pointer", padding:"7px 12px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#fef2f2", color:"#b91c1c" }}>Remove</button>}
         </div>
 
         <label style={lbl}>Content</label>
@@ -1566,6 +1567,7 @@ function BlogTab({ setMsg }) {
               <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={e => uploadImage(e.target.files?.[0], 'og')} style={{ display:"none" }} disabled={uploadingOg} />
             </label>
             {form.og_image && <img src={form.og_image} alt="" style={{ width:"36px", height:"36px", borderRadius:"6px", objectFit:"cover" }} />}
+            {form.og_image && <button type="button" onClick={() => setForm(f => ({ ...f, og_image: '', og_image_path: '' }))} style={{ all:"unset", cursor:"pointer", padding:"7px 12px", borderRadius:"6px", fontSize:"12px", fontWeight:600, background:"#fef2f2", color:"#b91c1c" }}>Remove</button>}
           </div>
         </div>
 

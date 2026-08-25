@@ -9,7 +9,7 @@ const TOKEN_VALID_DAYS = 14
 
 // GET or POST /api/monthly-update — runs daily, authenticated the same way as
 // /api/trials/check-reminders (Vercel Cron header or CRON_SECRET).
-// Emails Featured providers whose info hasn't been prompted in 30+ days, with a
+// Emails Verified/Featured providers whose info hasn't been prompted in 30+ days, with a
 // token link to /update-info — no login required, so it's a 60-second job for them.
 async function handle(request) {
   const url = new URL(request.url)
@@ -36,7 +36,7 @@ async function handle(request) {
   const cutoff = new Date(Date.now() - MONTH_MS).toISOString()
   const { data: candidates } = await sb.from('providers')
     .select('id, name, email, plan, plan_granted_by_admin, trial_ends_at, last_monthly_update_sent')
-    .eq('plan', 'featured')
+    .in('plan', ['verified', 'featured'])
     .or(`last_monthly_update_sent.is.null,last_monthly_update_sent.lt.${cutoff}`)
 
   const due = (candidates || []).filter(p => can(p, 'monthly_report') && p.email)

@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { CATEGORIES } from "@/data/providers"
 import Link from 'next/link'
 import ProfileView from '@/components/ProfileView'
-import { VerifiedPill, FeaturedTag } from '@/components/Badges'
+import { VerifiedPill, ContactConfirmedTick, FeaturedTag } from '@/components/Badges'
 import { can } from '@/lib/plan'
 import FeaturedStrip from '@/components/FeaturedStrip'
 import TopNav from '@/components/TopNav'
@@ -157,6 +157,7 @@ function Card({ p, onSelect, isFav, onFav, sponsored }) {
         <p className="text-sm text-brand/80 font-medium mt-0.5">{p.type}</p>
         <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
           {p.verified && can(p, 'verified_badge') && <VerifiedPill />}
+          {p.verified && !can(p, 'verified_badge') && <ContactConfirmedTick />}
           <AcceptPill v={p.accepting_referrals} />
           <WaitBadge type={p.wait_type} weeks={p.wait_weeks} />
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>
@@ -193,6 +194,7 @@ function DoctorCard({ d, isFav, onFav, sponsored }) {
               : <AcceptPill v={d.accepting_referrals} />}
             <WaitBadge type={d.wait_type} weeks={d.wait_weeks} />
             {d.verified && can(d, 'verified_badge') && <VerifiedPill />}
+            {d.verified && !can(d, 'verified_badge') && <ContactConfirmedTick />}
             {d.hours && <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${open ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>{open ? 'Open now' : 'Closed'}</span>}
             {dist && <span className="text-[10px] text-gray-400">{dist} km</span>}
           </div>
@@ -285,6 +287,7 @@ function Detail({ p, onBack, isFav, onFav }) {
         subSpecialty={p.sub_specialty}
         verified={p.verified && can(p, 'verified_badge')}
         verifiedAt={p.verified_at}
+        contactConfirmed={p.verified && !can(p, 'verified_badge')}
         action={<button onClick={() => onFav(p.id)} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition shrink-0 ${isFav ? 'bg-white text-brand border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}>{isFav ? '★ Saved' : '☆ Save'}</button>}
         tiles={[
           { big: p.accepting_referrals == null ? 'Unknown' : p.accepting_referrals ? 'Accepting' : 'Not accepting', small: 'Referrals', good: p.accepting_referrals },
