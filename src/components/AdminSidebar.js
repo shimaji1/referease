@@ -12,6 +12,7 @@ export default function AdminSidebar({ tab, setTab, counts = {} }) {
         { key: 'edit',      label: '+ Add Provider',      status: 'active' },
         { key: 'dupes',     label: 'Duplicates',          status: 'active', badge: counts.dupes },
         { key: 'claims',    label: 'Claims',              status: 'active', badge: counts.claims },
+        { key: 'claim-invites', label: 'Claim invites',   status: 'active', badge: counts.claimInvites },
         { key: 'announcements', label: 'Announcements',   status: 'active', badge: counts.announcements },
       ],
     },

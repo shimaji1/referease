@@ -137,6 +137,8 @@ export default function AdminPage() {
   const [requestInfoText, setRequestInfoText] = useState('')
   const [requestInfoSending, setRequestInfoSending] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
+  const [claimInvites, setClaimInvites] = useState([])
+  const [pendingClaimInviteCount, setPendingClaimInviteCount] = useState(0)
   const [pendingAnnouncementCount, setPendingAnnouncementCount] = useState(0)
   const [specialties, setSpecialties] = useState([])
   const [doctorRows, setDoctorRows] = useState([])   // [{id?, name, specialty, specialty_code, gender}]
@@ -505,6 +507,22 @@ export default function AdminPage() {
     loadClaims()
   }
 
+  // Separate from loadClaims/the "claims" table above — this covers the OTHER claim
+  // path, /api/claim/invite's instant-ownership admin invites (claim_invites table).
+  // That table has zero anon/authenticated RLS access by design, so it can only be
+  // read through this admin-authenticated API route, not a direct supabase query.
+  const loadClaimInvites = useCallback(async () => {
+    if (!user?.id) return
+    const res = await fetch('/api/claim/list', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: user.id }),
+    }).then(r => r.json()).catch(() => ({}))
+    if (res.invites) {
+      setClaimInvites(res.invites)
+      setPendingClaimInviteCount(res.invites.filter(i => i.status === 'pending').length)
+    }
+  }, [user?.id])
+
   const sendClaimInfoRequest = async (claim) => {
     if (!requestInfoText.trim()) return
     setRequestInfoSending(true)
@@ -519,6 +537,7 @@ export default function AdminPage() {
   }
 
   useEffect(() => { if (authed) loadClaims() }, [authed, loadClaims])
+  useEffect(() => { if (authed) loadClaimInvites() }, [authed, loadClaimInvites])
 
   // Full list + CRUD lives in AnnouncementsTab; this is just the sidebar badge count.
   const loadAnnouncementCount = useCallback(async () => {
@@ -634,7 +653,7 @@ export default function AdminPage() {
         else if (t === 'invites') { setTab('invites') }
         else if (t === 'templates') { setTab('templates') }
         else { setTab(t) }
-      }} counts={{ providers: providers.length, dupes: dupGroups.length, claims: pendingCount, announcements: pendingAnnouncementCount }} />
+      }} counts={{ providers: providers.length, dupes: dupGroups.length, claims: pendingCount, claimInvites: pendingClaimInviteCount, announcements: pendingAnnouncementCount }} />
       <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column" }}>
       <div style={{ padding:"14px 24px", borderBottom:"1px solid #e2e8f0", display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff" }}>
         <h1 style={{ margin:0, fontSize:"16px", fontWeight:600, color:"#334155" }}>Admin</h1>
@@ -1037,9 +1056,36 @@ export default function AdminPage() {
           </>
         )}
 
+        {tab === "claim-invites" && (
+          <>
+            <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"4px" }}>Claim invites</h2>
+            <p style={{ fontSize:"12px", color:"#64748b", marginBottom:"12px" }}>Instant-ownership invites sent via "✉ Invite to claim" on a listing — separate from the self-serve Claims flow. You also get an email at info.refereasy@gmail.com the moment one of these is accepted.</p>
+            {claimInvites.length === 0 ? (
+              <div style={{ background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"30px", textAlign:"center", color:"#64748b", fontSize:"13px" }}>No claim invites sent yet</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+                {claimInvites.map(inv => (
+                  <div key={inv.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#ffffff", border:"1px solid #e2e8f0", borderRadius:"8px", padding:"10px 14px", gap:"8px" }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:"13px", fontWeight:600 }}>{inv.providers?.name || `#${inv.provider_id}`}</div>
+                      <div style={{ fontSize:"11px", color:"#64748b", marginTop:"2px" }}>
+                        Invited: <span style={{ color:"#111827" }}>{inv.email}</span> · sent {new Date(inv.created_at).toLocaleDateString()}
+                        {inv.accepted_at && <> · accepted {new Date(inv.accepted_at).toLocaleDateString()}</>}
+                      </div>
+                    </div>
+                    <span style={{ padding:"4px 12px", fontSize:"11px", fontWeight:700, borderRadius:"999px", flexShrink:0, background: inv.status === 'accepted' ? "#05966920" : "#f59e0b20", color: inv.status === 'accepted' ? "#059669" : "#b45309", border:`1px solid ${inv.status === 'accepted' ? "#05966940" : "#f59e0b40"}` }}>
+                      {inv.status === 'accepted' ? '✓ Accepted' : 'Pending'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
         {tab === "announcements" && <AnnouncementsTab setMsg={setMsg} onCountChange={setPendingAnnouncementCount} />}
         {tab === "blog" && <BlogTab setMsg={setMsg} />}
-        {tab === "analytics" && <AnalyticsTab setMsg={setMsg} />}
+        {tab === "analytics" && <AnalyticsTab setMsg={setMsg} claimInvites={claimInvites} />}
       </div>
       </div>
     </div>
@@ -1666,7 +1712,7 @@ function FunnelRow({ label, value, max, color }) {
   )
 }
 
-function AnalyticsTab({ setMsg }) {
+function AnalyticsTab({ setMsg, claimInvites = [] }) {
   const [range, setRange] = useState(() => presetRange(30))
   const [activePreset, setActivePreset] = useState(30)
   const [showCustom, setShowCustom] = useState(false)
@@ -1715,6 +1761,13 @@ function AnalyticsTab({ setMsg }) {
     { key: 'visitors', label: 'Unique visitors', color: '#f59e0b', data: overview.series.map(d => ({ date: d.date, value: d.visitors })) },
   ]
   const funnelMax = funnel?.visits || 1
+  const inRange = (iso) => {
+    if (!iso) return false
+    const t = new Date(iso).getTime()
+    return t >= (range.start ? range.start.getTime() : -Infinity) && t <= range.end.getTime()
+  }
+  const claimInvitesSent = claimInvites.filter(i => inRange(i.created_at)).length
+  const claimInvitesAccepted = claimInvites.filter(i => inRange(i.accepted_at)).length
 
   return (
     <>
@@ -1751,6 +1804,11 @@ function AnalyticsTab({ setMsg }) {
         <StatCard label="Sessions" value={overview.sessions.toLocaleString()} />
         <StatCard label="Pages / session" value={overview.avgPagesPerSession} />
         <StatCard label="Bounce rate" value={`${overview.bounceRate}%`} />
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:"10px", marginBottom:"16px", maxWidth:"420px" }}>
+        <StatCard label="Claim invites sent" value={claimInvitesSent} />
+        <StatCard label="Claim invites accepted" value={claimInvitesAccepted} />
       </div>
 
       <div style={{ marginBottom:"16px" }}>
