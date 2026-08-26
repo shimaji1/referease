@@ -14,6 +14,7 @@ import { presetRange, fetchTrafficOverview, fetchTopPages, fetchTrafficSources, 
 import { fetchSetting, saveSetting, DEFAULTS } from '@/lib/siteSettings'
 import { DEFAULT_TERMS_HTML, DEFAULT_PRIVACY_HTML } from '@/lib/legalDefaults'
 import { WAIT_TYPES, waitDaysApprox } from '@/lib/waitTime'
+import { DEFAULT_TEMPLATES as DEFAULT_EMAIL_TEMPLATES } from '@/lib/emailTemplateDefaults'
 import { useAuth } from '@/context/AuthContext'
 
 const CATS = ["Family Medicine","Multi-Specialty","Clinic","Specialist","Hospital","Imaging","Lab","Physiotherapy","Rehab"]
@@ -987,7 +988,7 @@ export default function AdminPage() {
         )}
         {tab === "site" && <SettingsTab setMsg={setMsg} />}
         {tab === "invites" && <InvitesTab providers={providers} setMsg={setMsg} />}
-        {tab === "templates" && <TemplatesTab setMsg={setMsg} />}
+        {tab === "templates" && <TemplatesTab setMsg={setMsg} user={user} />}
         {tab === "claims" && (
           <>
             <h2 style={{ fontSize:"16px", fontWeight:700, marginBottom:"12px" }}>Listing Claims</h2>
@@ -2012,53 +2013,171 @@ function InvitesTab({ providers, setMsg }) {
 }
 
 // ─── Email Templates preview tab ───
-function TemplatesTab({ setMsg }) {
+const TEMPLATE_META = {
+  claim: { name: 'Claim your listing', description: 'For providers already in the directory but unclaimed. This is the workhorse invite.' },
+  verified: { name: 'Upgrade to Verified', description: 'For claimed providers who haven\'t upgraded. Emphasizes the trust badge.' },
+  featured: { name: 'Upgrade to Featured', description: 'For Verified subscribers. Sells premium placement.' },
+  cold: { name: 'Cold outreach', description: 'For providers not yet in the directory at all. Bigger ask, more explanation.' },
+  trial_15d: { name: 'Trial reminder — 15 days', description: 'First automated trial-ending reminder, sent to Verified/Featured trials 15 days before expiry.', hasFeaturedVariant: true },
+  trial_7d: { name: 'Trial reminder — 7 days', description: 'Second automated trial reminder, one week before expiry.' },
+  trial_5d: { name: 'Trial reminder — 5 days', description: 'Third automated trial reminder, five days before expiry.', hasFeaturedVariant: true },
+  trial_1d: { name: 'Trial reminder — 1 day', description: 'Final automated trial reminder, sent the day before downgrade to Listed.' },
+  claim_more_info: { name: 'Claim follow-up', description: 'Sent from the Claims tab\'s "Request info" button when a self-serve claim needs more before approval.' },
+  claim_invite: { name: 'Personal claim invite', description: 'Sent from "✉ Invite to claim" on a listing you personally vouch for — instant ownership, skips fax/email verification.' },
+}
+
+// Empty draft shape → the one saved row shape (`email_templates`) and the one default
+// shape (DEFAULT_TEMPLATES) both get normalized into this on load, so the rest of the
+// component never has to care which source the content came from.
+function draftFrom(key, row) {
+  const def = DEFAULT_EMAIL_TEMPLATES[key] || DEFAULT_EMAIL_TEMPLATES.claim
+  if (row) return { subject: row.subject ?? def.subject, body: row.body_html ?? def.body, bodyFeatured: row.body_html_featured ?? def.bodyFeatured ?? '' }
+  return { subject: def.subject, body: def.body, bodyFeatured: def.bodyFeatured || '' }
+}
+
+function TemplatesTab({ setMsg, user }) {
   const [active, setActive] = useState('claim')
-  const TEMPLATES = {
-    claim: {
-      name: 'Claim your listing',
-      subject: 'Your practice is on ReferEasy, claim your free listing',
-      description: 'For providers already in the directory but unclaimed. This is the workhorse invite.',
-    },
-    verified: {
-      name: 'Upgrade to Verified',
-      subject: "You're one step from Verified on ReferEasy",
-      description: 'For claimed providers who haven\'t upgraded. Emphasizes the trust badge.',
-    },
-    featured: {
-      name: 'Upgrade to Featured',
-      subject: 'Get top placement on Ontario\'s referral platform',
-      description: 'For Verified subscribers. Sells premium placement.',
-    },
-    cold: {
-      name: 'Cold outreach',
-      subject: 'Ontario physicians are using ReferEasy, join us',
-      description: 'For providers not yet in the directory at all. Bigger ask, more explanation.',
-    },
+  const [rows, setRows] = useState({})           // key -> saved DB row (or undefined if never saved)
+  const [loadingRows, setLoadingRows] = useState(true)
+  const [draft, setDraft] = useState(() => draftFrom('claim', null))
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(draftFrom('claim', null)))
+  const [variant, setVariant] = useState('verified') // which body trial_15d/trial_5d are currently editing
+  const [resetNonce, setResetNonce] = useState(0)     // bumped to force the rich text editor to remount on reset
+  const [saving, setSaving] = useState(false)
+  const [previewHtml, setPreviewHtml] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  const meta = TEMPLATE_META[active]
+  const dirty = JSON.stringify(draft) !== savedSnapshot
+
+  useEffect(() => {
+    if (!supabase) { setLoadingRows(false); return }
+    supabase.from('email_templates').select('*').then(({ data }) => {
+      const byKey = Object.fromEntries((data || []).map(r => [r.key, r]))
+      setRows(byKey)
+      setLoadingRows(false)
+      // Seed the initially-active template now that real data is in.
+      const d = draftFrom(active, byKey[active])
+      setDraft(d)
+      setSavedSnapshot(JSON.stringify(d))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const selectTemplate = (key) => {
+    if (key === active) return
+    if (dirty && !window.confirm('You have unsaved changes to this template. Switch anyway and lose them?')) return
+    setActive(key)
+    setVariant('verified')
+    const d = draftFrom(key, rows[key])
+    setDraft(d)
+    setSavedSnapshot(JSON.stringify(d))
+    setPreviewHtml('')
+  }
+
+  const resetToDefault = () => {
+    if (!window.confirm(`Reset "${meta.name}" back to the original wording? This only affects your unsaved draft — click Save afterward to make it permanent.`)) return
+    const def = DEFAULT_EMAIL_TEMPLATES[active] || DEFAULT_EMAIL_TEMPLATES.claim
+    setDraft({ subject: def.subject, body: def.body, bodyFeatured: def.bodyFeatured || '' })
+    setResetNonce(n => n + 1)
+  }
+
+  const runPreview = async () => {
+    setPreviewLoading(true)
+    const html = await fetch('/api/outreach/preview', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template: active, tier: variant, subject: draft.subject, body: draft.body, bodyFeatured: draft.bodyFeatured }),
+    }).then(r => r.text()).catch(() => '<p style="padding:20px;color:#dc2626">Preview failed to load.</p>')
+    setPreviewHtml(html)
+    setPreviewLoading(false)
+  }
+
+  // Auto-preview once per template selection so the panel isn't empty on first look.
+  useEffect(() => { if (!loadingRows) runPreview() }, [active, loadingRows]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const save = async () => {
+    if (!supabase) { setMsg('Not connected'); return }
+    setSaving(true)
+    const payload = {
+      key: active,
+      subject: draft.subject,
+      body_html: draft.body,
+      body_html_featured: meta.hasFeaturedVariant ? (draft.bodyFeatured || null) : null,
+      updated_at: new Date().toISOString(),
+      updated_by: user?.id || null,
+    }
+    const { data, error } = await supabase.from('email_templates').upsert(payload).select('*').maybeSingle()
+    setSaving(false)
+    if (error) { setMsg('Save failed: ' + error.message); return }
+    setRows(r => ({ ...r, [active]: data }))
+    setSavedSnapshot(JSON.stringify(draft))
+    setMsg(`Saved "${meta.name}"`)
+    runPreview()
   }
 
   const card = { background:'#ffffff', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'20px' }
+  const bodyValue = variant === 'featured' ? draft.bodyFeatured : draft.body
+  const setBodyValue = (html) => setDraft(d => variant === 'featured' ? { ...d, bodyFeatured: html } : { ...d, body: html })
 
   return (
     <>
       <h2 style={{ fontSize:"18px", fontWeight:700, marginBottom:"6px" }}>Email templates</h2>
-      <p style={{ fontSize:"13px", color:"#64748b", marginBottom:"20px" }}>Preview what recipients will see. Editing templates in-browser is planned for Session 3.</p>
+      <p style={{ fontSize:"13px", color:"#64748b", marginBottom:"20px" }}>Edit the wording of every automated and campaign email. Changes only take effect once you click Save — until then, live sends keep using whatever was last saved (or the original default, if nothing's been saved yet).</p>
 
       <div style={{ display:"grid", gridTemplateColumns:"260px 1fr", gap:"16px" }}>
         <div>
-          {Object.entries(TEMPLATES).map(([k, t]) => (
-            <button key={k} onClick={() => setActive(k)} style={{ all:"unset", cursor:"pointer", display:"block", width:"calc(100% - 16px)", padding:"12px 14px", marginBottom:"6px", borderRadius:"8px", background: active === k ? "#eff6ff" : "#ffffff", border:"1px solid " + (active === k ? "#1e3a5f" : "#e2e8f0"), borderLeft: active === k ? "3px solid #1e3a5f" : "1px solid #e2e8f0" }}>
-              <div style={{ fontSize:"13px", fontWeight:600, color: active === k ? "#1e3a5f" : "#334155" }}>{t.name}</div>
+          {Object.entries(TEMPLATE_META).map(([k, t]) => (
+            <button key={k} onClick={() => selectTemplate(k)} style={{ all:"unset", cursor:"pointer", display:"block", width:"calc(100% - 16px)", padding:"12px 14px", marginBottom:"6px", borderRadius:"8px", background: active === k ? "#eff6ff" : "#ffffff", border:"1px solid " + (active === k ? "#1e3a5f" : "#e2e8f0"), borderLeft: active === k ? "3px solid #1e3a5f" : "1px solid #e2e8f0" }}>
+              <div style={{ fontSize:"13px", fontWeight:600, color: active === k ? "#1e3a5f" : "#334155", display:"flex", alignItems:"center", gap:"6px" }}>
+                {t.name}
+                {rows[k] && <span style={{ fontSize:"9px", fontWeight:700, color:"#059669", background:"#05966920", border:"1px solid #05966940", borderRadius:"999px", padding:"1px 6px" }}>EDITED</span>}
+              </div>
               <div style={{ fontSize:"11px", color:"#94a3b8", marginTop:"3px", lineHeight:1.4 }}>{t.description}</div>
             </button>
           ))}
         </div>
-        <div style={card}>
-          <div style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em" }}>Subject line</div>
-          <div style={{ fontSize:"14px", fontWeight:600, color:"#0f172a", marginTop:"6px", marginBottom:"18px", padding:"10px 14px", background:"#f8fafc", borderRadius:"8px", border:"1px solid #e2e8f0" }}>{TEMPLATES[active].subject}</div>
-          <div style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"6px" }}>Preview</div>
-          <iframe src={`/api/outreach/preview?template=${active}`} style={{ width:"100%", height:"600px", border:"1px solid #e2e8f0", borderRadius:"8px", background:"#f8fafc" }} title="Preview" />
-        </div>
+
+        {loadingRows ? (
+          <div style={{ ...card, textAlign:"center", color:"#94a3b8", fontSize:"13px", padding:"60px" }}>Loading templates…</div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+            <div style={card}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"14px" }}>
+                <h3 style={{ fontSize:"14px", fontWeight:700, margin:0 }}>{meta.name}</h3>
+                <div style={{ display:"flex", gap:"8px" }}>
+                  <button onClick={resetToDefault} style={{ all:"unset", cursor:"pointer", padding:"6px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#f1f5f9", color:"#64748b", border:"1px solid #e2e8f0" }}>Reset to default</button>
+                  <button onClick={save} disabled={saving || !dirty} style={{ all:"unset", cursor: saving || !dirty ? "not-allowed" : "pointer", padding:"6px 16px", fontSize:"11px", fontWeight:700, borderRadius:"6px", background: dirty ? "#1e3a5f" : "#cbd5e1", color:"#fff" }}>{saving ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}</button>
+                </div>
+              </div>
+
+              <label style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em", display:"block", marginBottom:"6px" }}>Subject line</label>
+              <input value={draft.subject} onChange={e => setDraft(d => ({ ...d, subject: e.target.value }))} style={{ width:"100%", padding:"9px 12px", border:"1px solid #cbd5e1", borderRadius:"8px", fontSize:"13px", marginBottom:"16px", boxSizing:"border-box" }} />
+
+              {meta.hasFeaturedVariant && (
+                <div style={{ display:"flex", gap:"4px", marginBottom:"10px" }}>
+                  <button onClick={() => setVariant('verified')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:700, borderRadius:"6px", background: variant === 'verified' ? "#1e3a5f" : "#f1f5f9", color: variant === 'verified' ? "#fff" : "#64748b" }}>Verified-tier wording</button>
+                  <button onClick={() => setVariant('featured')} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:700, borderRadius:"6px", background: variant === 'featured' ? "#1e3a5f" : "#f1f5f9", color: variant === 'featured' ? "#fff" : "#64748b" }}>Featured-tier wording</button>
+                </div>
+              )}
+              <label style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em", display:"block", marginBottom:"6px" }}>
+                Body {meta.hasFeaturedVariant && <span style={{ textTransform:"none", fontWeight:400, color:"#94a3b8" }}>— shown to recipients on the {variant} plan</span>}
+              </label>
+              <RichTextEditor key={`${active}-${variant}-${resetNonce}`} value={bodyValue} onChange={setBodyValue} placeholder="Write the email body…" />
+              <p style={{ fontSize:"11px", color:"#94a3b8", marginTop:"8px", lineHeight:1.5 }}>
+                Tokens you can use: <code>{'{{name}}'}</code> (recipient/provider name), <code>{'{{customMessage}}'}</code> (where a per-send custom note appears, if one was added)
+                {(active.startsWith('trial_')) && <> , <code>{'{{tier}}'}</code> (Verified/Featured), <code>{'{{endDate}}'}</code> (trial end date)</>}.
+              </p>
+            </div>
+
+            <div style={card}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"10px" }}>
+                <div style={{ fontSize:"11px", fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.05em" }}>Preview</div>
+                <button onClick={runPreview} disabled={previewLoading} style={{ all:"unset", cursor:"pointer", padding:"5px 12px", fontSize:"11px", fontWeight:600, borderRadius:"6px", background:"#eff6ff", color:"#1e3a5f", border:"1px solid #1e3a5f30" }}>{previewLoading ? 'Loading…' : '↻ Refresh preview'}</button>
+              </div>
+              <iframe srcDoc={previewHtml} style={{ width:"100%", height:"600px", border:"1px solid #e2e8f0", borderRadius:"8px", background:"#f8fafc" }} title="Preview" />
+            </div>
+          </div>
+        )}
       </div>
     </>
   )

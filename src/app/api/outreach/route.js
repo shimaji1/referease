@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase-server'
-import { buildTemplate, SUBJECTS } from './templates'
+import { buildTemplate, getSubject, fetchTemplateRow } from './templates'
 
 // POST /api/outreach, send invitation campaign
 export async function POST(request) {
@@ -11,13 +11,14 @@ export async function POST(request) {
   if (!resendKey) return NextResponse.json({ error: 'Email service not configured (RESEND_API_KEY missing)' }, { status: 503 })
 
   const supabase = getServiceSupabase()
+  const templateRow = await fetchTemplateRow(template) // fetched once, reused for every recipient below
   let sent = 0
   const errors = []
 
   for (const it of items.slice(0, 100)) {
     if (!it.email) continue
-    const html = buildTemplate(template, { name: it.name, customMessage: message })
-    const subject = SUBJECTS[template] || SUBJECTS.claim
+    const html = await buildTemplate(template, { name: it.name, customMessage: message }, templateRow)
+    const subject = await getSubject(template, { name: it.name }, templateRow)
 
     try {
       const res = await fetch('https://api.resend.com/emails', {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase-server'
+import { buildTemplate, getSubject } from '../../outreach/templates'
 
 const BASE = 'https://www.refereasy.ca'
 
@@ -31,6 +32,7 @@ export async function POST(request) {
   const resendKey = process.env.RESEND_API_KEY
   if (resendKey) {
     const acceptUrl = `${BASE}/claim/accept?token=${invite.invite_token}`
+    const opts = { name: provider.name, acceptUrl }
     try {
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -39,29 +41,8 @@ export async function POST(request) {
           from: 'ReferEasy <info@refereasy.ca>',
           reply_to: 'info.refereasy@gmail.com',
           to: [cleanEmail],
-          subject: `You're invited to claim ${provider.name} on ReferEasy`,
-          html: `
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;padding:0;background:#ffffff">
-  <div style="background:#1e3a5f;padding:22px 32px">
-    <a href="${BASE}" style="text-decoration:none;display:inline-block">
-      <img src="${BASE}/img/logo-white.png" alt="ReferEasy" height="32" style="display:block" />
-    </a>
-  </div>
-  <div style="padding:32px">
-    <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 14px;line-height:1.3">You're invited to claim ${provider.name}</h1>
-    <p style="color:#334155;font-size:15px;line-height:1.65;margin:0 0 16px">You've been invited to take ownership of <strong>${provider.name}</strong>'s listing on ReferEasy — manage availability, referral criteria, forms, and more.</p>
-    <p style="color:#334155;font-size:15px;line-height:1.65;margin:0 0 16px">Click below to set up your account — no verification codes needed.</p>
-    <div style="text-align:center;margin:28px 0">
-      <a href="${acceptUrl}" style="display:inline-block;background:#1e3a5f;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:0.02em">Claim this listing →</a>
-    </div>
-    <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 16px">If you weren't expecting this, you can safely ignore this email — no account will be created.</p>
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0 18px">
-    <p style="color:#94a3b8;font-size:11px;line-height:1.6;margin:0">
-      This is an automated message — please don't reply to this email.<br>
-      ReferEasy · Ontario's live directory for finding a doctor and for physician referrals · <a href="${BASE}" style="color:#94a3b8">refereasy.ca</a>
-    </p>
-  </div>
-</div>`,
+          subject: await getSubject('claim_invite', opts),
+          html: await buildTemplate('claim_invite', opts),
         }),
       })
     } catch (e) {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase-server'
 import { reminderDue } from '@/lib/plan'
-import { buildTemplate, SUBJECTS } from '../../outreach/templates'
+import { buildTemplate, getSubject, fetchTemplateRow } from '../../outreach/templates'
 
 // GET or POST /api/trials/check-reminders
 // Runs once daily. Authenticated by CRON_SECRET header (or query param).
@@ -88,17 +88,18 @@ async function handleReminders(request) {
     })
   }
 
+  const templateRowCache = new Map() // one fetch per distinct trial_* key, not per provider
+
   for (const { provider, tier } of toSend) {
     const templateKey = `trial_${tier}`
+    if (!templateRowCache.has(templateKey)) templateRowCache.set(templateKey, await fetchTemplateRow(templateKey))
+    const templateRow = templateRowCache.get(templateKey)
     const endDate = new Date(provider.trial_ends_at).toLocaleDateString('en-CA', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     })
-    const html = buildTemplate(templateKey, {
-      name: provider.name,
-      tier: provider.plan,
-      endDate,
-    })
-    const subject = SUBJECTS[templateKey] || 'Your ReferEasy trial is ending'
+    const opts = { name: provider.name, tier: provider.plan, endDate }
+    const html = await buildTemplate(templateKey, opts, templateRow)
+    const subject = await getSubject(templateKey, opts, templateRow)
 
     try {
       const res = await fetch('https://api.resend.com/emails', {
