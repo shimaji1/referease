@@ -29,7 +29,7 @@ export async function POST(request) {
     // elsewhere in admin, same as any other listing — claiming just transfers ownership
     // and stops showing "Claim this listing" to everyone else.
     const { error: providerErr } = await sb.from('providers')
-      .update({ owner_id: user_id })
+      .update({ owner_id: user_id, claimed_at: new Date().toISOString() })
       .eq('id', invite.provider_id)
     if (providerErr) return NextResponse.json({ error: providerErr.message }, { status: 400 })
 

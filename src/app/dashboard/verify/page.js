@@ -95,6 +95,14 @@ function VerifyContent() {
     })
     if (claimErr) { setError('Could not submit claim: ' + claimErr.message); setLoading(false); return }
 
+    fetch('/api/claim/notify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider_name: provider?.name, user_email: profile?.email, user_name: profile?.full_name,
+        verification_method: method, cpso_link: isDoctor ? cpsoLink.trim() : null,
+      }),
+    }).catch(() => {}) // claim's already submitted either way — visible in the dashboard even if this fails
+
     setLoading(false); setStep(3)
   }
 

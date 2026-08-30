@@ -490,6 +490,7 @@ export default function AdminPage() {
           owner_id: claim.user_id,
           verified: true,
           verified_at: new Date().toISOString(),
+          claimed_at: new Date().toISOString(),
           cpso_verified: !!claim.cpso_link,
         }
         // A corrected fax number that got verified replaces the stale one on file.
