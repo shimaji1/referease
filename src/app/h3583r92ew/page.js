@@ -483,7 +483,7 @@ export default function AdminPage() {
 
   const handleClaim = async (claim, action) => {
     if (!supabase) return
-    await supabase.from("claims").update({ status: action }).eq("id", claim.id)
+    await supabase.from("claims").update({ status: action, updated_at: new Date().toISOString() }).eq("id", claim.id)
     if (action === 'approved') {
       if (claim.provider_id) {
         const update = {
@@ -1087,7 +1087,7 @@ export default function AdminPage() {
 
         {tab === "announcements" && <AnnouncementsTab setMsg={setMsg} onCountChange={setPendingAnnouncementCount} />}
         {tab === "blog" && <BlogTab setMsg={setMsg} />}
-        {tab === "analytics" && <AnalyticsTab setMsg={setMsg} claimInvites={claimInvites} />}
+        {tab === "analytics" && <AnalyticsTab setMsg={setMsg} claimInvites={claimInvites} claims={claims} />}
       </div>
       </div>
     </div>
@@ -1714,7 +1714,7 @@ function FunnelRow({ label, value, max, color }) {
   )
 }
 
-function AnalyticsTab({ setMsg, claimInvites = [] }) {
+function AnalyticsTab({ setMsg, claimInvites = [], claims = [] }) {
   const [range, setRange] = useState(() => presetRange(30))
   const [activePreset, setActivePreset] = useState(30)
   const [showCustom, setShowCustom] = useState(false)
@@ -1770,6 +1770,8 @@ function AnalyticsTab({ setMsg, claimInvites = [] }) {
   }
   const claimInvitesSent = claimInvites.filter(i => inRange(i.created_at)).length
   const claimInvitesAccepted = claimInvites.filter(i => inRange(i.accepted_at)).length
+  const claimsSubmitted = claims.filter(c => inRange(c.created_at)).length
+  const claimsApproved = claims.filter(c => c.status === 'approved' && inRange(c.updated_at)).length
 
   return (
     <>
@@ -1808,9 +1810,11 @@ function AnalyticsTab({ setMsg, claimInvites = [] }) {
         <StatCard label="Bounce rate" value={`${overview.bounceRate}%`} />
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:"10px", marginBottom:"16px", maxWidth:"420px" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"10px", marginBottom:"16px", maxWidth:"860px" }}>
         <StatCard label="Claim invites sent" value={claimInvitesSent} />
         <StatCard label="Claim invites accepted" value={claimInvitesAccepted} />
+        <StatCard label="Self-serve claims submitted" value={claimsSubmitted} />
+        <StatCard label="Self-serve claims approved" value={claimsApproved} />
       </div>
 
       <div style={{ marginBottom:"16px" }}>
