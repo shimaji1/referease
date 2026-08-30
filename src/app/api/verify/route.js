@@ -62,80 +62,6 @@ export async function POST(request) {
     }
   }
 
-  // ─── SEND FAX CODE ─────────────────────────────────────────────
-  if (action === 'send_fax') {
-    const { user_id, provider_id, fax_number } = body
-    if (!user_id || !provider_id || !fax_number) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-
-    const code = generateCode()
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 min
-
-    // Store code
-    await supabase.from('verification_codes').insert({
-      user_id, provider_id, type: 'fax', code, target: fax_number, expires_at: expiresAt
-    })
-
-    // Send via SRFax
-    const srfaxId = process.env.SRFAX_ACCESS_ID
-    const srfaxPwd = process.env.SRFAX_ACCESS_PWD
-    const srfaxNumber = process.env.SRFAX_CALLER_ID
-
-    if (!srfaxId || !srfaxPwd) {
-      return NextResponse.json({ error: 'Fax service not configured' }, { status: 503 })
-    }
-
-    try {
-      // Clean fax number - remove spaces, dashes, brackets
-      const cleanFax = fax_number.replace(/[\s\-\(\)]/g, '')
-
-      const faxContent = `
-REFEREASE VERIFICATION CODE
-
-Your verification code is: ${code}
-
-This code expires in 30 minutes.
-
-Enter this code at refereasy.ca to verify
-your listing on the ReferEasy platform.
-
-If you did not request this, please ignore this fax.
-
----
-ReferEasy - Ontario Healthcare Referral Platform
-refereasy.ca
-      `.trim()
-
-      // Convert to base64 for SRFax
-      const base64Content = Buffer.from(faxContent).toString('base64')
-
-      const formData = new URLSearchParams()
-      formData.append('access_id', srfaxId)
-      formData.append('access_pwd', srfaxPwd)
-      formData.append('sCallerID', srfaxNumber || '0000000000')
-      formData.append('sSenderEmail', 'verify@refereasy.ca')
-      formData.append('sFaxType', 'SINGLE')
-      formData.append('sToFaxNumber', cleanFax)
-      formData.append('sFileName_1', 'verification.txt')
-      formData.append('sFileContent_1', base64Content)
-
-      const res = await fetch('https://www.srfax.com/SRF_SecWebSvc.php?action=Queue_Fax', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString()
-      })
-
-      const result = await res.json()
-
-      if (result.Status === 'Success') {
-        return NextResponse.json({ sent: true, message: 'Verification code faxed. Check your fax machine.' })
-      } else {
-        return NextResponse.json({ sent: false, error: 'Fax failed: ' + (result.Result || 'Unknown error') }, { status: 500 })
-      }
-    } catch (err) {
-      return NextResponse.json({ error: 'Fax service error: ' + err.message }, { status: 500 })
-    }
-  }
-
   // ─── SEND EMAIL CODE ───────────────────────────────────────────
   if (action === 'send_email') {
     const { user_id, provider_id, email } = body
@@ -212,18 +138,12 @@ refereasy.ca
     await supabase.from('verification_codes').update({ verified: true }).eq('id', records[0].id)
 
     // Update provider verification status
-    const update = type === 'fax' ? { fax_verified: true } : { email_verified: true }
-
-    const { data: provider } = await supabase.from('providers').select('fax_verified, email_verified').eq('id', provider_id).single()
-    const faxDone = type === 'fax' ? true : (provider?.fax_verified || false)
-    const emailDone = type === 'email' ? true : (provider?.email_verified || false)
-
-    await supabase.from('providers').update(update).eq('id', provider_id)
+    await supabase.from('providers').update({ email_verified: true }).eq('id', provider_id)
 
     return NextResponse.json({
       verified: true,
-      message: `${type === 'fax' ? 'Fax' : 'Email'} verified!`,
-      fully_verified: faxDone && emailDone
+      message: 'Email verified!',
+      fully_verified: true
     })
   }
 

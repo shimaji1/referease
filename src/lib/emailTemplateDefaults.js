@@ -106,7 +106,7 @@ export const DEFAULT_TEMPLATES = {
 </ul>
 {{customMessage}}
 <p><strong><a href="${BASE}/pricing">Upgrade to Verified, $29/mo →</a></strong></p>
-<p>Verification takes a couple minutes: a fax code, an email code, and — for individual physicians — an optional CPSO check. No ID required.</p>`,
+<p>Verification takes a couple minutes: an email code, and — for individual physicians — an optional CPSO check. No ID required.</p>`,
   },
   featured: {
     subject: "Get top placement on Ontario's referral platform",

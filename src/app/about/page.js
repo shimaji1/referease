@@ -12,7 +12,7 @@ const faqs = [
   { q: 'Can I use ReferEasy to find a family doctor accepting new patients?', a: 'Yes. Search by location and filter to family physicians currently accepting new patients, no account or login required.' },
   { q: 'Is ReferEasy free?', a: 'Yes, for everyone. Searching, viewing listings, and downloading referral forms is free for the public and for physicians. Providers can claim and manage their own listing for free, with optional paid plans for extra visibility.' },
   { q: 'Is ReferEasy affiliated with CPSO or the Ontario Ministry of Health?', a: 'No. ReferEasy is an independent, privately built directory. It is not affiliated with the College of Physicians and Surgeons of Ontario (CPSO) or the Ministry of Health, though verified provider listings are cross-checked against CPSO where applicable.' },
-  { q: 'How is the information kept accurate and current?', a: "Every listing is managed by the provider themselves, not scraped from an old directory. Providers marked Verified have completed a fax and email verification process reviewed by ReferEasy's team before the badge is granted." },
+  { q: 'How is the information kept accurate and current?', a: "Every listing is managed by the provider themselves, not scraped from an old directory. Providers marked Verified have completed an email verification process reviewed by ReferEasy's team before the badge is granted." },
 ]
 
 export default function AboutPage() {

@@ -14,12 +14,7 @@ function VerifyContent() {
   const physicianId = searchParams.get('physician_id')   // optional: claiming a doctor profile
 
   const [provider, setProvider] = useState(null)
-  const [step, setStep] = useState(1) // 1=Fax, 2=Email, 3=CPSO, 4=Submitted
-  const [faxMode, setFaxMode] = useState('onfile') // 'onfile' | 'correcting' | 'skipped'
-  const [correctedFax, setCorrectedFax] = useState('')
-  const [verifiedFaxNumber, setVerifiedFaxNumber] = useState('')
-  const [faxCode, setFaxCode] = useState('')
-  const [faxSent, setFaxSent] = useState(false)
+  const [step, setStep] = useState(1) // 1=Email, 2=CPSO, 3=Submitted
   const [email, setEmail] = useState('')
   const [emailCode, setEmailCode] = useState('')
   const [emailSent, setEmailSent] = useState(false)
@@ -28,14 +23,12 @@ function VerifyContent() {
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
 
-  const faxOnFile = provider?.fax || ''
   // CPSO only applies to individual physicians — a clinic, lab, or imaging centre has
   // no CPSO number of its own. Defaulted from the listing's category, but the
   // claimant can override it — directory category tags aren't always right (a solo
   // specialist mistagged as a clinic, or vice versa), and a hard-coded hide would
   // just be wrong for them.
   const [isDoctor, setIsDoctor] = useState(null)
-  const faxWasSkipped = faxMode === 'skipped'
 
   const [existingClaim, setExistingClaim] = useState(null)
 
@@ -46,10 +39,7 @@ function VerifyContent() {
         setProvider(data)
         setEmail(data.email || profile?.email || '')
         setIsDoctor(!!physicianId || ['Specialist', 'Family Medicine'].includes(data.category))
-        // No fax on file at all — nothing to verify against, skip straight to email
-        if (!data.fax && !data.fax_verified) { setFaxMode('skipped'); setStep(2) }
-        if (data.fax_verified) setStep(2)
-        if (data.fax_verified && data.email_verified) setStep(3)
+        if (data.email_verified) setStep(2)
       }
     })
     // A claim already submitted for this listing? Don't let them submit a duplicate.
@@ -67,37 +57,7 @@ function VerifyContent() {
     return res.json()
   }
 
-  // Step 1: Fax — sent to the number on file by default, proving control of the
-  // number tied to the listing. If that number's stale, they can provide a
-  // corrected one instead (weaker signal, self-reported — flagged as such for the
-  // reviewer), or skip fax entirely if the practice doesn't have one at all.
-  const handleSendFax = async () => {
-    const target = faxMode === 'correcting' ? correctedFax.trim() : faxOnFile
-    if (faxMode === 'correcting' && !target) { setError('Enter a fax number'); return }
-    setLoading(true); setError(''); setMsg('')
-    const result = await callApi({ action: 'send_fax', user_id: user.id, provider_id: parseInt(providerId), fax_number: target })
-    setLoading(false)
-    if (result.error || !result.sent) { setError(result.error || 'Failed to send fax'); return }
-    setFaxSent(true); setMsg(result.message)
-  }
-  const handleVerifyFax = async () => {
-    if (!faxCode || faxCode.length !== 6) { setError('Enter the 6-digit code'); return }
-    setLoading(true); setError('')
-    const result = await callApi({ action: 'verify_code', user_id: user.id, provider_id: parseInt(providerId), type: 'fax', code: faxCode })
-    setLoading(false)
-    if (!result.verified) { setError(result.message || 'Invalid code'); return }
-    setVerifiedFaxNumber(faxMode === 'correcting' ? correctedFax.trim() : faxOnFile)
-    setMsg('Fax verified!'); setStep(2)
-  }
-  const startCorrectingFax = () => {
-    setFaxMode('correcting'); setFaxSent(false); setFaxCode(''); setError(''); setMsg('')
-  }
-  const skipFaxEntirely = () => {
-    setFaxMode('skipped'); setError(''); setMsg('')
-    setStep(2)
-  }
-
-  // Step 2: Email
+  // Step 1: Email
   const handleSendEmail = async () => {
     if (!email) { setError('Enter an email'); return }
     setLoading(true); setError(''); setMsg('')
@@ -112,18 +72,16 @@ function VerifyContent() {
     const result = await callApi({ action: 'verify_code', user_id: user.id, provider_id: parseInt(providerId), type: 'email', code: emailCode })
     setLoading(false)
     if (!result.verified) { setError(result.message || 'Invalid code'); return }
-    setMsg('Email verified!'); setStep(3)
+    setMsg('Email verified!'); setStep(2)
   }
 
-  // Step 3: submit for admin review — fax and CPSO are both just evidence at this
-  // point (present, corrected, or skipped); no auto-grant either way. An admin looks
-  // at whatever was provided and decides, following up by email for anything more
-  // they need before approving.
+  // Step 2: submit for admin review — CPSO is just evidence at this point (present or
+  // skipped); no auto-grant either way. An admin looks at whatever was provided and
+  // decides, following up by email for anything more they need before approving.
   const handleSubmitForReview = async () => {
     setLoading(true); setError(''); setMsg('')
 
-    const faxCorrected = faxMode === 'correcting' && !!verifiedFaxNumber
-    const parts = [faxWasSkipped ? 'fax:skipped' : (faxCorrected ? 'fax:corrected' : 'fax:onfile'), 'email']
+    const parts = ['email']
     if (isDoctor) parts.push(cpsoLink.trim() ? 'cpso' : 'cpso:skipped')
     const method = parts.join('+')
 
@@ -132,12 +90,12 @@ function VerifyContent() {
       user_email: profile?.email, user_name: profile?.full_name,
       status: 'pending',
       verification_method: method,
-      verify_email: email, verify_fax: faxWasSkipped ? null : verifiedFaxNumber,
+      verify_email: email,
       cpso_link: isDoctor ? (cpsoLink.trim() || null) : null,
     })
     if (claimErr) { setError('Could not submit claim: ' + claimErr.message); setLoading(false); return }
 
-    setLoading(false); setStep(4)
+    setLoading(false); setStep(3)
   }
 
   const inp = "w-full px-4 py-3 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 placeholder:text-gray-400"
@@ -173,67 +131,18 @@ function VerifyContent() {
         ) : (
         <>
         <div className="flex gap-1 mb-6">
-          {[1,2,3].map(s => <div key={s} className={`h-1.5 flex-1 rounded-full transition ${step > s ? 'bg-emerald-500' : step === s ? 'bg-brand' : 'bg-gray-200'}`} />)}
+          {[1,2].map(s => <div key={s} className={`h-1.5 flex-1 rounded-full transition ${step > s ? 'bg-emerald-500' : step === s ? 'bg-brand' : 'bg-gray-200'}`} />)}
         </div>
 
         {error && <div className="mb-4 p-3 rounded-xl text-sm font-medium bg-red-50 text-red-700 border border-red-200">{error}</div>}
         {msg && <div className="mb-4 p-3 rounded-xl text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">{msg}</div>}
 
-        {/* Step 1: Fax */}
-        {step >= 2 && !faxWasSkipped && (
-          <div className={stepDone}><span>✓</span> Fax code verified {faxMode === 'correcting' && '(corrected number — flagged for review)'}</div>
-        )}
+        {/* Step 1: Email */}
+        {step >= 2 && <div className={stepDone}><span>✓</span> Email code verified</div>}
         {step === 1 && (
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center text-brand font-bold text-sm">1</div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm">Fax Verification</h3>
-                <p className="text-xs text-gray-500">We'll fax a 6-digit code to confirm you control the practice's fax line</p>
-              </div>
-            </div>
-            {!faxSent ? (
-              <>
-                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                  {faxMode === 'correcting' ? 'Corrected fax number' : 'Fax number on file'}
-                </label>
-                {faxMode === 'correcting' ? (
-                  <input className={inp} value={correctedFax} onChange={e => setCorrectedFax(e.target.value)} placeholder="(905) 555-0124" />
-                ) : (
-                  <input className={inp + ' bg-gray-50 text-gray-500'} value={faxOnFile} disabled />
-                )}
-                {faxMode === 'correcting' && <p className="text-[11px] text-amber-600 mt-1.5">Self-reported numbers are weaker evidence — flagged for our reviewer to double-check.</p>}
-                <button onClick={handleSendFax} disabled={loading || (faxMode === 'correcting' && !correctedFax.trim())} className={`${btn} mt-3`}>{loading ? 'Sending...' : 'Send Fax Code'}</button>
-                <div className="flex gap-4 mt-3">
-                  {faxMode === 'correcting'
-                    ? <button onClick={() => setFaxMode('onfile')} className="text-xs text-gray-500 hover:text-brand underline">← Use the number on file instead</button>
-                    : <button onClick={startCorrectingFax} className="text-xs text-gray-500 hover:text-brand underline">This isn't our fax number anymore →</button>}
-                  <button onClick={skipFaxEntirely} className="text-xs text-gray-500 hover:text-brand underline">We don't have a fax →</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Enter the 6-digit code from your fax</label>
-                <input className={inp + " text-center text-2xl tracking-widest font-bold"} value={faxCode} onChange={e => setFaxCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" maxLength={6} />
-                <div className="flex gap-3 mt-3">
-                  <button onClick={handleVerifyFax} disabled={loading || faxCode.length !== 6} className={btn}>{loading ? 'Verifying...' : 'Verify Code'}</button>
-                  <button onClick={() => { setFaxSent(false); setFaxCode(''); setMsg('') }} className="px-5 py-3 bg-gray-100 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-200 transition">Resend</button>
-                </div>
-                <div className="flex gap-4 mt-3">
-                  {faxMode !== 'correcting' && <button onClick={startCorrectingFax} className="text-xs text-gray-500 hover:text-brand underline">Didn't get it? This isn't our fax number anymore →</button>}
-                  <button onClick={skipFaxEntirely} className="text-xs text-gray-500 hover:text-brand underline">We don't have a fax →</button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Step 2: Email */}
-        {step >= 3 && <div className={stepDone}><span>✓</span> Email code verified</div>}
-        {step === 2 && (
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center text-brand font-bold text-sm">2</div>
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">Email Verification</h3>
                 <p className="text-xs text-gray-500">We'll email a 6-digit code to confirm your contact email</p>
@@ -258,11 +167,11 @@ function VerifyContent() {
           </div>
         )}
 
-        {/* Step 3: CPSO (doctors only, optional) -> submit */}
-        {step === 3 && (
+        {/* Step 2: CPSO (doctors only, optional) -> submit */}
+        {step === 2 && (
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center text-brand font-bold text-sm">3</div>
+              <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center text-brand font-bold text-sm">2</div>
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{isDoctor ? 'CPSO Profile (optional)' : 'Almost done'}</h3>
                 <p className="text-xs text-gray-500">{isDoctor ? "A link to your CPSO profile speeds up review, but you can skip it and our team will follow up if needed" : "Nothing else needed — our team will review your claim"}</p>
@@ -292,22 +201,22 @@ function VerifyContent() {
           </div>
         )}
 
-        {/* Step 4: Submitted */}
-        {step === 4 && (
+        {/* Step 3: Submitted */}
+        {step === 3 && (
           <div className="bg-white border-2 border-brand/30 rounded-xl p-8 text-center">
             <div className="text-4xl mb-3">📋</div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Submitted for review</h3>
-            <p className="text-sm text-gray-500 mb-4">Our team reviews the fax/email/CPSO evidence within 1–2 business days, and may email you if they need anything more. You'll hear back once it's decided — your listing and verified badge go live at that point, not before.</p>
+            <p className="text-sm text-gray-500 mb-4">Our team reviews the email/CPSO evidence within 1–2 business days, and may email you if they need anything more. You'll hear back once it's decided — your listing and verified badge go live at that point, not before.</p>
             <div className="flex gap-3 justify-center">
               <Link href="/dashboard" className={btn}>Go to Dashboard</Link>
             </div>
           </div>
         )}
 
-        {step < 4 && (
+        {step < 3 && (
           <div className="mt-6 bg-gray-100 rounded-xl p-4 text-xs text-gray-500 leading-relaxed">
             <p className="font-semibold text-gray-700 mb-1">Why these steps?</p>
-            <p>The fax code confirms you control the practice's fax line, the email code confirms your contact email{isDoctor && ', and the CPSO link speeds up confirming your license'}. A member of our team reviews everything before your listing is verified and access is granted — nothing here auto-approves, and they may reach out if they need more.</p>
+            <p>The email code confirms your contact email{isDoctor && ', and the CPSO link speeds up confirming your license'}. A member of our team reviews everything before your listing is verified and access is granted — nothing here auto-approves, and they may reach out if they need more.</p>
           </div>
         )}
         </>

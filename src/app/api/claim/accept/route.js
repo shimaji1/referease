@@ -23,7 +23,7 @@ export async function POST(request) {
       .select('id, provider_id, email, status, providers(id, name)').eq('invite_token', token).eq('status', 'pending').maybeSingle()
     if (!invite) return NextResponse.json({ error: 'Invite not found or already used' }, { status: 404 })
 
-    // Ownership only — skips the fax/email verification CODE hassle (the admin who sent
+    // Ownership only — skips the email verification CODE hassle (the admin who sent
     // this invite already knows who they're dealing with), but deliberately does NOT set
     // verified. That's a separate, distinct decision made via the plan-tier dropdown
     // elsewhere in admin, same as any other listing — claiming just transfers ownership

@@ -195,7 +195,7 @@ export default function PricingPage() {
             <div className="bg-white border-2 border-gray-100 rounded-2xl p-6 text-center">
               <img src="/img/features/build-trust.png" alt="" className="w-full h-40 object-contain mb-4" />
               <h3 className="font-bold text-gray-900 mb-2">Build instant trust</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">The Verified badge, earned through fax, email, and ID verification, signals to referring doctors that your listing is real, current, and physician managed.</p>
+              <p className="text-sm text-gray-600 leading-relaxed">The Verified badge, earned through email verification and admin review, signals to referring doctors that your listing is real, current, and physician managed.</p>
             </div>
             <div className="bg-white border-2 border-gray-100 rounded-2xl p-6 text-center">
               <img src="/img/features/right-referrals.png" alt="" className="w-full h-40 object-contain mb-4" />

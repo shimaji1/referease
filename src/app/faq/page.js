@@ -19,7 +19,7 @@ const GROUPS = [
       { q: 'Can I use it to find a family doctor accepting new patients?', a: 'Yes — search by location and filter to family physicians currently accepting new patients. No account or login required.' },
       { q: 'Is ReferEasy free?', a: 'Yes, for everyone. Searching and viewing listings is free for the public and physicians. Providers can claim and manage a listing for free, with optional paid plans for extra visibility.' },
       { q: 'Is ReferEasy affiliated with CPSO or the Ministry of Health?', a: 'No. ReferEasy is an independent, privately built directory, not affiliated with the College of Physicians and Surgeons of Ontario or the Ministry of Health, though verified listings are cross-checked against the CPSO registry where applicable.' },
-      { q: 'How is listing information kept accurate?', a: "Every listing is managed by the provider themselves, not scraped from an old source. Verified listings have completed fax and email verification reviewed by ReferEasy's team." },
+      { q: 'How is listing information kept accurate?', a: "Every listing is managed by the provider themselves, not scraped from an old source. Verified listings have completed email verification reviewed by ReferEasy's team." },
     ],
   },
   {
@@ -35,10 +35,9 @@ const GROUPS = [
     id: 'claiming',
     title: 'Claiming a listing',
     items: [
-      { q: "How do I claim my practice's listing?", a: "Search for it from your dashboard's Claim Your Listing page by name, phone, fax, or practitioner number, then complete fax and email verification.", link: { href: '/support#claim', label: 'Full walkthrough →' } },
-      { q: 'What does fax verification involve?', a: "We fax a 6-digit code to the number already on file for the listing, proving you control it. If that number is stale, you can provide a corrected one, or skip it entirely if the practice has no fax line." },
+      { q: "How do I claim my practice's listing?", a: "Search for it from your dashboard's Claim Your Listing page by name, phone, fax, or practitioner number, then complete email verification.", link: { href: '/support#claim', label: 'Full walkthrough →' } },
       { q: 'Do I need a CPSO profile link?', a: "Optional for individual physicians, and not applicable to clinics or facilities at all. It speeds up review, but you can skip it and our team will look you up or follow up if needed." },
-      { q: 'Is every claim reviewed by a person?', a: 'Yes, always. Nothing is auto-approved, even when the fax, email, and CPSO evidence all line up cleanly. If something is missing, we email you asking for it.' },
+      { q: 'Is every claim reviewed by a person?', a: 'Yes, always. Nothing is auto-approved, even when the email and CPSO evidence all line up cleanly. If something is missing, we email you asking for it.' },
       { q: 'How long does claim review take?', a: 'Usually 1–2 business days.' },
     ],
   },

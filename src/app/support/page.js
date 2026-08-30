@@ -77,12 +77,9 @@ export default async function SupportPage() {
           <p>Most Ontario practices are already in our directory, just not yet claimed by their owner. To claim yours:</p>
           <Step n={1}>From your dashboard, go to <strong>Claim Your Listing</strong> and search by practice name, phone, fax number, or practitioner number.</Step>
           <Step n={2}>Find your listing and click <strong>Claim &amp; Verify</strong>.</Step>
-          <Step n={3}>
-            <strong>Fax verification</strong> — we fax a 6-digit code to the fax number already on file for the listing, so it actually proves something. If that number is stale, you can provide a corrected one instead, or tell us you don't have a fax line at all to skip this step.
-          </Step>
-          <Step n={4}><strong>Email verification</strong> — we email a 6-digit code to confirm your contact address.</Step>
-          <Step n={5}><strong>CPSO profile link</strong> (optional, individual physicians only, not clinics or facilities) — paste a link to your CPSO profile so our team can confirm your license in one click. You can skip this too; we'll look you up ourselves or follow up if we can't find you.</Step>
-          <p><strong>Every claim is reviewed by our team before access is granted</strong> — usually within 1–2 business days. Nothing is auto-approved, even if the fax, email, and CPSO evidence all line up cleanly; a person looks at it first. If anything's missing or unclear, we'll email you asking for it — just reply directly. You'll get a final decision either way.</p>
+          <Step n={3}><strong>Email verification</strong> — we email a 6-digit code to confirm your contact address.</Step>
+          <Step n={4}><strong>CPSO profile link</strong> (optional, individual physicians only, not clinics or facilities) — paste a link to your CPSO profile so our team can confirm your license in one click. You can skip this too; we'll look you up ourselves or follow up if we can't find you.</Step>
+          <p><strong>Every claim is reviewed by our team before access is granted</strong> — usually within 1–2 business days. Nothing is auto-approved, even if the email and CPSO evidence all line up cleanly; a person looks at it first. If anything's missing or unclear, we'll email you asking for it — just reply directly. You'll get a final decision either way.</p>
           <p className="bg-brand/5 border border-brand/10 rounded-lg px-4 py-3">Not sure your practice is listed yet? <Link href="/search" className="text-brand font-semibold hover:underline">Search first</Link> before creating a new one, most Ontario practices already have an unclaimed entry, and creating a duplicate just splits your referrals across two listings.</p>
         </Section>
 

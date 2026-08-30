@@ -6,7 +6,7 @@ const BASE = 'https://www.refereasy.ca'
 
 // POST /api/claim/invite — { provider_id, email, user_id }
 // Admin-only (checked via profiles.is_admin, same pattern as the other admin routes).
-// Skips the fax/email verification flow entirely — for people the admin personally
+// Skips the email verification flow entirely — for people the admin personally
 // knows and vouches for, not a public self-serve claim path.
 export async function POST(request) {
   const sb = getServiceSupabase()

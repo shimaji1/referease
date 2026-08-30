@@ -61,7 +61,7 @@ export default function HomePage() {
   const features = [
     { icon: 'clock', title: 'Real-time availability', text: 'See who is accepting referrals right now, with provider-managed wait times, before you send anything.' },
     { icon: 'file', title: 'Criteria & forms up front', text: 'Referral requirements and downloadable intake forms on every profile, so referrals arrive complete the first time.' },
-    { icon: 'shield', title: 'Verified providers', text: 'Listings verified by fax and email code, reviewed by our team, so the contact details actually work.' },
+    { icon: 'shield', title: 'Verified providers', text: 'Listings verified by email code, reviewed by our team, so the contact details actually work.' },
     { icon: 'doctor', title: 'Doctor-level profiles', text: 'Refer to a physician, not just a building. Every doctor has their own profile, availability, and locations.' },
     { icon: 'filter', title: 'Smart filters', text: 'Filter by specialty, language, wait time, distance, hours, and gender to find the right match for your patient.' },
     { icon: 'fax', title: 'Built for how you work', text: 'Fax numbers, phone, hours and addresses front and centre, the details your office actually uses.' },
@@ -70,9 +70,9 @@ export default function HomePage() {
   const faqs = [
     { q: 'Can patients use ReferEasy to find a family doctor accepting new patients?', a: "Yes. Anyone, patient or physician, can search ReferEasy free, no account needed. It's a common use: searching by location and filtering to family physicians who are currently accepting new patients." },
     { q: 'Is ReferEasy free for family physicians?', a: 'Yes, searching, filtering, and downloading referral forms is free for referring physicians and their staff, always.' },
-    { q: 'How do I know the information is current?', a: 'Providers manage their own availability, wait times and criteria, and verified listings have confirmed their fax and email, reviewed by our team.' },
+    { q: 'How do I know the information is current?', a: 'Providers manage their own availability, wait times and criteria, and verified listings have confirmed their email, reviewed by our team.' },
     { q: "I'm a specialist, is my clinic already listed?", a: 'Very likely. We list thousands of Ontario providers. Create a free account, search your name or clinic, and claim your listing to take control of it.' },
-    { q: 'What does claiming a listing involve?', a: 'A code faxed to your practice and a code emailed to you, reviewed by our team before access is granted, it protects your listing from being edited by anyone else.' },
+    { q: 'What does claiming a listing involve?', a: 'A code emailed to you, reviewed by our team before access is granted, it protects your listing from being edited by anyone else.' },
     { q: 'Do referrals go through ReferEasy?', a: 'No, you keep your existing workflow. ReferEasy makes sure the referral you fax is complete, well-matched, and going to someone who can take it.' },
   ]
 
@@ -164,7 +164,7 @@ export default function HomePage() {
           {[
             ['1', 'Search live availability', 'Filter by specialty, wait time, language and distance. Only see providers who can actually take your patient.'],
             ['2', 'Check criteria & forms', 'Every profile shows referral requirements and downloadable forms, so nothing is missing.'],
-            ['3', 'Send with confidence', 'Fax and contact details are verified and current. Complete referral, right provider, first try.'],
+            ['3', 'Send with confidence', 'Contact details are verified and current. Complete referral, right provider, first try.'],
           ].map(([n, t, d]) => (
             <div key={n} className="relative bg-gray-50 border border-gray-200 rounded-2xl p-6 hover:border-brand/30 transition">
               <div className="w-9 h-9 rounded-xl bg-brand text-white font-bold flex items-center justify-center text-sm mb-4">{n}</div>

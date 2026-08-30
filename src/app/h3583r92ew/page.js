@@ -2023,7 +2023,7 @@ const TEMPLATE_META = {
   trial_5d: { name: 'Trial reminder — 5 days', description: 'Third automated trial reminder, five days before expiry.', hasFeaturedVariant: true },
   trial_1d: { name: 'Trial reminder — 1 day', description: 'Final automated trial reminder, sent the day before downgrade to Listed.' },
   claim_more_info: { name: 'Claim follow-up', description: 'Sent from the Claims tab\'s "Request info" button when a self-serve claim needs more before approval.' },
-  claim_invite: { name: 'Personal claim invite', description: 'Sent from "✉ Invite to claim" on a listing you personally vouch for — instant ownership, skips fax/email verification.' },
+  claim_invite: { name: 'Personal claim invite', description: 'Sent from "✉ Invite to claim" on a listing you personally vouch for — instant ownership, skips email verification.' },
 }
 
 // Empty draft shape → the one saved row shape (`email_templates`) and the one default
